@@ -1,0 +1,347 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useAuth } from "@/app/providers";
+import {
+  LogOut,
+  LayoutDashboard,
+  Trophy,
+  User as UserIcon,
+  ShieldAlert,
+  Bell,
+  Settings as SettingsIcon,
+  Menu,
+  X,
+  TrendingUp,
+  Sparkles,
+  Layers,
+  HelpCircle
+} from "lucide-react";
+
+export function Navbar() {
+  const pathname = usePathname();
+  const { user, profile, signOut } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const isLinkActive = (path: string) => {
+    return pathname === path;
+  };
+
+  const navItemClass = (path: string) =>
+    `relative py-1.5 px-3 text-xs font-bold tracking-wide uppercase rounded-lg transition-all duration-200 ${
+      isLinkActive(path)
+        ? "bg-[#EAB308] text-[#0A0A0A]"
+        : "bg-transparent text-white hover:text-[#EAB308] hover:bg-white/5"
+    }`;
+
+  const mobileNavItemClass = (path: string) =>
+    `block text-xs font-bold uppercase tracking-wider rounded-lg py-2 px-4 transition-all duration-200 ${
+      isLinkActive(path)
+        ? "bg-[#EAB308] text-[#0A0A0A]"
+        : "bg-transparent text-white hover:text-[#EAB308] hover:bg-white/5"
+    }`;
+
+  const isStaff = profile && ["ADMIN", "FACULTY", "PLACEMENT_OFFICER", "PRINCIPAL"].includes(profile.role);
+
+  // Mock Notifications for high-fidelity interactive feel
+  const mockNotifications = [
+    { id: 1, text: "Placement readiness report updated for CSE-A.", time: "10m ago" },
+    { id: 2, text: "3 students reached 4★ CodeChef rating tier today.", time: "2h ago" },
+    { id: 3, text: "GK Sir requested access to CP Training cohort.", time: "1d ago" }
+  ];
+
+  return (
+    <header
+      className={`sticky top-0 z-50 w-full transition-all duration-300 ${
+        scrolled
+          ? "border-b border-[#262626]/80 bg-[#0A0A0A]/75 backdrop-blur-xl shadow-lg"
+          : "border-b border-transparent bg-transparent"
+      }`}
+    >
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        
+        {/* Brand Logo & Title */}
+        <div className="flex items-center gap-3">
+          <Link href="/" className="flex items-center gap-3 group">
+            {/* Hexagon Brain SVG Icon */}
+            <div className="relative flex h-10 w-10 shrink-0 items-center justify-center transition-transform duration-300 group-hover:scale-105">
+              <svg
+                className="h-full w-full"
+                viewBox="0 0 100 100"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                {/* Outer Hexagon with subtle glow */}
+                <polygon
+                  points="50,8 88,30 88,74 50,96 12,74 12,30"
+                  stroke="url(#navHexGradient)"
+                  strokeWidth="3.5"
+                  fill="rgba(234, 179, 8, 0.05)"
+                  className="transition-colors duration-300 group-hover:fill-yellow-600/10"
+                />
+                
+                {/* Neural Brain Connections */}
+                {/* Central Stem */}
+                <path d="M50,22 L50,78" stroke="url(#navBrainGradient)" strokeWidth="2.5" strokeLinecap="round" />
+                
+                {/* Left Hemisphere branches */}
+                <path d="M50,30 C34,30 28,40 28,52 C28,64 38,70 50,70" stroke="url(#navBrainGradient)" strokeWidth="2" strokeLinecap="round" fill="none" />
+                <path d="M50,42 C40,42 36,47 36,52 C36,57 40,60 50,60" stroke="url(#navBrainGradient)" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+                
+                {/* Right Hemisphere branches */}
+                <path d="M50,30 C66,30 72,40 72,52 C72,64 62,70 50,70" stroke="url(#navBrainGradient)" strokeWidth="2" strokeLinecap="round" fill="none" />
+                <path d="M50,42 C60,42 64,47 64,52 C64,57 60,60 50,60" stroke="url(#navBrainGradient)" strokeWidth="1.8" strokeLinecap="round" fill="none" />
+
+                {/* Nodes (Circles representing synapse points) */}
+                <circle cx="50" cy="30" r="3" fill="#F59E0B" />
+                <circle cx="50" cy="52" r="3" fill="#F59E0B" />
+                <circle cx="50" cy="70" r="3" fill="#F59E0B" />
+                <circle cx="28" cy="52" r="3" fill="#EAB308" />
+                <circle cx="72" cy="52" r="3" fill="#EAB308" />
+                <circle cx="36" cy="52" r="2.5" fill="#22C55E" />
+                <circle cx="64" cy="52" r="2.5" fill="#22C55E" />
+
+                {/* Gradients */}
+                <defs>
+                  <linearGradient id="navHexGradient" x1="50" y1="8" x2="50" y2="96" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#F59E0B" />
+                    <stop offset="100%" stopColor="#EAB308" />
+                  </linearGradient>
+                  <linearGradient id="navBrainGradient" x1="28" y1="30" x2="72" y2="70" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#EAB308" />
+                    <stop offset="50%" stopColor="#F59E0B" />
+                    <stop offset="100%" stopColor="#22C55E" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+            
+            {/* Title Text */}
+            <div className="flex flex-col">
+              <span className="text-sm font-extrabold tracking-wider uppercase text-[#FAFAFA] group-hover:text-[#EAB308] transition-colors">
+                ACE Talent
+              </span>
+              <span className="text-[9px] font-black tracking-widest text-[#A3A3A3] leading-none">
+                INTELLIGENCE
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Center Desktop Navigation Links */}
+        <nav className="hidden md:flex items-center gap-4">
+          <Link href="/dashboard" className={navItemClass("/dashboard")}>
+            Dashboard
+          </Link>
+          <Link href="/leaderboard" className={navItemClass("/leaderboard")}>
+            Leaderboard
+          </Link>
+          <Link href="/analytics" className={navItemClass("/analytics")}>
+            Analytics
+          </Link>
+          <Link href="/departments" className={navItemClass("/departments")}>
+            Departments
+          </Link>
+          <Link href="/insights" className={navItemClass("/insights")}>
+            Insights
+          </Link>
+        </nav>
+
+        {/* Right Navigation Controls */}
+        <div className="flex items-center gap-3">
+          
+          {/* Notifications Trigger */}
+          <div className="relative">
+            <button
+              onClick={() => {
+                setIsNotificationsOpen(!isNotificationsOpen);
+                setIsProfileDropdownOpen(false);
+              }}
+              className="p-2 rounded-lg border border-[#262626] hover:border-[#EAB308]/30 bg-[#111111] text-[#A3A3A3] hover:text-[#FAFAFA] transition-all relative animate-none"
+            >
+              <Bell className="h-4 w-4" />
+              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
+            </button>
+            
+            {/* Notifications Dropdown Modal */}
+            {isNotificationsOpen && (
+              <div className="absolute right-0 mt-2 w-80 rounded-xl border border-[#262626] bg-[#111111] p-4 shadow-2xl z-50">
+                <div className="flex items-center justify-between border-b border-[#262626] pb-2 mb-3">
+                  <span className="text-xs font-bold text-[#FAFAFA] uppercase tracking-wider">System Alerts</span>
+                  <span className="text-[10px] font-semibold text-[#22C55E]">Real-time active</span>
+                </div>
+                <div className="space-y-3">
+                  {mockNotifications.map((notif) => (
+                    <div key={notif.id} className="text-left text-xs border-b border-[#262626]/50 pb-2 last:border-0 last:pb-0">
+                      <p className="text-[#FAFAFA] font-medium leading-relaxed">{notif.text}</p>
+                      <span className="text-[9px] text-[#A3A3A3] mt-1 block">{notif.time}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Settings Trigger */}
+          {user && isStaff && (
+            <Link
+              href="/admin"
+              className="p-2 rounded-lg border border-[#262626] hover:border-[#EAB308]/30 bg-[#111111] text-[#A3A3A3] hover:text-[#FAFAFA] transition-all"
+              title="Platform Console Administration"
+            >
+              <SettingsIcon className="h-4 w-4" />
+            </Link>
+          )}
+
+          {/* User Auth Portal */}
+          {user ? (
+            <div className="relative">
+              <button
+                onClick={() => {
+                  setIsProfileDropdownOpen(!isProfileDropdownOpen);
+                  setIsNotificationsOpen(false);
+                }}
+                className="flex items-center gap-2 text-left focus:outline-none"
+              >
+                {/* Profile Avatar */}
+                <div className="h-9 w-9 rounded-xl overflow-hidden border border-[#262626] hover:border-[#EAB308]/40 bg-[#111111] flex items-center justify-center transition-all">
+                  {profile?.profilePictureUrl ? (
+                    <img
+                      src={profile.profilePictureUrl}
+                      alt={profile.name || "User Profile"}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-[#EAB308]/10 text-[#EAB308] text-xs font-black flex items-center justify-center">
+                      {(profile?.name || user.email || "US").slice(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                </div>
+              </button>
+
+              {/* Profile Dropdown */}
+              {isProfileDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[#262626] bg-[#111111] p-2 shadow-2xl z-50">
+                  <div className="px-3 py-2 border-b border-[#262626] mb-2 text-left">
+                    <p className="text-xs font-bold text-[#FAFAFA] truncate">
+                      {profile?.name || user.email}
+                    </p>
+                    <p className="text-[9px] font-black text-[#A3A3A3] tracking-wider uppercase mt-0.5">
+                      {profile?.role || "Student"}
+                    </p>
+                  </div>
+                  
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#A3A3A3] hover:text-[#FAFAFA] hover:bg-[#262626]/50 transition-all text-left"
+                  >
+                    <LayoutDashboard className="h-3.5 w-3.5" />
+                    Dashboard
+                  </Link>
+
+                  <Link
+                    href="/profile"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#A3A3A3] hover:text-[#FAFAFA] hover:bg-[#262626]/50 transition-all text-left"
+                  >
+                    <UserIcon className="h-3.5 w-3.5" />
+                    Profile
+                  </Link>
+
+                  <button
+                    onClick={() => {
+                      setIsProfileDropdownOpen(false);
+                      signOut();
+                    }}
+                    className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#EF4444] hover:bg-[#EF4444]/10 transition-all text-left border-t border-[#262626]/50 mt-2 pt-2"
+                  >
+                    <LogOut className="h-3.5 w-3.5" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/login"
+                className="text-xs font-semibold text-[#A3A3A3] hover:text-[#FAFAFA] px-3 py-2 rounded-lg transition-all"
+              >
+                Log In
+              </Link>
+              <Link
+                href="/signup"
+                className="text-xs font-bold text-[#0A0A0A] bg-[#EAB308] hover:bg-[#FACC15] px-4 py-2 rounded-lg transition-all shadow-[0_4px_20px_rgba(234,179,8,0.2)] hover:shadow-[0_4px_25px_rgba(250,204,21,0.35)]"
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
+
+          {/* Mobile Menu Toggle Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 rounded-lg border border-[#262626] bg-[#111111] text-[#A3A3A3] hover:text-[#FAFAFA]"
+          >
+            {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu Panel */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden border-t border-[#262626] bg-[#0A0A0A] px-4 py-4 space-y-2">
+          <Link
+            href="/dashboard"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={mobileNavItemClass("/dashboard")}
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/leaderboard"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={mobileNavItemClass("/leaderboard")}
+          >
+            Leaderboard
+          </Link>
+          <Link
+            href="/analytics"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={mobileNavItemClass("/analytics")}
+          >
+            Analytics
+          </Link>
+          <Link
+            href="/departments"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={mobileNavItemClass("/departments")}
+          >
+            Departments
+          </Link>
+          <Link
+            href="/insights"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className={mobileNavItemClass("/insights")}
+          >
+            Insights
+          </Link>
+        </div>
+      )}
+    </header>
+  );
+}

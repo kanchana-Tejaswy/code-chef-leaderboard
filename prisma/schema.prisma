@@ -1,0 +1,136 @@
+datasource db {
+  provider = "mysql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  STUDENT
+  FACULTY
+  PLACEMENT_OFFICER
+  PRINCIPAL
+  ADMIN
+}
+
+enum SyncStatus {
+  SUCCESS
+  FAILURE
+}
+
+enum SyncInitiatedBy {
+  SYSTEM_CRON
+  USER_MANUAL
+  ADMIN_FORCE
+}
+
+model User {
+  id             String          @id @default(uuid()) // Maps to Supabase Auth ID
+  email          String          @unique
+  role           Role            @default(STUDENT)
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+  studentProfile StudentProfile?
+
+  @@map("users")
+}
+
+model StudentProfile {
+  id                String            @id // PK references User.id
+  user              User              @relation(fields: [id], references: [id], onDelete: Cascade)
+  name              String
+  rollNumber        String            @unique @map("roll_number")
+  department        String
+  year              Int
+  profilePictureUrl String?           @map("profile_picture_url")
+  codechefUsername  String?           @unique @map("codechef_username")
+  createdAt         DateTime          @default(now()) @map("created_at")
+  updatedAt         DateTime          @updatedAt @map("updated_at")
+  
+  codechefProfile  CodechefProfile?
+  aiAnalysis       AiAnalysis?
+  leaderboardEntry LeaderboardEntry?
+  syncLogs         SyncLog[]
+  activityLogs     ActivityLog[]
+
+  @@map("student_profiles")
+}
+
+model CodechefProfile {
+  id             String         @id @default(uuid())
+  studentId      String         @unique @map("student_id")
+  student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  username       String         @unique
+  currentRating  Int            @default(0) @map("current_rating")
+  highestRating  Int            @default(0) @map("highest_rating")
+  globalRank     Int?           @map("global_rank")
+  countryRank    Int?           @map("country_rank")
+  stars          Int            @default(1)
+  problemsSolved Int            @default(0) @map("problems_solved")
+  contestCount   Int            @default(0) @map("contest_count")
+  contests       Json           @default("[]") // List of recent contest records
+  lastFetchedAt  DateTime       @default(now()) @map("last_fetched_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  @@map("codechef_profiles")
+}
+
+model AiAnalysis {
+  id                          String         @id @default(uuid())
+  studentId                   String         @unique @map("student_id")
+  student                     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  talentScore                 Float          @default(0) @map("talent_score")
+  consistencyScore            Float          @default(0) @map("consistency_score")
+  problemSolvingScore         Float          @default(0) @map("problem_solving_score")
+  competitiveProgrammingScore Float          @default(0) @map("competitive_programming_score")
+  strengths                   Json           @default("[]") // String array
+  weaknesses                  Json           @default("[]") // String array
+  recommendations             Json           @default("[]") // String array
+  careerSuggestions           Json           @default("[]") // String array
+  generatedAt                 DateTime       @default(now()) @map("generated_at")
+  createdAt                   DateTime       @default(now()) @map("created_at")
+  updatedAt                   DateTime       @updatedAt @map("updated_at")
+
+  @@map("ai_analysis")
+}
+
+model LeaderboardEntry {
+  id          String         @id @default(uuid())
+  studentId   String         @unique @map("student_id")
+  student     StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  rank        Int            @default(0)
+  rating      Int            @default(0)
+  stars       Int            @default(1)
+  talentScore Float          @default(0) @map("talent_score")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  @@index([rank])
+  @@index([talentScore(sort: Desc)])
+  @@map("leaderboard_entries")
+}
+
+model SyncLog {
+  id           String          @id @default(uuid())
+  studentId    String          @map("student_id")
+  student      StudentProfile  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  status       SyncStatus
+  errorMessage String?         @map("error_message")
+  initiatedBy  SyncInitiatedBy @map("initiated_by")
+  durationMs   Int             @map("duration_ms")
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  @@map("sync_logs")
+}
+
+model ActivityLog {
+  id        String          @id @default(uuid())
+  eventType String          @map("event_type")
+  studentId String?         @map("student_id")
+  student   StudentProfile? @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  message   String
+  createdAt DateTime        @default(now()) @map("created_at")
+
+  @@map("activity_logs")
+}
