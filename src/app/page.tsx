@@ -958,7 +958,7 @@ export default function LandingPage() {
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     disabled={isAnalyzing}
-                    placeholder="e.g. Rahul Kumar"
+                    placeholder="Name"
                     className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
                 </div>
@@ -974,7 +974,7 @@ export default function LandingPage() {
                     value={formRollNumber}
                     onChange={(e) => setFormRollNumber(e.target.value)}
                     disabled={isAnalyzing}
-                    placeholder="e.g. 23AG1A0501"
+                    placeholder="roll number "
                     className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 uppercase"
                   />
                 </div>
@@ -1056,7 +1056,7 @@ export default function LandingPage() {
                     value={formUrl}
                     onChange={(e) => setFormUrl(e.target.value)}
                     disabled={isAnalyzing}
-                    placeholder="e.g. https://www.codechef.com/users/tourist"
+                    placeholder=" code chef url"
                     className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
                 </div>
