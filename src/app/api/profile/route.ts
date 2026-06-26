@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
+import { ActivityService } from "@/services/activity.service";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -132,6 +133,20 @@ export async function DELETE(request: NextRequest) {
 
     if (!studentId) {
       return NextResponse.json({ error: "Missing student id parameter" }, { status: 400 });
+    }
+
+    // Fetch student info first to construct message
+    const student = await prisma.studentProfile.findUnique({
+      where: { id: studentId },
+    });
+
+    if (student) {
+      // Log Student Delete Event
+      await ActivityService.logEvent(
+        "STUDENT_DELETE",
+        null,
+        `${student.name} (${student.department || "CSE"}) profile was removed from standings.`
+      );
     }
 
     // Delete student profile (foreign keys cascade and delete related tables)

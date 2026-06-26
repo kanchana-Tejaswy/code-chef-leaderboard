@@ -48,6 +48,13 @@ export class SyncService {
 
       // 4. Update Database inside a transaction
       await prisma.$transaction(async (tx) => {
+        // Fetch old CodeChef profile rating if exists
+        const oldProfile = await tx.codechefProfile.findUnique({
+          where: { studentId },
+          select: { currentRating: true },
+        });
+        const oldRating = oldProfile?.currentRating || 0;
+
         // Update or insert CodeChef profile
         await tx.codechefProfile.upsert({
           where: { studentId },
@@ -204,6 +211,25 @@ export class SyncService {
             durationMs: Date.now() - startTime,
           },
         });
+
+        // Save Activity Log
+        if (oldProfile && scrapedData.currentRating > oldRating) {
+          await tx.activityLog.create({
+            data: {
+              eventType: "RATING_INCREASE",
+              studentId,
+              message: `${student.name}'s rating increased from ${oldRating} to ${scrapedData.currentRating}!`,
+            },
+          });
+        } else {
+          await tx.activityLog.create({
+            data: {
+              eventType: "SYNC_SUCCESS",
+              studentId,
+              message: `${student.name}'s profile was successfully analyzed and synced.`,
+            },
+          });
+        }
       });
 
       // 5. Recalculate global ranks
@@ -222,6 +248,15 @@ export class SyncService {
             errorMessage: err.message || "Unknown error occurred.",
             initiatedBy,
             durationMs: Date.now() - startTime,
+          },
+        });
+
+        // Save failure Activity Log
+        await prisma.activityLog.create({
+          data: {
+            eventType: "SYNC_FAILURE",
+            studentId,
+            message: `CodeChef sync failed for ${student?.name || "Student"}: ${err.message || "Unknown error"}.`,
           },
         });
       } catch (logErr) {

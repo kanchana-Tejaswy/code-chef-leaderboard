@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
 import { CodechefScraper } from "@/services/scraper.service";
+import { ActivityService } from "@/services/activity.service";
 
 export async function POST(request: NextRequest) {
   try {
@@ -67,6 +68,13 @@ export async function POST(request: NextRequest) {
           section: section ? section.trim().toUpperCase() : "A",
         },
       });
+
+      // Log Student Add Event
+      await ActivityService.logEvent(
+        "STUDENT_ADD",
+        student.id,
+        `${name.trim()} (${student.department || "CSE"}) profile was registered.`
+      );
     } else {
       // If student already exists, update name and any provided metadata
       student = await prisma.studentProfile.update({
@@ -80,6 +88,13 @@ export async function POST(request: NextRequest) {
           section: section ? section.trim().toUpperCase() : student.section,
         },
       });
+
+      // Log Student Update/Re-analyze Event
+      await ActivityService.logEvent(
+        "STUDENT_UPDATE",
+        student.id,
+        `${name.trim()} (${student.department || "CSE"}) details were updated.`
+      );
     }
 
     // Trigger scraping and AI analysis using SyncService

@@ -228,6 +228,27 @@ export default function LandingPage() {
   // System Live Timestamps
   const [lastSyncTime, setLastSyncTime] = useState<string>("Updating...");
 
+  // Helper for trend growth badge styling
+  const getTrendBadge = (trendString: string) => {
+    if (!trendString || trendString.includes("No") || trendString.includes("data")) {
+      return (
+        <span className="text-[10px] font-bold text-zinc-500 bg-[#1A1A1A]/40 px-2 py-0.5 rounded-full border border-zinc-800">
+          N/A
+        </span>
+      );
+    }
+    const val = trendString.split(" ")[0];
+    const isNegative = val.startsWith("-");
+    const colorClass = isNegative
+      ? "text-red-500 bg-red-500/5 border-red-500/15"
+      : "text-[#22C55E] bg-[#22C55E]/5 border-[#22C55E]/15";
+    return (
+      <span className={`text-[10px] font-bold ${colorClass} px-2 py-0.5 rounded-full border`}>
+        {val}
+      </span>
+    );
+  };
+
   // Load stats and activity feed
   const loadDashboardData = async () => {
     try {
@@ -784,7 +805,7 @@ export default function LandingPage() {
       </div>
 
       {/* 2. EXECUTIVE OVERVIEW SECTION */}
-      {stats && (
+      {stats && stats.totalStudents.value > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 relative z-10">
           {/* Card 1: Total Students */}
           <div className="border border-[#262626] bg-[#111111] p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
@@ -798,9 +819,7 @@ export default function LandingPage() {
                   {stats.totalStudents.value}
                 </span>
               </div>
-              <span className="text-[10px] font-bold text-[#22C55E] bg-[#22C55E]/5 px-2 py-0.5 rounded-full border border-[#22C55E]/15">
-                {stats.totalStudents.trend.split(" ")[0]}
-              </span>
+              {getTrendBadge(stats.totalStudents.trend)}
             </div>
             <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
               <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
@@ -820,9 +839,7 @@ export default function LandingPage() {
                   {stats.activeCodechef.value}
                 </span>
               </div>
-              <span className="text-[10px] font-bold text-[#22C55E] bg-[#22C55E]/5 px-2 py-0.5 rounded-full border border-[#22C55E]/15">
-                {stats.activeCodechef.trend.split(" ")[0]}
-              </span>
+              {getTrendBadge(stats.activeCodechef.trend)}
             </div>
             <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
               <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
@@ -842,9 +859,7 @@ export default function LandingPage() {
                   {stats.averageRating.value}
                 </span>
               </div>
-              <span className="text-[10px] font-bold text-[#22C55E] bg-[#22C55E]/5 px-2 py-0.5 rounded-full border border-[#22C55E]/15">
-                +3.2%
-              </span>
+              {getTrendBadge(stats.averageRating.trend)}
             </div>
             <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
               <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
@@ -864,9 +879,7 @@ export default function LandingPage() {
                   {stats.contestParticipationPercent?.value || 0}%
                 </span>
               </div>
-              <span className="text-[10px] font-bold text-[#22C55E] bg-[#22C55E]/5 px-2 py-0.5 rounded-full border border-[#22C55E]/15">
-                +5.1%
-              </span>
+              {getTrendBadge(stats.contestParticipationPercent?.trend || "")}
             </div>
             <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
               <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
@@ -887,7 +900,7 @@ export default function LandingPage() {
                 </span>
               </div>
               <span className="text-[10px] font-bold text-[#EAB308] bg-[#EAB308]/5 px-2 py-0.5 rounded-full border border-[#EAB308]/15">
-                Lead
+                {stats.topDepartment.trend}
               </span>
             </div>
             <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
@@ -908,9 +921,7 @@ export default function LandingPage() {
                   {stats.placementReadinessIndex?.value || 0}%
                 </span>
               </div>
-              <span className="text-[10px] font-bold text-[#22C55E] bg-[#22C55E]/5 px-2 py-0.5 rounded-full border border-[#22C55E]/15">
-                {stats.placementReadinessIndex?.trend.split(" ")[0] || "+8.2%"}
-              </span>
+              {getTrendBadge(stats.placementReadinessIndex?.trend || "")}
             </div>
             <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
               <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
@@ -924,7 +935,7 @@ export default function LandingPage() {
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start relative z-10">
 
         {/* Left Column (2/3 width) - CENTERPIECE LEADERBOARD */}
-        <div id="leaderboard" className="xl:col-span-2 flex flex-col gap-6">
+        <div id="leaderboard" className={`${!stats || stats.totalStudents.value === 0 ? "xl:col-span-3 max-w-4xl mx-auto w-full" : "xl:col-span-2"} flex flex-col gap-6`}>
 
           {/* Add Student Card */}
           <div className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-5 relative overflow-hidden">
@@ -1152,8 +1163,10 @@ export default function LandingPage() {
             </form>
           </div>
 
-          {/* Executive Filter Console */}
-          <div className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-5">
+          {stats && stats.totalStudents.value > 0 ? (
+            <>
+              {/* Executive Filter Console */}
+              <div className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#262626] pb-4">
               <div className="flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-[#EAB308]" />
@@ -1538,11 +1551,37 @@ export default function LandingPage() {
               </div>
             )}
           </div>
+        </>
+      ) : (
+        /* Beautiful Centered Empty State Card */
+        <div className="border border-dashed border-[#262626] bg-[#111111]/40 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 h-28 w-28 bg-[#EAB308]/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="h-12 w-12 rounded-2xl bg-[#EAB308]/10 border border-[#EAB308]/20 flex items-center justify-center text-[#EAB308] mb-2">
+            <Trophy className="h-6 w-6" />
+          </div>
+          <h3 className="text-sm font-bold text-[#FAFAFA] uppercase tracking-wider">No student profiles analyzed yet.</h3>
+          <p className="text-[11px] text-[#A3A3A3] max-w-sm leading-relaxed font-semibold">
+            Begin by registering student details and a valid CodeChef profile URL to compile automated talent analytics and build the competitive programming leaderboard.
+          </p>
+          <button
+            onClick={() => {
+              const nameInput = document.querySelector("input[placeholder='Name']") as HTMLInputElement;
+              nameInput?.focus();
+              nameInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+            className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all shadow-[0_4px_15px_rgba(234,179,8,0.25)] hover:shadow-[0_4px_20px_rgba(250,204,21,0.4)]"
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+            Add Student
+          </button>
+        </div>
+      )}
 
         </div>
 
         {/* Right Column (1/3 width) - SIDEBAR INSIGHTS & REAL-TIME ACTIVITY FEED */}
-        <div className="flex flex-col gap-6">
+        {stats && stats.totalStudents.value > 0 && (
+          <div className="flex flex-col gap-6">
 
           {/* AI TALENT INSIGHTS CONSOLE */}
           <div id="insights" className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-5">
@@ -1701,6 +1740,7 @@ export default function LandingPage() {
           </div>
 
         </div>
+        )}
 
       </div>
 

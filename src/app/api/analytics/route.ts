@@ -78,7 +78,6 @@ export async function GET(request: NextRequest) {
     }));
 
     // 4. Contest Participation Timeline Trend
-    // Parse all dates from contests lists
     const contestDatesCount: Record<string, number> = {};
     students.forEach((s) => {
       if (s.codechefProfile) {
@@ -111,18 +110,6 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-6); // last 6 months
 
-    // Fallbacks if no data exists
-    if (contestParticipation.length === 0) {
-      contestParticipation.push(
-        { date: "Jan 26", count: 12 },
-        { date: "Feb 26", count: 18 },
-        { date: "Mar 26", count: 25 },
-        { date: "Apr 26", count: 32 },
-        { date: "May 26", count: 48 },
-        { date: "Jun 26", count: 65 }
-      );
-    }
-
     // 5. Monthly Student Registrations Growth
     const monthlyRegCounts: Record<string, number> = {};
     students.forEach((s) => {
@@ -147,17 +134,6 @@ export async function GET(request: NextRequest) {
         count: cumulative,
       };
     }).slice(-6);
-
-    if (monthlyGrowth.length === 0) {
-      monthlyGrowth.push(
-        { month: "Jan 26", count: 10 },
-        { month: "Feb 26", count: 25 },
-        { month: "Mar 26", count: 50 },
-        { month: "Apr 26", count: 75 },
-        { month: "May 26", count: 110 },
-        { month: "Jun 26", count: students.length || 142 }
-      );
-    }
 
     return NextResponse.json({
       departmentPerformance,

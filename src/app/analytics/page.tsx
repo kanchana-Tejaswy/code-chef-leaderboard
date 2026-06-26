@@ -114,6 +114,30 @@ export default function AnalyticsPage() {
 
   // Compute stats
   const totalProfiles = data.departmentPerformance.reduce((acc, curr) => acc + curr.activeCount, 0);
+
+  if (totalProfiles === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center p-8 bg-[#0A0A0A] text-center min-h-[calc(100vh-4rem)]">
+        <div className="border border-dashed border-[#262626] bg-[#111111]/40 max-w-md p-12 rounded-3xl flex flex-col items-center justify-center gap-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 h-28 w-28 bg-[#EAB308]/5 rounded-full blur-2xl pointer-events-none" />
+          <div className="h-12 w-12 rounded-2xl bg-[#EAB308]/10 border border-[#EAB308]/20 flex items-center justify-center text-[#EAB308]">
+            <BarChart2 className="h-6 w-6" />
+          </div>
+          <h2 className="text-lg font-bold text-white">No student profiles analyzed yet.</h2>
+          <p className="text-xs text-zinc-400 leading-relaxed max-w-xs font-semibold animate-pulse">
+            There is no analytics data to compile yet. Please add student profiles on the dashboard to build rating distributions, contest participation timelines, and department performance metrics.
+          </p>
+          <a
+            href="/"
+            className="mt-2 inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all shadow-[0_4px_15px_rgba(234,179,8,0.25)] hover:shadow-[0_4px_20px_rgba(250,204,21,0.4)]"
+          >
+            Go to Dashboard
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   const globalAvgRating = Math.round(
     data.departmentPerformance.reduce((acc, curr) => acc + curr.averageRating * curr.activeCount, 0) /
       (totalProfiles || 1)
