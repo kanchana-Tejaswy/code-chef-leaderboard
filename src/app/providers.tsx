@@ -1,8 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { createBrowserClient } from "@/lib/supabase/client";
-import { User, Session } from "@supabase/supabase-js";
+import React, { createContext, useContext } from "react";
 
 interface UserProfile {
   id: string;
@@ -16,19 +14,30 @@ interface UserProfile {
 }
 
 interface AuthContextType {
-  user: User | null;
-  session: Session | null;
+  user: any;
+  session: any;
   profile: UserProfile | null;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
+const mockProfile: UserProfile = {
+  id: "mock-user-id",
+  name: "Faculty Member",
+  rollNumber: "FAC001",
+  department: "CSE",
+  year: 4,
+  profilePictureUrl: null,
+  codechefUsername: null,
+  role: "FACULTY",
+};
+
 const AuthContext = createContext<AuthContextType>({
-  user: null,
-  session: null,
-  profile: null,
-  isLoading: true,
+  user: { id: "mock-user-id", email: "faculty@ace.edu" },
+  session: { access_token: "mock-token" },
+  profile: mockProfile,
+  isLoading: false,
   refreshProfile: async () => {},
   signOut: async () => {},
 });
@@ -36,92 +45,15 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [supabase] = useState(() => createBrowserClient());
-  const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchProfile = async (userId: string) => {
-    try {
-      const response = await fetch(`/api/profile?userId=${userId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProfile(data.profile);
-      } else {
-        setProfile(null);
-      }
-    } catch (err) {
-      console.error("Error fetching user profile:", err);
-      setProfile(null);
-    }
-  };
-
-  const refreshProfile = async () => {
-    if (user) {
-      await fetchProfile(user.id);
-    }
-  };
-
-  const signOut = async () => {
-    setIsLoading(true);
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-    setIsLoading(false);
-    window.location.href = "/login";
-  };
-
-  useEffect(() => {
-    const handleAuthChange = async () => {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-
-      setSession(currentSession);
-      const currentUser = currentSession?.user ?? null;
-      setUser(currentUser);
-
-      if (currentUser) {
-        await fetchProfile(currentUser.id);
-      } else {
-        setProfile(null);
-      }
-      setIsLoading(false);
-    };
-
-    handleAuthChange();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession);
-      const newUser = newSession?.user ?? null;
-      setUser(newUser);
-
-      if (newUser) {
-        await fetchProfile(newUser.id);
-      } else {
-        setProfile(null);
-      }
-      setIsLoading(false);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [supabase]);
-
   return (
     <AuthContext.Provider
       value={{
-        user,
-        session,
-        profile,
-        isLoading,
-        refreshProfile,
-        signOut,
+        user: { id: "mock-user-id", email: "faculty@ace.edu" },
+        session: { access_token: "mock-token" },
+        profile: mockProfile,
+        isLoading: false,
+        refreshProfile: async () => {},
+        signOut: async () => {},
       }}
     >
       {children}

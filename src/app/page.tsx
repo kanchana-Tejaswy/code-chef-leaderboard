@@ -31,12 +31,25 @@ import {
   ChevronDown,
   ChevronUp,
   GraduationCap,
-  Target
+  Target,
+  RefreshCw,
+  Trash2,
+  UserPlus
 } from "lucide-react";
 import {
   AreaChart,
   Area,
-  ResponsiveContainer
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend
 } from "recharts";
 
 import { RatingChart } from "@/components/dashboard/rating-chart";
@@ -124,12 +137,70 @@ function Sparkline({ data, color = "#EAB308" }: { data: number[]; color?: string
   );
 }
 
+// Circular SVG Score Gauge Widget
+function ScoreCircle({ score, label, color = "#EAB308" }: { score: number; label: string; color?: string }) {
+  const radius = 22;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (Math.min(100, Math.max(0, score)) / 100) * circumference;
+
+  return (
+    <div className="flex flex-col items-center gap-2.5 p-3 bg-zinc-950/40 border border-[#262626] rounded-2xl hover:border-zinc-800 transition-all text-center">
+      <div className="relative flex items-center justify-center h-14 w-14">
+        <svg className="w-full h-full transform -rotate-90">
+          {/* Background circle */}
+          <circle
+            cx="28"
+            cy="28"
+            r={radius}
+            className="stroke-zinc-900 fill-transparent"
+            strokeWidth="3.5"
+          />
+          {/* Foreground progress circle */}
+          <circle
+            cx="28"
+            cy="28"
+            r={radius}
+            className="fill-transparent transition-all duration-1000 ease-out"
+            stroke={color}
+            strokeWidth="3.5"
+            strokeDasharray={circumference}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+          />
+        </svg>
+        <span className="absolute text-[11px] font-black text-white">{Math.round(score)}</span>
+      </div>
+      <span className="text-[9px] font-black text-zinc-400 uppercase tracking-widest leading-tight">
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   // Global Data States
   const [stats, setStats] = useState<StatsData | null>(null);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [entries, setEntries] = useState<LeaderboardStudent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Add Student Form States
+  const [formName, setFormName] = useState("");
+  const [formUrl, setFormUrl] = useState("");
+  const [formRollNumber, setFormRollNumber] = useState("");
+  const [formDepartment, setFormDepartment] = useState("CSE");
+  const [formYear, setFormYear] = useState(3);
+  const [formSection, setFormSection] = useState("A");
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [analysisStepIndex, setAnalysisStepIndex] = useState(0);
+  const [analysisSteps, setAnalysisSteps] = useState<string[]>([]);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisSuccessLogs, setAnalysisSuccessLogs] = useState<string[]>([]);
+  const [activeModalTab, setActiveModalTab] = useState("overview");
+
+  // Action Loading States
+  const [isRefreshingId, setIsRefreshingId] = useState<string | null>(null);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   // Centerpiece Leaderboard Filtering, Sorting & Pagination
   const [search, setSearch] = useState("");
@@ -219,11 +290,170 @@ export default function LandingPage() {
     }
   };
 
+  const handleAnalyzeStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formName.trim()) {
+      setAnalysisError("Student Name is required.");
+      return;
+    }
+    if (!formRollNumber.trim()) {
+      setAnalysisError("Roll Number is required.");
+      return;
+    }
+    if (!formUrl.trim()) {
+      setAnalysisError("CodeChef Profile URL is required.");
+      return;
+    }
+
+    setIsAnalyzing(true);
+    setAnalysisError(null);
+    setAnalysisSuccessLogs([]);
+    setAnalysisStepIndex(0);
+
+    // Setup high-fidelity timed transitions for the 9 analysis steps
+    const stepTimers: NodeJS.Timeout[] = [];
+    const transitionDelays = [300, 600, 1200, 1800, 2400, 3000, 3600, 4200];
+
+    transitionDelays.forEach((delay, index) => {
+      stepTimers.push(setTimeout(() => {
+        setAnalysisStepIndex(index + 1);
+      }, delay));
+    });
+
+    try {
+      const res = await fetch("/api/students/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formName,
+          url: formUrl,
+          rollNumber: formRollNumber,
+          department: formDepartment,
+          year: formYear,
+          branch: formDepartment,
+          section: formSection,
+        }),
+      });
+
+      stepTimers.forEach(clearTimeout);
+
+      if (res.ok) {
+        const data = await res.json();
+        setAnalysisStepIndex(9); // All steps completed
+
+        setAnalysisSuccessLogs([
+          "Student analyzed successfully.",
+          "Leaderboard updated.",
+          "AI CP Report compiled."
+        ]);
+
+        await fetchLeaderboard();
+        await loadDashboardData();
+
+        // Reset Form
+        setFormName("");
+        setFormUrl("");
+        setFormRollNumber("");
+        setFormDepartment("CSE");
+        setFormYear(3);
+        setFormSection("A");
+
+        setTimeout(() => {
+          setIsAnalyzing(false);
+          setAnalysisStepIndex(0);
+          setAnalysisSuccessLogs([]);
+          setSelectedStudentId(data.student.id);
+          setActiveModalTab("overview"); // reset to default tab
+        }, 1500);
+
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setAnalysisError(errorData.error || "Failed to analyze student. Verify URL and try again.");
+        setIsAnalyzing(false);
+        setAnalysisStepIndex(0);
+      }
+    } catch (e: any) {
+      stepTimers.forEach(clearTimeout);
+      console.error("Error analyzing student:", e);
+      setAnalysisError("A network error occurred. Please try again.");
+      setIsAnalyzing(false);
+      setAnalysisStepIndex(0);
+    }
+  };
+
+  const handleClearForm = () => {
+    setFormName("");
+    setFormUrl("");
+    setFormRollNumber("");
+    setFormDepartment("CSE");
+    setFormYear(3);
+    setFormSection("A");
+    setAnalysisError(null);
+    setAnalysisStepIndex(0);
+    setAnalysisSuccessLogs([]);
+  };
+
+  const handleRefreshStudent = async (studentId: string) => {
+    setIsRefreshingId(studentId);
+    try {
+      const res = await fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studentId }),
+      });
+      if (res.ok) {
+        await fetchLeaderboard();
+        await loadDashboardData();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to synchronize profile.");
+      }
+    } catch (e) {
+      console.error("Error refreshing student:", e);
+      alert("Failed to refresh profile due to a network error.");
+    } finally {
+      setIsRefreshingId(null);
+    }
+  };
+
+  const handleDeleteStudent = async (studentId: string) => {
+    if (!confirm("Are you sure you want to delete this student and all their analytics?")) {
+      return;
+    }
+    setIsDeletingId(studentId);
+    try {
+      const res = await fetch(`/api/profile?id=${studentId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await fetchLeaderboard();
+        await loadDashboardData();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to delete student.");
+      }
+    } catch (e) {
+      console.error("Error deleting student:", e);
+      alert("Failed to delete student due to a network error.");
+    } finally {
+      setIsDeletingId(null);
+    }
+  };
+
   // Initial loading triggers
   useEffect(() => {
     const initData = async () => {
       await loadDashboardData();
       setIsLoading(false);
+
+      // Parse query params for direct profile link
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        const queryUserId = params.get("userId") || params.get("studentId");
+        if (queryUserId) {
+          setSelectedStudentId(queryUserId);
+        }
+      }
     };
     initData();
     setLastSyncTime(new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }));
@@ -472,10 +702,10 @@ export default function LandingPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-[#0A0A0A] min-h-screen">
-      
+
       {/* 1. HERO SECTION WITH SYSTEM PULSE INDICATORS */}
       <div className="relative rounded-3xl border border-[#262626] bg-[#111111]/75 backdrop-blur-xl p-8 overflow-hidden shadow-2xl flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-        
+
         {/* Radial Gold Glow */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -483,7 +713,7 @@ export default function LandingPage() {
             backgroundImage: "radial-gradient(circle at center, rgba(234, 179, 8, 0.18) 0%, rgba(10, 10, 10, 0) 70%)"
           }}
         />
-        
+
         {/* SVG geometric brain logo layout */}
         <div className="flex items-center gap-5 relative z-10">
           <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#EAB308]/10 border border-[#EAB308]/30 text-[#EAB308] shadow-inner">
@@ -692,10 +922,236 @@ export default function LandingPage() {
 
       {/* 3. MAIN GRID LAYOUT: Centerpiece Leaderboard vs Right Sidebar */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start relative z-10">
-        
+
         {/* Left Column (2/3 width) - CENTERPIECE LEADERBOARD */}
         <div id="leaderboard" className="xl:col-span-2 flex flex-col gap-6">
-          
+
+          {/* Add Student Card */}
+          <div className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-5 relative overflow-hidden">
+            {/* Ambient Background Glow */}
+            <div className="absolute top-0 right-0 h-40 w-40 bg-[#EAB308]/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="flex items-center justify-between border-b border-[#262626] pb-4">
+              <div className="flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-[#EAB308]" />
+                <div>
+                  <h2 className="text-sm font-bold text-[#FAFAFA] uppercase tracking-wider">
+                    Add Student
+                  </h2>
+                  <p className="text-[10px] text-[#A3A3A3] font-semibold tracking-wide">
+                    Analyze a new student competitive profile and insert into leaderboard
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={handleAnalyzeStudent} className="flex flex-col gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Student Name */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                    Student Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    disabled={isAnalyzing}
+                    placeholder="e.g. Rahul Kumar"
+                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
+                  />
+                </div>
+
+                {/* Roll Number */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                    Roll Number
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formRollNumber}
+                    onChange={(e) => setFormRollNumber(e.target.value)}
+                    disabled={isAnalyzing}
+                    placeholder="e.g. 23AG1A0501"
+                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 uppercase"
+                  />
+                </div>
+
+                {/* Branch / Department */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                    Branch / Department
+                  </label>
+                  <select
+                    value={formDepartment}
+                    onChange={(e) => setFormDepartment(e.target.value)}
+                    disabled={isAnalyzing}
+                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
+                  >
+                    <option value="CSE">CSE - Computer Science</option>
+                    <option value="IT">IT - Information Technology</option>
+                    <option value="CSM">CSM - AI & Machine Learning</option>
+                    <option value="CSD">CSD - Data Science</option>
+                    <option value="ECE">ECE - Electronics & Comm</option>
+                    <option value="EEE">EEE - Electrical & Electronics</option>
+                    <option value="ME">ME - Mechanical Eng</option>
+                    <option value="CE">CE - Civil Eng</option>
+                  </select>
+                </div>
+
+                {/* Academic Year */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                    Academic Year
+                  </label>
+                  <select
+                    value={formYear}
+                    onChange={(e) => setFormYear(Number(e.target.value))}
+                    disabled={isAnalyzing}
+                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
+                  >
+                    <option value={1}>1st Year</option>
+                    <option value={2}>2nd Year</option>
+                    <option value={3}>3rd Year</option>
+                    <option value={4}>4th Year</option>
+                  </select>
+                </div>
+
+                {/* Section */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                    Section
+                  </label>
+                  <select
+                    value={formSection}
+                    onChange={(e) => setFormSection(e.target.value)}
+                    disabled={isAnalyzing}
+                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
+                  >
+                    <option value="A">Section A</option>
+                    <option value="B">Section B</option>
+                    <option value="C">Section C</option>
+                    <option value="D">Section D</option>
+                    <option value="E">Section E</option>
+                    <option value="F">Section F</option>
+                    <option value="G">Section G</option>
+                    <option value="H">Section H</option>
+                    <option value="I">Section I</option>
+                    <option value="J">Section J</option>
+                    <option value="K">Section K</option>
+                    <option value="L">Section L</option>
+                  </select>
+                </div>
+
+                {/* CodeChef URL */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                    CodeChef Profile URL
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formUrl}
+                    onChange={(e) => setFormUrl(e.target.value)}
+                    disabled={isAnalyzing}
+                    placeholder="e.g. https://www.codechef.com/users/tourist"
+                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
+                  />
+                </div>
+              </div>
+
+              {/* Error Alert */}
+              {analysisError && (
+                <div className="p-3.5 rounded-xl border border-red-500/20 bg-red-500/5 text-red-500 text-xs font-semibold leading-relaxed animate-fade-in">
+                  {analysisError}
+                </div>
+              )}
+
+              {/* Progress Steps / Success Logs */}
+              {isAnalyzing && (
+                <div className="p-5 rounded-2xl border border-[#262626] bg-[#0A0A0A]/70 flex flex-col gap-3 font-mono text-[10px] text-zinc-400 select-none">
+                  <div className="flex items-center gap-2 border-b border-[#262626] pb-2 mb-1">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin text-[#EAB308]" />
+                    <span className="text-[#FAFAFA] font-bold uppercase tracking-wider text-[9px]">Analyzing Competitive Profile...</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-zinc-350">
+                    {[
+                      "Validating URL",
+                      "Extracting Username",
+                      "Fetching Profile",
+                      "Fetching Contest History",
+                      "Fetching Rating History",
+                      "Calculating Statistics",
+                      "Running AI Analysis",
+                      "Updating Leaderboard",
+                      "Saving Student"
+                    ].map((step, idx) => {
+                      const isDone = idx < analysisStepIndex;
+                      const isCurrent = idx === analysisStepIndex;
+                      return (
+                        <div key={idx} className="flex items-center gap-2">
+                          {isDone ? (
+                            <span className="text-[#22C55E] font-extrabold text-[12px]">✔</span>
+                          ) : isCurrent ? (
+                            <Loader2 className="h-3 w-3 animate-spin text-[#EAB308]" />
+                          ) : (
+                            <span className="text-zinc-700 font-bold">•</span>
+                          )}
+                          <span className={`${isDone ? "text-white font-semibold" : isCurrent ? "text-[#EAB308] font-bold animate-pulse" : "text-zinc-500"}`}>
+                            {step}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {analysisSuccessLogs.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-[#262626]/50 flex flex-col gap-1">
+                      {analysisSuccessLogs.map((log, idx) => (
+                        <div key={idx} className="flex items-center gap-1.5 text-[#22C55E] font-bold">
+                          <span className="text-[#22C55E] font-extrabold">✓</span>
+                          <span>{log}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-2.5 mt-2">
+                <button
+                  type="button"
+                  onClick={handleClearForm}
+                  disabled={isAnalyzing}
+                  className="px-4 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-[#A3A3A3] hover:text-white text-xs font-bold transition-all disabled:opacity-50"
+                >
+                  Clear Form
+                </button>
+                <button
+                  type="submit"
+                  disabled={isAnalyzing}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all shadow-[0_4px_15px_rgba(234,179,8,0.25)] hover:shadow-[0_4px_20px_rgba(250,204,21,0.4)] disabled:opacity-50"
+                >
+                  {isAnalyzing ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Analyzing...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-3.5 w-3.5" />
+                      Analyze Student
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+
           {/* Executive Filter Console */}
           <div className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#262626] pb-4">
@@ -730,7 +1186,7 @@ export default function LandingPage() {
 
             {/* Custom Search & Filters Grid */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              
+
               {/* Search Bar */}
               <div className="md:col-span-2 relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-zinc-500">
@@ -764,11 +1220,10 @@ export default function LandingPage() {
                         <button
                           key={dept}
                           onClick={() => toggleDept(dept)}
-                          className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all text-left truncate ${
-                            active
-                              ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
-                              : "bg-zinc-950/20 border-transparent text-[#A3A3A3] hover:text-[#FAFAFA]"
-                          }`}
+                          className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all text-left truncate ${active
+                            ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
+                            : "bg-zinc-950/20 border-transparent text-[#A3A3A3] hover:text-[#FAFAFA]"
+                            }`}
                         >
                           {dept}
                         </button>
@@ -794,13 +1249,12 @@ export default function LandingPage() {
                         <button
                           key={year}
                           onClick={() => toggleYear(year)}
-                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all text-left ${
-                            active
-                              ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
-                              : "bg-zinc-950/20 border-transparent text-[#A3A3A3] hover:text-[#FAFAFA]"
-                          }`}
+                          className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all text-left ${active
+                            ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
+                            : "bg-zinc-950/20 border-transparent text-[#A3A3A3] hover:text-[#FAFAFA]"
+                            }`}
                         >
-                          {year}st/nd/rd/th Year
+                          {year === 1 ? "1st" : year === 2 ? "2nd" : year === 3 ? "3rd" : `${year}th`} Year
                         </button>
                       );
                     })}
@@ -823,11 +1277,10 @@ export default function LandingPage() {
                     <button
                       key={star}
                       onClick={() => toggleStars(star)}
-                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-all ${
-                        active
-                          ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30 shadow-inner"
-                          : "bg-[#0A0A0A]/50 border-[#262626] text-[#A3A3A3] hover:text-[#FAFAFA] hover:border-zinc-850"
-                      }`}
+                      className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-all ${active
+                        ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30 shadow-inner"
+                        : "bg-[#0A0A0A]/50 border-[#262626] text-[#A3A3A3] hover:text-[#FAFAFA] hover:border-zinc-850"
+                        }`}
                     >
                       {star}★
                     </button>
@@ -871,7 +1324,7 @@ export default function LandingPage() {
                     </th>
                     <th className="py-4 px-4 text-center select-none">Growth %</th>
                     <th className="py-4 px-4 text-center select-none">Status</th>
-                    <th className="py-4 px-6 text-center w-24 select-none">Action</th>
+                    <th className="py-4 px-6 text-center w-40 select-none">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#262626]/50">
@@ -898,14 +1351,14 @@ export default function LandingPage() {
                     entries.map((entry) => {
                       const growth = calculateStudentGrowth(entry);
                       const status = getStudentStatus(entry);
-                      
+
                       return (
                         <tr key={entry.id} className="hover:bg-white/[0.008] transition-colors group">
                           {/* Rank */}
                           <td className="py-4 px-6 text-center text-xs font-black">
                             {getRankBadge(entry.rank)}
                           </td>
-                          
+
                           {/* Student profile details */}
                           <td className="py-4 px-4">
                             <div className="flex items-center gap-3">
@@ -962,9 +1415,8 @@ export default function LandingPage() {
 
                           {/* Growth % */}
                           <td className="py-4 px-4 text-center">
-                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-black ${
-                              growth.value >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"
-                            }`}>
+                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-black ${growth.value >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"
+                              }`}>
                               {growth.value >= 0 ? (
                                 <ChevronUp className="h-3 w-3 inline" />
                               ) : (
@@ -981,15 +1433,48 @@ export default function LandingPage() {
                             </span>
                           </td>
 
-                          {/* Action Button */}
+                          {/* Action Buttons */}
                           <td className="py-4 px-6 text-center">
-                            <button
-                              onClick={() => setSelectedStudentId(entry.student.id)}
-                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-[#262626] hover:border-[#EAB308]/30 bg-zinc-950 text-[10px] font-extrabold text-[#A3A3A3] hover:text-white transition-all shadow-sm"
-                            >
-                              Analytics
-                              <ChevronRight className="h-3 w-3" />
-                            </button>
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* View Profile */}
+                              <button
+                                onClick={() => setSelectedStudentId(entry.student.id)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#262626] hover:border-[#EAB308]/30 bg-zinc-950 text-[9px] font-extrabold text-[#A3A3A3] hover:text-white transition-all shadow-sm"
+                                title="View detailed profile"
+                              >
+                                View
+                              </button>
+
+                              {/* Refresh Data */}
+                              <button
+                                onClick={() => handleRefreshStudent(entry.student.id)}
+                                disabled={isRefreshingId === entry.student.id}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#262626] hover:border-[#22C55E]/30 bg-zinc-950 text-[9px] font-extrabold text-[#A3A3A3] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                                title="Refresh CodeChef metrics"
+                              >
+                                {isRefreshingId === entry.student.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin text-[#22C55E]" />
+                                ) : (
+                                  <RefreshCw className="h-3 w-3 text-zinc-500 hover:text-[#22C55E] transition-colors" />
+                                )}
+                                Refresh
+                              </button>
+
+                              {/* Delete Student */}
+                              <button
+                                onClick={() => handleDeleteStudent(entry.student.id)}
+                                disabled={isDeletingId === entry.student.id}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#262626] hover:border-red-500/30 bg-zinc-950 text-[9px] font-extrabold text-red-500/80 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                                title="Delete student profile"
+                              >
+                                {isDeletingId === entry.student.id ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3 w-3" />
+                                )}
+                                Delete
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1019,7 +1504,7 @@ export default function LandingPage() {
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
-                      
+
                       {Array.from({ length: totalPages }).map((_, idx) => {
                         const pNum = idx + 1;
                         if (totalPages > 5 && Math.abs(pNum - page) > 1 && pNum !== 1 && pNum !== totalPages) {
@@ -1030,11 +1515,10 @@ export default function LandingPage() {
                           <button
                             key={pNum}
                             onClick={() => setPage(pNum)}
-                            className={`relative inline-flex items-center px-3.5 py-1.5 border text-xs font-bold transition-all ${
-                              active
-                                ? "bg-[#EAB308] border-[#EAB308]/55 text-[#0A0A0A] shadow-md font-extrabold"
-                                : "border-[#262626] bg-zinc-950 text-[#A3A3A3] hover:text-white hover:bg-zinc-905"
-                            }`}
+                            className={`relative inline-flex items-center px-3.5 py-1.5 border text-xs font-bold transition-all ${active
+                              ? "bg-[#EAB308] border-[#EAB308]/55 text-[#0A0A0A] shadow-md font-extrabold"
+                              : "border-[#262626] bg-zinc-950 text-[#A3A3A3] hover:text-white hover:bg-zinc-905"
+                              }`}
                           >
                             {pNum}
                           </button>
@@ -1056,10 +1540,10 @@ export default function LandingPage() {
           </div>
 
         </div>
-        
+
         {/* Right Column (1/3 width) - SIDEBAR INSIGHTS & REAL-TIME ACTIVITY FEED */}
         <div className="flex flex-col gap-6">
-          
+
           {/* AI TALENT INSIGHTS CONSOLE */}
           <div id="insights" className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-5">
             <div className="flex items-center justify-between border-b border-[#262626] pb-3">
@@ -1096,7 +1580,7 @@ export default function LandingPage() {
 
             {/* AI Insights Intelligence Cards Grid */}
             <div className="flex flex-col gap-3.5">
-              
+
               {/* Card 1: Top Emerging Talent */}
               <div className="p-4 rounded-2xl border border-[#EAB308]/10 bg-[#EAB308]/5 text-left flex flex-col gap-1 transition-all hover:border-[#EAB308]/25">
                 <div className="flex items-center justify-between">
@@ -1225,7 +1709,7 @@ export default function LandingPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 animate-fade-in">
           {/* Close click boundary */}
           <div className="absolute inset-0" onClick={() => setSelectedStudentId(null)} />
-          
+
           <div className="border border-[#262626] bg-[#111111] w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl p-6 sm:p-8 relative z-10 text-left flex flex-col gap-6 animate-scale-up">
             {/* Close Button */}
             <button
@@ -1242,198 +1726,556 @@ export default function LandingPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-6">
-                
+
                 {/* Modal Header */}
-                <div className="flex items-center gap-4.5 border-b border-[#262626]/50 pb-5">
-                  <div className="h-16 w-16 rounded-2xl overflow-hidden border border-[#EAB308]/30 bg-zinc-950 flex items-center justify-center shrink-0 shadow-lg">
-                    {activeProfileDetails.profilePictureUrl ? (
-                      <img src={activeProfileDetails.profilePictureUrl} alt={activeProfileDetails.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="h-full w-full bg-[#EAB308]/10 text-[#EAB308] text-2xl font-black flex items-center justify-center">
-                        {activeProfileDetails.name.slice(0, 2).toUpperCase()}
+                <div className="flex flex-col border-b border-[#262626]/50 pb-5 text-left">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4.5">
+                      <div className="h-16 w-16 rounded-2xl overflow-hidden border border-[#EAB308]/30 bg-zinc-950 flex items-center justify-center shrink-0 shadow-lg">
+                        {activeProfileDetails.profilePictureUrl ? (
+                          <img src={activeProfileDetails.profilePictureUrl} alt={activeProfileDetails.name} className="h-full w-full object-cover" />
+                        ) : (
+                          <div className="h-full w-full bg-[#EAB308]/10 text-[#EAB308] text-2xl font-black flex items-center justify-center">
+                            {activeProfileDetails.name.slice(0, 2).toUpperCase()}
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="text-xl font-extrabold text-white leading-none flex flex-wrap items-center gap-2">
-                      {activeProfileDetails.name}
-                      <span className="text-[10px] bg-[#0A0A0A] border border-[#262626] text-zinc-400 px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider">
-                        {activeProfileDetails.rollNumber}
-                      </span>
-                    </h3>
-                    <p className="text-xs text-[#A3A3A3] mt-2 font-semibold">
-                      {activeProfileDetails.department} Department • Academic Year {activeProfileDetails.year}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Score breakdown metrics cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-xl flex flex-col">
-                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Current Rating</span>
-                    <span className="text-lg font-black text-white mt-1">
-                      {activeProfileDetails.codechefProfile?.currentRating || 0}
-                    </span>
-                  </div>
-                  <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-xl flex flex-col">
-                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Stars level</span>
-                    <span className="text-lg font-black text-white mt-1">
-                      {activeProfileDetails.codechefProfile?.stars || 1}★
-                    </span>
-                  </div>
-                  <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-xl flex flex-col">
-                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Problems Solved</span>
-                    <span className="text-lg font-black text-white mt-1">
-                      {activeProfileDetails.codechefProfile?.problemsSolved || 0}
-                    </span>
-                  </div>
-                  <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-xl flex flex-col">
-                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Contests count</span>
-                    <span className="text-lg font-black text-white mt-1">
-                      {activeProfileDetails.codechefProfile?.contestCount || 0}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Left/Right content grid inside Modal */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                  
-                  {/* Left: Charts Column */}
-                  <div className="md:col-span-2 flex flex-col gap-6">
-                    {/* Rating Timeline */}
-                    <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-2xl">
-                      <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4">
-                        CodeChef Rating Timeline Progress
-                      </span>
-                      <RatingChart contests={activeProfileDetails.codechefProfile?.contests || []} />
-                    </div>
-
-                    {/* Performance Rank Chart */}
-                    <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-2xl">
-                      <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4">
-                        CodeChef Contest Rank Progress (Lower is Better)
-                      </span>
-                      <PerformanceChart contests={activeProfileDetails.codechefProfile?.contests || []} />
-                    </div>
-
-                    {/* Skill Radar */}
-                    <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-2xl">
-                      <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4">
-                        AI Skill radar Matrix
-                      </span>
-                      <SkillRadar
-                        aiAnalysis={activeProfileDetails.aiAnalysis}
-                        stars={activeProfileDetails.codechefProfile?.stars || 1}
-                        contestCount={activeProfileDetails.codechefProfile?.contestCount || 0}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Right: AI Insights Column */}
-                  <div className="flex flex-col gap-6">
-                    
-                    {/* AI analysis scores sliders */}
-                    {activeProfileDetails.aiAnalysis && (
-                      <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-2xl flex flex-col gap-4">
-                        <span className="text-[10px] font-black text-[#EAB308] uppercase tracking-widest flex items-center gap-1.5">
-                          <Sparkles className="h-3.5 w-3.5" />
-                          AI Scores Metric
-                        </span>
-                        
-                        <div className="flex items-center gap-2 mb-2 pb-2 border-b border-[#262626]/50">
-                          <div className="flex flex-col flex-1">
-                            <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Talent Index Score</span>
-                            <span className="text-xl font-black text-white mt-0.5">
-                              {Math.round(activeProfileDetails.aiAnalysis.talentScore)}
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div>
-                            <div className="flex justify-between text-[9px] font-extrabold uppercase tracking-wider mb-1.5">
-                              <span className="text-zinc-500">Consistency Index</span>
-                              <span className="text-[#FAFAFA]">{Math.round(activeProfileDetails.aiAnalysis.consistencyScore)}%</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
-                              <div className="h-full bg-[#EAB308] rounded-full" style={{ width: `${activeProfileDetails.aiAnalysis.consistencyScore}%` }} />
-                            </div>
-                          </div>
-                          
-                          <div>
-                            <div className="flex justify-between text-[9px] font-extrabold uppercase tracking-wider mb-1.5">
-                              <span className="text-zinc-500">Problem Solving Index</span>
-                              <span className="text-[#FAFAFA]">{Math.round(activeProfileDetails.aiAnalysis.problemSolvingScore)}%</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
-                              <div className="h-full bg-[#22C55E] rounded-full" style={{ width: `${activeProfileDetails.aiAnalysis.problemSolvingScore}%` }} />
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="flex justify-between text-[9px] font-extrabold uppercase tracking-wider mb-1.5">
-                              <span className="text-zinc-500">Competitive Score</span>
-                              <span className="text-[#FAFAFA]">{Math.round(activeProfileDetails.aiAnalysis.competitiveProgrammingScore)}%</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
-                              <div className="h-full bg-amber-500 rounded-full" style={{ width: `${activeProfileDetails.aiAnalysis.competitiveProgrammingScore}%` }} />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* AI career suggestions */}
-                    {activeProfileDetails.aiAnalysis && (
-                      <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-2xl flex flex-col gap-4">
-                        <span className="text-[10px] font-black text-[#FAFAFA] uppercase tracking-widest flex items-center gap-1.5">
-                          <Briefcase className="h-3.5 w-3.5 text-[#EAB308]" />
-                          Career recommendations
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {activeProfileDetails.aiAnalysis.careerSuggestions.map((sug: string, idx: number) => (
-                            <span
-                              key={idx}
-                              className="px-2.5 py-1 text-[9px] font-bold text-white bg-[#EAB308]/10 border border-[#EAB308]/25 rounded-lg"
-                            >
-                              {sug}
-                            </span>
-                          ))}
-                        </div>
-
-                        {/* Strengths */}
-                        <div className="border-t border-[#262626]/50 pt-3.5">
-                          <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-2">
-                            Talent Strengths
+                      <div>
+                        <h3 className="text-xl font-extrabold text-white leading-none flex flex-wrap items-center gap-2">
+                          {activeProfileDetails.name}
+                          <span className="text-[10px] bg-[#0A0A0A] border border-[#262626] text-[#EAB308] px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider">
+                            {activeProfileDetails.rollNumber}
                           </span>
-                          <ul className="space-y-2">
-                            {activeProfileDetails.aiAnalysis.strengths.slice(0, 3).map((str: string, idx: number) => (
-                              <li key={idx} className="text-[10px] text-zinc-400 font-semibold leading-relaxed flex items-start gap-1.5">
-                                <span className="text-[#22C55E] font-bold">•</span>
-                                <span>{str}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
+                        </h3>
+                        <p className="text-xs text-[#A3A3A3] mt-2 font-bold">
+                          {activeProfileDetails.department} Department • Section {activeProfileDetails.section || "A"} • Year {activeProfileDetails.year}
+                        </p>
                       </div>
-                    )}
-
-                    {/* Growth Forecast */}
-                    <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-2xl flex flex-col gap-2">
-                      <span className="text-[10px] font-black text-amber-500 uppercase tracking-widest flex items-center gap-1.5">
-                        <Sparkles className="h-3.5 w-3.5 text-amber-500 animate-pulse" />
-                        Growth Forecast
-                      </span>
-                      <p className="text-[10px] text-zinc-400 leading-relaxed font-bold">
-                        {activeProfileDetails.codechefProfile?.stars && activeProfileDetails.codechefProfile.stars >= 4
-                          ? "Predicted to reach 5★ elite rating tier within 3 months if current weekly contest volumes are maintained."
-                          : "Strong consistency path indicates candidate is projected to cross 1600 (4★) rating within the next 2-3 contest iterations."
-                        }
-                      </p>
                     </div>
 
+                    <div className="flex flex-wrap gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 border border-[#262626] bg-[#0A0A0A]/50 rounded-xl text-[10px] font-black uppercase text-zinc-400">
+                        {activeProfileDetails.codechefProfile?.division || "Div N/A"}
+                      </span>
+                      <span className={`inline-flex items-center gap-1 px-3 py-1 border rounded-xl text-[10px] font-black uppercase ${getStarColorClass(activeProfileDetails.codechefProfile?.stars || 1)}`}>
+                        {activeProfileDetails.codechefProfile?.stars || 1}★ Star coder
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Meta location & institution details */}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-4 text-[10px] text-zinc-400 font-bold border-t border-[#262626]/20 pt-3">
+                    {activeProfileDetails.codechefProfile?.institution && (
+                      <span className="flex items-center gap-1.5">
+                        <GraduationCap className="h-3.5 w-3.5 text-zinc-500" />
+                        <span>{activeProfileDetails.codechefProfile.institution}</span>
+                      </span>
+                    )}
+                    {activeProfileDetails.codechefProfile?.city && (
+                      <span className="flex items-center gap-1">
+                        <span className="text-zinc-500 font-extrabold">City:</span>
+                        <span className="text-zinc-350">{activeProfileDetails.codechefProfile.city}</span>
+                      </span>
+                    )}
+                    {activeProfileDetails.codechefProfile?.country && (
+                      <span className="flex items-center gap-1">
+                        <span className="text-zinc-500 font-extrabold">Country:</span>
+                        <span className="text-zinc-350">{activeProfileDetails.codechefProfile.country}</span>
+                      </span>
+                    )}
+                    <span className="flex items-center gap-1">
+                      <span className="text-zinc-500 font-extrabold">CodeChef username:</span>
+                      <a
+                        href={`https://www.codechef.com/users/${activeProfileDetails.codechefUsername}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#EAB308] hover:text-white font-extrabold tracking-tight transition-colors inline-flex items-center gap-0.5"
+                      >
+                        @{activeProfileDetails.codechefUsername}
+                        <ChevronRight className="h-3 w-3 inline" />
+                      </a>
+                    </span>
                   </div>
                 </div>
+
+                {/* Tab Navigation Menu */}
+                <div className="flex border-b border-[#262626] gap-2 pb-px overflow-x-auto">
+                  {[
+                    { id: "overview", label: "Overview" },
+                    { id: "problems", label: "Problem Solving" },
+                    { id: "contests", label: "Contest History" },
+                    { id: "ai", label: "AI Roadmap" }
+                  ].map((t) => (
+                    <button
+                      key={t.id}
+                      onClick={() => setActiveModalTab(t.id)}
+                      className={`px-4 py-2.5 text-xs font-black transition-all border-b-2 -mb-px shrink-0 ${activeModalTab === t.id
+                        ? "border-[#EAB308] text-[#EAB308] font-extrabold"
+                        : "border-transparent text-zinc-400 hover:text-white"
+                        }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Safe JSON array parsing helper */}
+                {(() => {
+                  const getJsonArray = (val: any) => {
+                    if (!val) return [];
+                    if (Array.isArray(val)) return val;
+                    try {
+                      const parsed = JSON.parse(val);
+                      return Array.isArray(parsed) ? parsed : [];
+                    } catch {
+                      return [];
+                    }
+                  };
+
+                  const difficultyData = [
+                    { name: "Easy", value: activeProfileDetails.codechefProfile?.easySolvedCount || 0, color: "#22C55E" },
+                    { name: "Medium", value: activeProfileDetails.codechefProfile?.mediumSolvedCount || 0, color: "#3B82F6" },
+                    { name: "Hard", value: activeProfileDetails.codechefProfile?.hardSolvedCount || 0, color: "#EAB308" },
+                    { name: "Challenge", value: activeProfileDetails.codechefProfile?.challengeSolvedCount || 0, color: "#EF4444" },
+                  ].filter(d => d.value > 0);
+
+                  const isDifficultyEmpty = difficultyData.length === 0;
+                  const visualDifficultyData = isDifficultyEmpty
+                    ? [{ name: "No Problems Solved", value: 1, color: "#27272a" }]
+                    : difficultyData;
+
+                  const aiScores = [
+                    { label: "Talent Score", val: activeProfileDetails.aiAnalysis?.talentScore || 0, color: "#EAB308" },
+                    { label: "Consistency", val: activeProfileDetails.aiAnalysis?.consistencyScore || 0, color: "#FACC15" },
+                    { label: "Problem Solving", val: activeProfileDetails.aiAnalysis?.problemSolvingScore || 0, color: "#22C55E" },
+                    { label: "CP Capacity", val: activeProfileDetails.aiAnalysis?.competitiveProgrammingScore || 0, color: "#F59E0B" },
+                    { label: "Contest Skills", val: activeProfileDetails.aiAnalysis?.contestScore || 0, color: "#06B6D4" },
+                    { label: "Learning Depth", val: activeProfileDetails.aiAnalysis?.learningScore || 0, color: "#6366F1" },
+                    { label: "Growth Rating", val: activeProfileDetails.aiAnalysis?.growthScore || 0, color: "#D946EF" },
+                    { label: "Discipline Index", val: activeProfileDetails.aiAnalysis?.disciplineScore || 0, color: "#14B8A6" },
+                  ];
+
+                  return (
+                    <div className="flex-1">
+
+                      {/* Tab 1: OVERVIEW TAB */}
+                      {activeModalTab === "overview" && (
+                        <div className="flex flex-col gap-6 animate-fade-in">
+
+                          {/* Executive stats cards */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Current Rating</span>
+                              <span className="text-xl font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.currentRating || 0}
+                              </span>
+                              <span className="text-[9px] text-[#A3A3A3] font-semibold mt-1">
+                                Division: {activeProfileDetails.codechefProfile?.division || "N/A"}
+                              </span>
+                            </div>
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Global / Country Rank</span>
+                              <span className="text-xl font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.globalRank || "N/A"}
+                              </span>
+                              <span className="text-[9px] text-zinc-500 font-semibold mt-1">
+                                Country Rank: {activeProfileDetails.codechefProfile?.countryRank || "N/A"}
+                              </span>
+                            </div>
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Stars Tier</span>
+                              <span className="text-xl font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.stars || 1}★
+                              </span>
+                              <span className="text-[9px] text-zinc-500 font-semibold mt-1">
+                                Highest Rating: {activeProfileDetails.codechefProfile?.highestRating || 0}
+                              </span>
+                            </div>
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Consistency / Volume</span>
+                              <span className="text-xl font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.activeDaysCount || 0} Days
+                              </span>
+                              <span className="text-[9px] text-zinc-500 font-semibold mt-1">
+                                Last Active: {activeProfileDetails.codechefProfile?.lastActive ? new Date(activeProfileDetails.codechefProfile.lastActive).toLocaleDateString() : "N/A"}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Splits */}
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                            {/* Rating Chart */}
+                            <div className="md:col-span-2 border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl">
+                              <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4 text-left">
+                                CodeChef Rating Timeline Progress
+                              </span>
+                              <RatingChart contests={activeProfileDetails.codechefProfile?.contests || []} />
+                            </div>
+
+                            {/* Sidebar outcomes & strengths */}
+                            <div className="flex flex-col gap-6">
+                              {/* Expected outcomes */}
+                              <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
+                                <span className="text-[10px] font-black text-[#EAB308] uppercase tracking-widest flex items-center gap-1.5">
+                                  <Target className="h-3.5 w-3.5" />
+                                  Expected Outcomes
+                                </span>
+                                <div className="space-y-3.5">
+                                  <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Placement Readiness</span>
+                                    <span className="text-xs font-black text-white mt-1">
+                                      {activeProfileDetails.aiAnalysis?.placementReadiness || "N/A"}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">CP Potential</span>
+                                    <span className="text-xs font-black text-white mt-1">
+                                      {activeProfileDetails.aiAnalysis?.overallPotential || "N/A"}
+                                    </span>
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">6-Month Target Rating</span>
+                                    <span className="text-xs font-black text-[#22C55E] mt-1">
+                                      {activeProfileDetails.aiAnalysis?.expectedRating6Months || "N/A"}
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Strengths & Weaknesses list */}
+                              <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5">
+                                  <Sparkles className="h-3.5 w-3.5 text-[#EAB308]" />
+                                  Key Algorithmic Traits
+                                </span>
+                                <div className="space-y-4">
+                                  <div>
+                                    <span className="text-[9px] font-black text-[#22C55E] uppercase tracking-widest block mb-1">Strengths</span>
+                                    <ul className="space-y-1 text-[10px] text-zinc-400 font-bold leading-relaxed">
+                                      {getJsonArray(activeProfileDetails.aiAnalysis?.strengths).slice(0, 3).map((str: string, i: number) => (
+                                        <li key={i} className="flex items-start gap-1">
+                                          <span className="text-[#22C55E] font-bold">•</span>
+                                          <span>{str}</span>
+                                        </li>
+                                      ))}
+                                      {getJsonArray(activeProfileDetails.aiAnalysis?.strengths).length === 0 && (
+                                        <li className="text-zinc-550 italic">No traits calculated</li>
+                                      )}
+                                    </ul>
+                                  </div>
+                                  <div className="border-t border-[#262626]/50 pt-3">
+                                    <span className="text-[9px] font-black text-[#EF4444] uppercase tracking-widest block mb-1">Areas of Friction</span>
+                                    <ul className="space-y-1 text-[10px] text-zinc-400 font-bold leading-relaxed">
+                                      {getJsonArray(activeProfileDetails.aiAnalysis?.weaknesses).slice(0, 3).map((wk: string, i: number) => (
+                                        <li key={i} className="flex items-start gap-1">
+                                          <span className="text-[#EF4444] font-bold">•</span>
+                                          <span>{wk}</span>
+                                        </li>
+                                      ))}
+                                      {getJsonArray(activeProfileDetails.aiAnalysis?.weaknesses).length === 0 && (
+                                        <li className="text-zinc-550 italic">No constraints calculated</li>
+                                      )}
+                                    </ul>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tab 2: PROBLEM SOLVING TAB */}
+                      {activeModalTab === "problems" && (
+                        <div className="flex flex-col gap-6 animate-fade-in">
+
+                          {/* Count cards */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Total Problems Solved</span>
+                              <span className="text-xl font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.problemsSolved || 0}
+                              </span>
+                            </div>
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-[#22C55E] uppercase tracking-widest">Fully Solved Count</span>
+                              <span className="text-xl font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.fullySolvedCount || 0}
+                              </span>
+                            </div>
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-[#3B82F6] uppercase tracking-widest">Partially Solved Count</span>
+                              <span className="text-xl font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.partiallySolvedCount || 0}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Pie chart donut / Breakdown grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                            {/* Pie chart */}
+                            <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl flex flex-col items-center">
+                              <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest self-start mb-4">
+                                Problem Difficulty distribution
+                              </span>
+                              <div className="h-64 w-full flex items-center justify-center">
+                                <ResponsiveContainer width="100%" height="100%">
+                                  <PieChart>
+                                    <Pie
+                                      data={visualDifficultyData}
+                                      cx="50%"
+                                      cy="50%"
+                                      innerRadius={60}
+                                      outerRadius={80}
+                                      paddingAngle={4}
+                                      dataKey="value"
+                                    >
+                                      {visualDifficultyData.map((entry, index) => (
+                                        <Cell key={`cell-${index}`} fill={entry.color} />
+                                      ))}
+                                    </Pie>
+                                    <Tooltip
+                                      content={({ active, payload }) => {
+                                        if (active && payload && payload.length) {
+                                          const dataPoint = payload[0].payload;
+                                          return (
+                                            <div className="glass-panel p-2.5 rounded-xl border border-[#262626] shadow-xl text-left bg-zinc-950/90 text-white">
+                                              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: dataPoint.color }}>
+                                                {dataPoint.name}
+                                              </span>
+                                              <div className="text-sm font-black mt-0.5">
+                                                {isDifficultyEmpty ? 0 : dataPoint.value} Problems
+                                              </div>
+                                            </div>
+                                          );
+                                        }
+                                        return null;
+                                      }}
+                                    />
+                                    <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                  </PieChart>
+                                </ResponsiveContainer>
+                              </div>
+                            </div>
+
+                            {/* Detailed levels counts list */}
+                            <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
+                              <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block">
+                                Difficulty Level Share Index
+                              </span>
+                              <div className="space-y-4">
+                                {[
+                                  { name: "Easy Level Solved", count: activeProfileDetails.codechefProfile?.easySolvedCount || 0, color: "bg-[#22C55E]" },
+                                  { name: "Medium Level Solved", count: activeProfileDetails.codechefProfile?.mediumSolvedCount || 0, color: "bg-[#3B82F6]" },
+                                  { name: "Hard Level Solved", count: activeProfileDetails.codechefProfile?.hardSolvedCount || 0, color: "bg-[#EAB308]" },
+                                  { name: "Challenge Level Solved", count: activeProfileDetails.codechefProfile?.challengeSolvedCount || 0, color: "bg-[#EF4444]" },
+                                ].map((item, idx) => {
+                                  const totalSolved = activeProfileDetails.codechefProfile?.problemsSolved || 1;
+                                  const percentage = Math.round((item.count / totalSolved) * 100);
+                                  return (
+                                    <div key={idx}>
+                                      <div className="flex justify-between text-xs font-bold text-white mb-1.5">
+                                        <span className="text-zinc-400">{item.name}</span>
+                                        <span>{item.count} ({percentage}%)</span>
+                                      </div>
+                                      <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
+                                        <div className={`h-full ${item.color} rounded-full`} style={{ width: `${percentage}%` }} />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tab 3: CONTEST HISTORY TAB */}
+                      {activeModalTab === "contests" && (
+                        <div className="flex flex-col gap-6 animate-fade-in">
+
+                          {/* Contest type counter cards */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Starters Contests</span>
+                              <span className="text-lg font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.startersCount || 0}
+                              </span>
+                            </div>
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Cook-Offs</span>
+                              <span className="text-lg font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.cookOffCount || 0}
+                              </span>
+                            </div>
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Lunchtimes</span>
+                              <span className="text-lg font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.lunchtimeCount || 0}
+                              </span>
+                            </div>
+                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Long Challenges</span>
+                              <span className="text-lg font-black text-white mt-1">
+                                {activeProfileDetails.codechefProfile?.longChallengeCount || 0}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Contest Rank progress chart */}
+                          <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl">
+                            <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4 text-left">
+                              CodeChef Contest Rank Progress Timeline (Lower is Better)
+                            </span>
+                            <PerformanceChart contests={activeProfileDetails.codechefProfile?.contests || []} />
+                          </div>
+
+                          {/* Tabular chronological log */}
+                          <div className="border border-[#262626] bg-[#0A0A0A]/40 rounded-3xl overflow-hidden text-left">
+                            <div className="px-6 py-4 border-b border-[#262626]/50 bg-[#0A0A0A]/20">
+                              <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest">
+                                Contest Participation ledger
+                              </span>
+                            </div>
+                            <div className="overflow-x-auto max-h-72">
+                              <table className="w-full text-left border-collapse">
+                                <thead>
+                                  <tr className="border-b border-[#262626] bg-zinc-950/40 text-[9px] uppercase tracking-wider text-zinc-500 font-extrabold">
+                                    <th className="py-3 px-6">Contest Code</th>
+                                    <th className="py-3 px-6">Contest Name</th>
+                                    <th className="py-3 px-6 text-center">Global Rank</th>
+                                    <th className="py-3 px-6 text-center">Rating Achievement</th>
+                                    <th className="py-3 px-6 text-center">Date</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-[#262626]/50 text-xs font-bold text-zinc-300">
+                                  {(activeProfileDetails.codechefProfile?.contests || []).map((c: any, index: number) => (
+                                    <tr key={index} className="hover:bg-white/[0.008] transition-colors">
+                                      <td className="py-3 px-6 text-white font-extrabold">{c.code}</td>
+                                      <td className="py-3 px-6 text-zinc-400">{c.name}</td>
+                                      <td className="py-3 px-6 text-center text-[#EAB308] font-black">#{c.rank}</td>
+                                      <td className="py-3 px-6 text-center text-white">{c.rating}</td>
+                                      <td className="py-3 px-6 text-center text-zinc-500">{new Date(c.date).toLocaleDateString()}</td>
+                                    </tr>
+                                  ))}
+                                  {(activeProfileDetails.codechefProfile?.contests || []).length === 0 && (
+                                    <tr>
+                                      <td colSpan={5} className="py-8 text-center text-zinc-550 text-xs font-bold">
+                                        No registered contest participations tracked.
+                                      </td>
+                                    </tr>
+                                  )}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+
+                        </div>
+                      )}
+
+                      {/* Tab 4: AI ROADMAP TAB */}
+                      {activeModalTab === "ai" && (
+                        <div className="flex flex-col gap-6 animate-fade-in">
+
+                          {/* Circular SVG score gauge block */}
+                          <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl">
+                            <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4.5 text-left">
+                              AI Multi-Dimensional Algorithmic Skill Indexes
+                            </span>
+                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                              {aiScores.map((score, idx) => (
+                                <ScoreCircle
+                                  key={idx}
+                                  score={score.val}
+                                  label={score.label}
+                                  color={score.color}
+                                />
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Radar skill chart & recommendations splits */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                            {/* Skill Radar */}
+                            <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl">
+                              <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4 text-left">
+                                Candidate Skill Radar Matrix
+                              </span>
+                              <SkillRadar
+                                aiAnalysis={activeProfileDetails.aiAnalysis}
+                                stars={activeProfileDetails.codechefProfile?.stars || 1}
+                                contestCount={activeProfileDetails.codechefProfile?.contestCount || 0}
+                              />
+                            </div>
+
+                            {/* Career recommends & suggested companies */}
+                            <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
+                              <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5">
+                                <Briefcase className="h-3.5 w-3.5 text-[#EAB308]" />
+                                AI Career Direction Recommendations
+                              </span>
+                              <div className="space-y-4.5">
+                                <div>
+                                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-1">Primary Role Alignment</span>
+                                  <span className="text-sm font-extrabold text-[#FAFAFA] leading-snug block">
+                                    {activeProfileDetails.aiAnalysis?.careerRecommendation || "Software Development Engineer (SDE)"}
+                                  </span>
+                                </div>
+                                <div className="border-t border-[#262626]/50 pt-3.5">
+                                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Target Corporate Placements</span>
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {getJsonArray(activeProfileDetails.aiAnalysis?.suggestedCompanies).map((company: string, idx: number) => (
+                                      <span
+                                        key={idx}
+                                        className="px-2.5 py-1 text-[9px] font-extrabold text-[#FAFAFA] bg-[#EAB308]/5 border border-[#EAB308]/20 rounded-lg hover:border-[#EAB308]/40 hover:bg-[#EAB308]/10 transition-all cursor-default"
+                                      >
+                                        {company}
+                                      </span>
+                                    ))}
+                                    {getJsonArray(activeProfileDetails.aiAnalysis?.suggestedCompanies).length === 0 && (
+                                      <span className="text-zinc-500 text-xs italic">No placement targets computed.</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+
+                          {/* Recommended Learning Path checklist indicators */}
+                          <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl text-left">
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5 mb-4">
+                              <Sparkles className="h-3.5 w-3.5 text-[#EAB308]" />
+                              Dynamic Competitive Programming Learning Path
+                            </span>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                              {getJsonArray(activeProfileDetails.aiAnalysis?.recommendedLearningPath).map((pathNode: string, idx: number) => (
+                                <div key={idx} className="flex items-start gap-3 p-3 bg-zinc-950/45 border border-[#262626]/60 rounded-2xl hover:border-zinc-800 transition-colors">
+                                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30 text-[10px] font-black text-[#EAB308] mt-0.5">
+                                    {idx + 1}
+                                  </span>
+                                  <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-white leading-relaxed">{pathNode}</span>
+                                    <span className="text-[9px] text-[#A3A3A3] font-bold mt-0.5">Recommended Algorithmic Milestone</span>
+                                  </div>
+                                </div>
+                              ))}
+                              {getJsonArray(activeProfileDetails.aiAnalysis?.recommendedLearningPath).length === 0 && (
+                                <div className="text-zinc-550 text-xs italic">No path suggestions computed. Add student profiles to analyze.</div>
+                              )}
+                            </div>
+                          </div>
+
+                        </div>
+                      )}
+
+                    </div>
+                  );
+                })()}
 
               </div>
             )}

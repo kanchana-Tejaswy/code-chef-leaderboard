@@ -143,7 +143,7 @@ export function Navbar() {
 
         {/* Center Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-4">
-          <Link href="/dashboard" className={navItemClass("/dashboard")}>
+          <Link href="/" className={navItemClass("/")}>
             Dashboard
           </Link>
           <Link href="/leaderboard" className={navItemClass("/leaderboard")}>
@@ -195,103 +195,6 @@ export function Navbar() {
             )}
           </div>
 
-          {/* Settings Trigger */}
-          {user && isStaff && (
-            <Link
-              href="/admin"
-              className="p-2 rounded-lg border border-[#262626] hover:border-[#EAB308]/30 bg-[#111111] text-[#A3A3A3] hover:text-[#FAFAFA] transition-all"
-              title="Platform Console Administration"
-            >
-              <SettingsIcon className="h-4 w-4" />
-            </Link>
-          )}
-
-          {/* User Auth Portal */}
-          {user ? (
-            <div className="relative">
-              <button
-                onClick={() => {
-                  setIsProfileDropdownOpen(!isProfileDropdownOpen);
-                  setIsNotificationsOpen(false);
-                }}
-                className="flex items-center gap-2 text-left focus:outline-none"
-              >
-                {/* Profile Avatar */}
-                <div className="h-9 w-9 rounded-xl overflow-hidden border border-[#262626] hover:border-[#EAB308]/40 bg-[#111111] flex items-center justify-center transition-all">
-                  {profile?.profilePictureUrl ? (
-                    <img
-                      src={profile.profilePictureUrl}
-                      alt={profile.name || "User Profile"}
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-full w-full bg-[#EAB308]/10 text-[#EAB308] text-xs font-black flex items-center justify-center">
-                      {(profile?.name || user.email || "US").slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
-                </div>
-              </button>
-
-              {/* Profile Dropdown */}
-              {isProfileDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 rounded-xl border border-[#262626] bg-[#111111] p-2 shadow-2xl z-50">
-                  <div className="px-3 py-2 border-b border-[#262626] mb-2 text-left">
-                    <p className="text-xs font-bold text-[#FAFAFA] truncate">
-                      {profile?.name || user.email}
-                    </p>
-                    <p className="text-[9px] font-black text-[#A3A3A3] tracking-wider uppercase mt-0.5">
-                      {profile?.role || "Student"}
-                    </p>
-                  </div>
-                  
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setIsProfileDropdownOpen(false)}
-                    className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#A3A3A3] hover:text-[#FAFAFA] hover:bg-[#262626]/50 transition-all text-left"
-                  >
-                    <LayoutDashboard className="h-3.5 w-3.5" />
-                    Dashboard
-                  </Link>
-
-                  <Link
-                    href="/profile"
-                    onClick={() => setIsProfileDropdownOpen(false)}
-                    className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#A3A3A3] hover:text-[#FAFAFA] hover:bg-[#262626]/50 transition-all text-left"
-                  >
-                    <UserIcon className="h-3.5 w-3.5" />
-                    Profile
-                  </Link>
-
-                  <button
-                    onClick={() => {
-                      setIsProfileDropdownOpen(false);
-                      signOut();
-                    }}
-                    className="flex w-full items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold text-[#EF4444] hover:bg-[#EF4444]/10 transition-all text-left border-t border-[#262626]/50 mt-2 pt-2"
-                  >
-                    <LogOut className="h-3.5 w-3.5" />
-                    Sign Out
-                  </button>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Link
-                href="/login"
-                className="text-xs font-semibold text-[#A3A3A3] hover:text-[#FAFAFA] px-3 py-2 rounded-lg transition-all"
-              >
-                Log In
-              </Link>
-              <Link
-                href="/signup"
-                className="text-xs font-bold text-[#0A0A0A] bg-[#EAB308] hover:bg-[#FACC15] px-4 py-2 rounded-lg transition-all shadow-[0_4px_20px_rgba(234,179,8,0.2)] hover:shadow-[0_4px_25px_rgba(250,204,21,0.35)]"
-              >
-                Sign Up
-              </Link>
-            </div>
-          )}
-
           {/* Mobile Menu Toggle Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -306,9 +209,9 @@ export function Navbar() {
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-[#262626] bg-[#0A0A0A] px-4 py-4 space-y-2">
           <Link
-            href="/dashboard"
+            href="/"
             onClick={() => setIsMobileMenuOpen(false)}
-            className={mobileNavItemClass("/dashboard")}
+            className={mobileNavItemClass("/")}
           >
             Dashboard
           </Link>

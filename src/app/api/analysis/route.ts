@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         : ccProfile.contests || [];
 
       // Generate report using active service math
-      const report = AiEngineService.generateScoringReport({
+      const report = AiEngineService.analyzeProfile({
         currentRating: ccProfile.currentRating,
         highestRating: ccProfile.highestRating,
         stars: ccProfile.stars,
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-      const report = AiEngineService.generateScoringReport({
+      const report = AiEngineService.analyzeProfile({
         currentRating,
         highestRating: currentRating, // Assume highest is same as current for fallback
         stars: 1, // Will be inferred in calculation formulas if needed

@@ -54,12 +54,13 @@ export async function GET(request: NextRequest) {
     const deptRatings: Record<string, { total: number; count: number }> = {};
     studentsWithCc.forEach((s) => {
       const rating = s.codechefProfile?.currentRating || 0;
+      const dept = s.department || "General";
       if (rating > 0) {
-        if (!deptRatings[s.department]) {
-          deptRatings[s.department] = { total: 0, count: 0 };
+        if (!deptRatings[dept]) {
+          deptRatings[dept] = { total: 0, count: 0 };
         }
-        deptRatings[s.department].total += rating;
-        deptRatings[s.department].count += 1;
+        deptRatings[dept].total += rating;
+        deptRatings[dept].count += 1;
       }
     });
 

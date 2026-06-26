@@ -35,7 +35,7 @@ export default function NotFound() {
 
         <div className="w-full pt-4 border-t border-[#262626]/50">
           <Link
-            href="/dashboard"
+            href="/"
             className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all shadow-[0_4px_20px_rgba(234,179,8,0.2)]"
           >
             <ArrowLeft className="h-4 w-4" />

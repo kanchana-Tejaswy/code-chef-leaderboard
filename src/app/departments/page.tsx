@@ -168,7 +168,7 @@ export default function DepartmentsPage() {
               {/* Top Performer Tag */}
               {d.topPerformer.name !== "None" && (
                 <Link
-                  href={`/dashboard?userId=${d.topPerformer.id}`}
+                  href={`/?userId=${d.topPerformer.id}`}
                   className="flex items-center justify-between mt-1 p-2 rounded-xl bg-zinc-950 border border-zinc-900 hover:border-[#EAB308]/30 text-xs transition-all"
                 >
                   <div className="flex flex-col">
@@ -228,7 +228,7 @@ export default function DepartmentsPage() {
                   <td className="py-4 px-6 text-xs">
                     {d.topPerformer.name !== "None" ? (
                       <Link
-                        href={`/dashboard?userId=${d.topPerformer.id}`}
+                        href={`/?userId=${d.topPerformer.id}`}
                         className="inline-flex items-center gap-1.5 font-bold text-primary hover:text-white transition-colors"
                       >
                         <Trophy className="h-3.5 w-3.5" />

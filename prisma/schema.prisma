@@ -1,9 +1,10 @@
 datasource db {
-  provider = "mysql"
+  provider = "sqlite"
 }
 
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "library"
 }
 
 enum Role {
@@ -25,24 +26,14 @@ enum SyncInitiatedBy {
   ADMIN_FORCE
 }
 
-model User {
-  id             String          @id @default(uuid()) // Maps to Supabase Auth ID
-  email          String          @unique
-  role           Role            @default(STUDENT)
-  createdAt      DateTime        @default(now()) @map("created_at")
-  updatedAt      DateTime        @updatedAt @map("updated_at")
-  studentProfile StudentProfile?
-
-  @@map("users")
-}
-
 model StudentProfile {
-  id                String            @id // PK references User.id
-  user              User              @relation(fields: [id], references: [id], onDelete: Cascade)
+  id                String            @id @default(uuid())
   name              String
-  rollNumber        String            @unique @map("roll_number")
-  department        String
-  year              Int
+  rollNumber        String?           @unique @map("roll_number")
+  department        String?
+  year              Int?
+  branch            String?
+  section           String?
   profilePictureUrl String?           @map("profile_picture_url")
   codechefUsername  String?           @unique @map("codechef_username")
   createdAt         DateTime          @default(now()) @map("created_at")
@@ -58,21 +49,46 @@ model StudentProfile {
 }
 
 model CodechefProfile {
-  id             String         @id @default(uuid())
-  studentId      String         @unique @map("student_id")
-  student        StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  username       String         @unique
-  currentRating  Int            @default(0) @map("current_rating")
-  highestRating  Int            @default(0) @map("highest_rating")
-  globalRank     Int?           @map("global_rank")
-  countryRank    Int?           @map("country_rank")
-  stars          Int            @default(1)
-  problemsSolved Int            @default(0) @map("problems_solved")
-  contestCount   Int            @default(0) @map("contest_count")
-  contests       Json           @default("[]") // List of recent contest records
-  lastFetchedAt  DateTime       @default(now()) @map("last_fetched_at")
-  createdAt      DateTime       @default(now()) @map("created_at")
-  updatedAt      DateTime       @updatedAt @map("updated_at")
+  id                     String         @id @default(uuid())
+  studentId              String         @unique @map("student_id")
+  student                StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  username               String         @unique
+  fullName               String?        @map("full_name")
+  country                String?
+  institution            String?
+  city                   String?
+  currentRating          Int            @default(0) @map("current_rating")
+  highestRating          Int            @default(0) @map("highest_rating")
+  stars                  Int            @default(1)
+  maxStars               Int?           @map("max_stars")
+  globalRank             Int?           @map("global_rank")
+  countryRank            Int?           @map("country_rank")
+  problemsSolved         Int            @default(0) @map("problems_solved")
+  fullySolvedCount       Int            @default(0) @map("fully_solved_count")
+  partiallySolvedCount   Int            @default(0) @map("partially_solved_count")
+  easySolvedCount        Int            @default(0) @map("easy_solved_count")
+  mediumSolvedCount      Int            @default(0) @map("medium_solved_count")
+  hardSolvedCount        Int            @default(0) @map("hard_solved_count")
+  challengeSolvedCount   Int            @default(0) @map("challenge_solved_count")
+  contestCount           Int            @default(0) @map("contest_count")
+  longChallengeCount     Int            @default(0) @map("long_challenge_count")
+  cookOffCount           Int            @default(0) @map("cook_off_count")
+  lunchtimeCount         Int            @default(0) @map("lunchtime_count")
+  startersCount          Int            @default(0) @map("starters_count")
+  division               String?
+  bestContestRank        Int?           @map("best_contest_rank")
+  averageContestRank     Float?         @map("average_contest_rank")
+  lastActive             DateTime?      @map("last_active")
+  activeDaysCount        Int            @default(0) @map("active_days_count")
+  ratingHistory          Json?          @map("rating_history")
+  contestHistory         Json?          @map("contest_history")
+  difficultyDistribution Json?          @map("difficulty_distribution")
+  activitySummary        Json?          @map("activity_summary")
+  statisticDetails       Json?          @map("statistic_details")
+  contests               Json?          // Backward compatibility
+  lastFetchedAt          DateTime       @default(now()) @map("last_fetched_at")
+  createdAt              DateTime       @default(now()) @map("created_at")
+  updatedAt              DateTime       @updatedAt @map("updated_at")
 
   @@map("codechef_profiles")
 }
@@ -85,10 +101,21 @@ model AiAnalysis {
   consistencyScore            Float          @default(0) @map("consistency_score")
   problemSolvingScore         Float          @default(0) @map("problem_solving_score")
   competitiveProgrammingScore Float          @default(0) @map("competitive_programming_score")
-  strengths                   Json           @default("[]") // String array
-  weaknesses                  Json           @default("[]") // String array
-  recommendations             Json           @default("[]") // String array
-  careerSuggestions           Json           @default("[]") // String array
+  contestScore                Float          @default(0) @map("contest_score")
+  learningScore               Float          @default(0) @map("learning_score")
+  growthScore                 Float          @default(0) @map("growth_score")
+  disciplineScore             Float          @default(0) @map("discipline_score")
+  overallPotential            String?        @map("overall_potential")
+  placementReadiness          String?        @map("placement_readiness")
+  expectedRating6Months       Int?           @map("expected_rating_6_months")
+  strengths                   Json?          // String array
+  weaknesses                  Json?          // String array
+  improvementAreas            Json?          @map("improvement_areas") // String array
+  careerRecommendation        String?        @map("career_recommendation")
+  suggestedCompanies          Json?          @map("suggested_companies") // String array
+  recommendedLearningPath     Json?          @map("recommended_learning_path") // String array
+  recommendations             Json?          // Backward compatibility
+  careerSuggestions           Json?          // Backward compatibility
   generatedAt                 DateTime       @default(now()) @map("generated_at")
   createdAt                   DateTime       @default(now()) @map("created_at")
   updatedAt                   DateTime       @updatedAt @map("updated_at")

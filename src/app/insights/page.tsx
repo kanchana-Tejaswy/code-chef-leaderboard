@@ -253,7 +253,7 @@ export default function InsightsPage() {
                         </td>
                         <td className="py-3 px-5 text-center">
                           <Link
-                            href={`/dashboard?userId=${s.id}`}
+                            href={`/?userId=${s.id}`}
                             className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#262626] hover:border-[#EAB308]/30 text-[#A3A3A3] hover:text-white transition-all text-xs"
                           >
                             <ArrowRight className="h-3.5 w-3.5" />
@@ -321,7 +321,7 @@ export default function InsightsPage() {
                 data.placementReady.map((s) => (
                   <Link
                     key={s.id}
-                    href={`/dashboard?userId=${s.id}`}
+                    href={`/?userId=${s.id}`}
                     className="flex items-center justify-between p-3 rounded-xl border border-zinc-900 bg-zinc-950/40 hover:border-[#22C55E]/30 transition-all group"
                   >
                     <div className="flex flex-col">

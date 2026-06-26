@@ -68,7 +68,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
               2nd Place
             </span>
           </div>
-          <Link href={`/dashboard?userId=${second.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
+          <Link href={`/?userId=${second.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
             {second.student.name}
           </Link>
           <span className="text-[9px] text-[#A3A3A3] font-bold mb-3">{second.student.rollNumber}</span>
@@ -98,7 +98,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
               1st Place
             </span>
           </div>
-          <Link href={`/dashboard?userId=${first.student.id}`} className="text-xs sm:text-sm font-black text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
+          <Link href={`/?userId=${first.student.id}`} className="text-xs sm:text-sm font-black text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
             {first.student.name}
           </Link>
           <span className="text-[9px] text-[#A3A3A3] font-bold mb-3">{first.student.rollNumber}</span>
@@ -128,7 +128,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
               3rd Place
             </span>
           </div>
-          <Link href={`/dashboard?userId=${third.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
+          <Link href={`/?userId=${third.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
             {third.student.name}
           </Link>
           <span className="text-[9px] text-[#A3A3A3] font-bold mb-3">{third.student.rollNumber}</span>
@@ -570,7 +570,7 @@ function LeaderboardContent() {
                         {/* View Action */}
                         <td className="py-4 px-6 text-center">
                           <Link
-                            href={`/dashboard?userId=${entry.student.id}`}
+                            href={`/?userId=${entry.student.id}`}
                             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#262626] bg-[#0A0A0A] text-[#A3A3A3] hover:text-[#FAFAFA] hover:border-zinc-700 hover:bg-zinc-900 transition-all"
                             title="View Student Portfolio"
                           >

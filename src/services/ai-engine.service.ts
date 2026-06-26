@@ -3,39 +3,71 @@ export interface AiAnalysisResult {
   consistencyScore: number;
   problemSolvingScore: number;
   competitiveProgrammingScore: number;
+  contestScore: number;
+  learningScore: number;
+  growthScore: number;
+  disciplineScore: number;
+  overallPotential: string;
+  placementReadiness: string;
+  expectedRating6Months: number;
   strengths: string[];
   weaknesses: string[];
-  recommendations: string[];
-  careerSuggestions: string[];
-}
-
-export interface ScoringReport {
-  talentScore: number;
-  consistencyScore: number;
-  cpScore: number;
-  problemSolvingScore: number;
-  recommendations: string[];
+  improvementAreas: string[];
+  careerRecommendation: string;
+  suggestedCompanies: string[];
+  recommendedLearningPath: string[];
+  recommendations?: string[]; // Backward compatibility
+  careerSuggestions?: string[]; // Backward compatibility
 }
 
 export class AiEngineService {
   /**
-   * Generates exact required JSON scoring report.
+   * Performs advanced CP analytics calculations and AI-driven predictions.
    */
-  static generateScoringReport(data: {
+  static analyzeProfile(data: {
     currentRating: number;
     highestRating: number;
     stars: number;
     problemsSolved: number;
     contestCount: number;
-    contests: { date: string }[];
-  }): ScoringReport {
-    const { currentRating, highestRating, stars, problemsSolved, contestCount, contests } = data;
+    contests: { date: string; rating: number; rank: number }[];
+    fullySolvedCount?: number;
+    partiallySolvedCount?: number;
+    bestContestRank?: number | null;
+    activeDaysCount?: number;
+  }): AiAnalysisResult {
+    const {
+      currentRating,
+      highestRating,
+      stars,
+      problemsSolved,
+      contestCount,
+      contests,
+      fullySolvedCount = problemsSolved,
+      bestContestRank = null,
+      activeDaysCount = 0
+    } = data;
 
-    // 1. Calculate Consistency Score (0 - 100)
-    // Benchmarked against 30 contests for max base consistency
-    const baseConsistency = Math.min(100, (contestCount / 30) * 100);
-    
-    // Check recency of participation (date within 30 days = 20 points, within 90 days = 10 points)
+    // 1. Calculate CP Score (0-100)
+    // Capped at 100, 2200 rating (6-star) represents max rating base
+    const cpScore = Math.round(Math.min(100, (currentRating / 2200) * 100));
+
+    // 2. Calculate Problem Solving Score (0-100)
+    // Capped at 100, benchmarked against 350 solved problems
+    const problemSolvingScore = Math.round(Math.min(100, (fullySolvedCount / 300) * 80 + (problemsSolved / 350) * 20));
+
+    // 3. Calculate Contest Score (0-100)
+    let contestScore = 0;
+    if (contestCount > 0) {
+      const volumeScore = Math.min(40, (contestCount / 20) * 40);
+      const rankScore = bestContestRank 
+        ? Math.min(60, Math.max(10, 60 - Math.floor(bestContestRank / 100))) 
+        : 30;
+      contestScore = Math.round(Math.min(100, volumeScore + rankScore));
+    }
+
+    // 4. Calculate Consistency Score (0-100)
+    const baseConsistency = Math.min(80, (contestCount / 15) * 80);
     let recencyBonus = 0;
     if (contests && contests.length > 0) {
       const dates = contests
@@ -54,144 +86,118 @@ export class AiEngineService {
     }
     const consistencyScore = Math.round(Math.min(100, baseConsistency + recencyBonus));
 
-    // 2. Calculate Problem Solving Score (0 - 100)
-    // Benchmarked against 300 solved problems for max score
-    const problemSolvingScore = Math.round(Math.min(100, (problemsSolved / 300) * 100));
+    // 5. Calculate Learning Score (0-100)
+    const learningScore = Math.round(Math.min(100, (stars / 7) * 40 + (problemsSolved / 250) * 60));
 
-    // 3. Calculate Competitive Programming Score (0 - 100)
-    // Benchmarked against 2000 rating (5 stars) for 100 points
-    const cpScore = Math.round(Math.min(100, (currentRating / 2000) * 100));
+    // 6. Calculate Growth Score (0-100)
+    let growthScore = 50;
+    if (contests && contests.length > 2) {
+      const sortedContests = [...contests].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const lastRating = sortedContests[sortedContests.length - 1].rating;
+      const prevRating = sortedContests[Math.max(0, sortedContests.length - 4)].rating;
+      const diff = lastRating - prevRating;
+      growthScore = Math.round(Math.max(10, Math.min(100, 50 + diff * 0.5)));
+    }
 
-    // 4. Combined Talent Score (0 - 100)
-    // 40% performance, 40% volume, 20% consistency
-    const rawTalentScore = 0.4 * cpScore + 0.4 * problemSolvingScore + 0.2 * consistencyScore;
-    const talentScore = Math.round(Math.min(100, Math.max(0, rawTalentScore)));
+    // 7. Calculate Discipline Score (0-100)
+    const activeDaysBonus = Math.min(50, (activeDaysCount / 40) * 50);
+    const solvedBonus = Math.min(50, (problemsSolved / 150) * 50);
+    const disciplineScore = Math.round(Math.min(100, activeDaysBonus + solvedBonus));
 
-    // 5. Generate Recommendations list
-    const recommendations: string[] = [];
+    // 8. Overall Combined Talent Score (0-100)
+    const talentScore = Math.round(
+      0.20 * cpScore +
+      0.20 * problemSolvingScore +
+      0.15 * contestScore +
+      0.15 * consistencyScore +
+      0.15 * learningScore +
+      0.05 * growthScore +
+      0.10 * disciplineScore
+    );
 
-    if (cpScore < 50) {
-      recommendations.push("Focus on basic algorithms: search, sort, and recursion.");
+    // Expected Rating in 6 Months
+    const ratingIncrement = Math.round((growthScore - 48) * 3.5);
+    const expectedRating6Months = Math.max(currentRating, currentRating + ratingIncrement);
+
+    // Placement Readiness & Overall Potential Labels
+    let overallPotential = "Rising Talent";
+    if (talentScore >= 85) overallPotential = "Elite Master Coder";
+    else if (talentScore >= 72) overallPotential = "High Potential Developer";
+    else if (talentScore >= 50) overallPotential = "Competent SDE Candidate";
+
+    let placementReadiness = "Core Skills Phase";
+    if (currentRating >= 1800) placementReadiness = "Immediate Tier-1 / HFT Ready";
+    else if (currentRating >= 1600) placementReadiness = "Tier-2 Product Ready";
+    else if (currentRating >= 1400) placementReadiness = "Standard SDE Ready";
+    else if (currentRating >= 1200) placementReadiness = "Service / Mid-tier Ready";
+
+    // Dynamic Lists based on Stars/Rating
+    const strengths: string[] = [];
+    const weaknesses: string[] = [];
+    const improvementAreas: string[] = [];
+    let careerRecommendation = "";
+    const suggestedCompanies: string[] = [];
+    const recommendedLearningPath: string[] = [];
+
+    if (stars >= 5) {
+      strengths.push("Elite competitive programming index.", "Strong grasp of complex graph models & geometry.", "Advanced data structure execution.");
+      weaknesses.push("Occasional rating penalties due to edge-case submissions.", "Vulnerable in specialized combinatorial queries.");
+      improvementAreas.push("Target Global CodeChef Lunchtimes Div 1 tasks.", "Participate in ACM-ICPC simulated training sets.", "Optimize execution speed on heavy implementation segments.");
+      careerRecommendation = "Quantitative Platform Engineer, HFT Algorithmist, Core Infrastructure Architect";
+      suggestedCompanies.push("Google", "Uber", "Tower Research", "Graviton", "Directi", "CodeNation", "Atlassian");
+      recommendedLearningPath.push("Heavy-Light Decomposition & Centroid Trees", "Fast Fourier Transform (FFT) implementations", "Suffix Automaton & Palindromic Trees", "Min-Max Game Trees & Game Theory Optimization");
+    } else if (stars >= 3) {
+      strengths.push("Solid foundation in standard data structures.", "Capable of resolving Div2 medium-hard problems.", "Reliable contest speed.");
+      weaknesses.push("Slow implementation on complex Tree layouts.", "Struggles with dynamic programming state reductions.");
+      improvementAreas.push("Focus on segment trees and range queries.", "Master graph traversal algorithms (Dijkstra, Kruskal).", "Review editorial solutions for Div2 Div1 overlap problems.");
+      careerRecommendation = "Software Development Engineer (SDE-1), Backend Architect, Systems Engineer";
+      suggestedCompanies.push("Amazon", "Microsoft", "Razorpay", "Zoho", "Flipkart", "PayPal", "Intuit");
+      recommendedLearningPath.push("Segment Trees & Fenwick trees", "Graph Algorithms (Dijkstra, Prim's, Tarjan's SCC)", "Dynamic Programming State Optimization", "String Hashing & KMP Search");
     } else {
-      recommendations.push("Practice advanced data structures: segment trees, graphs, and dynamic programming.");
+      strengths.push("Active developer gaining CP exposure.", "Strong interest in basic algorithmic concepts.", "Comfortable with simple iterations & arrays.");
+      weaknesses.push("Limited problem library solved.", "Struggles with time-limit constraint optimization (TLE).", "Lack of timed contest experience.");
+      improvementAreas.push("Solve 15-20 easy/medium problems monthly.", "Participate in weekly Starters contests.", "Focus on time & space complexity math.");
+      careerRecommendation = "Full-Stack Web Developer, Associate Software Engineer, Associate Consultant";
+      suggestedCompanies.push("TCS Digital", "Cognizant", "Infosys", "Capgemini", "Wipro", "Accenture", "LTI Mindtree");
+      recommendedLearningPath.push("Time & Space Complexity analysis", "Sorting and Binary Search algorithms", "Standard Template Library (STL) Containers", "Recursion & Backtracking basics");
     }
 
-    if (problemSolvingScore < 50) {
-      recommendations.push("Increase problem solving frequency. Target 15-20 problems monthly.");
+    // Add extra entries for richness
+    if (problemsSolved >= 150 && strengths.length < 4) {
+      strengths.push("Excellent practice consistency & volume.");
+    }
+    if (consistencyScore >= 80 && strengths.length < 4) {
+      strengths.push("Reliable active coding timeline.");
     }
 
-    if (consistencyScore < 50) {
-      recommendations.push("Register and participate in more timed contests to build speed and accuracy.");
-    }
-
-    if (highestRating - currentRating > 100) {
-      recommendations.push("Work on submission correctness. Avoid wrong submissions to minimize rating penalties.");
-    }
-
-    recommendations.push("Review editorial solutions of problems you were unable to solve during the contest.");
-
-    // Dynamic career recommendations
-    if (currentRating >= 1800) {
-      recommendations.push("Profile recommended for: Tier-1 engineering roles (Systems, HFT, Backend Architecture).");
-    } else if (currentRating >= 1400) {
-      recommendations.push("Profile recommended for: Software Engineering / Full Stack Dev positions.");
-    } else {
-      recommendations.push("Profile recommended for: Associate Software Engineer / Frontend Developer positions.");
-    }
+    // Recommendations list for backward compatibility
+    const recommendations = [
+      ...improvementAreas.map(i => `Improvement Area: ${i}`),
+      `Path Recommendation: Master ${recommendedLearningPath[0]}`
+    ];
+    const careerSuggestions = suggestedCompanies.map(c => `${c} SDE Candidate`);
 
     return {
       talentScore,
       consistencyScore,
-      cpScore,
       problemSolvingScore,
-      recommendations,
-    };
-  }
-
-  /**
-   * Backward-compatible analyzeProfile for dashboard UI charts and details.
-   */
-  static analyzeProfile(data: {
-    currentRating: number;
-    highestRating: number;
-    stars: number;
-    problemsSolved: number;
-    contestCount: number;
-    contests: { date: string }[];
-  }): AiAnalysisResult {
-    const report = this.generateScoringReport(data);
-
-    const strengths: string[] = [];
-    const weaknesses: string[] = [];
-    const careerSuggestions: string[] = [];
-
-    // Strengths
-    if (data.stars >= 5) {
-      strengths.push(`Elite coding profile: Recognized as a ${data.stars}-Star competitive programmer.`);
-    } else if (data.stars >= 3) {
-      strengths.push(`Strong algorithmic core: Active ${data.stars}-Star competitor.`);
-    } else {
-      strengths.push("Active developer building competitive programming capabilities.");
-    }
-
-    if (data.problemsSolved >= 150) {
-      strengths.push(`High practice volume: Solved ${data.problemsSolved} challenges on the platform.`);
-    } else if (data.problemsSolved >= 50) {
-      strengths.push("Solid foundation in solving standard algorithmic challenges.");
-    }
-
-    if (report.consistencyScore >= 80) {
-      strengths.push("Excellent consistency: Shows a regular schedule of contest participations.");
-    }
-
-    if (data.currentRating > 1600 && data.highestRating - data.currentRating < 100) {
-      strengths.push("Stable contest rating showing strong, reliable performance trends.");
-    }
-
-    // Weaknesses
-    if (data.stars < 3) {
-      weaknesses.push("Lower star rating: Needs to raise ranking tier by performing better in live contests.");
-    }
-    if (data.problemsSolved < 50) {
-      weaknesses.push("Limited problem library coverage: Needs more practice across standard topics.");
-    }
-    if (data.contestCount < 8) {
-      weaknesses.push("Insufficient contest exposure: Lacks enough timed competitive practice.");
-    }
-    if (data.highestRating - data.currentRating > 150) {
-      weaknesses.push("Rating volatility: Highly fluctuating ratings; suggests penalties or inconsistent submissions.");
-    }
-
-    // Career Suggestions
-    if (data.currentRating >= 1800) {
-      careerSuggestions.push(
-        "Top Product Engineering (FAANG / Unicorns)",
-        "Quantitative Software Engineer / HFT Analyst",
-        "Systems Programmer / Backend Specialist"
-      );
-    } else if (data.currentRating >= 1400) {
-      careerSuggestions.push(
-        "Backend Developer (Python/Go/Java)",
-        "Software Engineer (Core Engineering)",
-        "Full-Stack Developer (MERN/Next.js)"
-      );
-    } else {
-      careerSuggestions.push(
-        "Associate Software Engineer",
-        "Frontend Engineer",
-        "Technical Analyst"
-      );
-    }
-
-    return {
-      talentScore: report.talentScore,
-      consistencyScore: report.consistencyScore,
-      problemSolvingScore: report.problemSolvingScore,
-      competitiveProgrammingScore: report.cpScore,
+      competitiveProgrammingScore: cpScore,
+      contestScore,
+      learningScore,
+      growthScore,
+      disciplineScore,
+      overallPotential,
+      placementReadiness,
+      expectedRating6Months,
       strengths,
       weaknesses,
-      recommendations: report.recommendations,
-      careerSuggestions,
+      improvementAreas,
+      careerRecommendation,
+      suggestedCompanies,
+      recommendedLearningPath,
+      recommendations,
+      careerSuggestions
     };
   }
 }
+

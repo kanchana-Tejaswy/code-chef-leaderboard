@@ -18,6 +18,31 @@ export interface ScrapedData {
   contestCount: number;
   contests: ContestLog[];
   rawMetrics?: Record<string, any>;
+  fullName?: string | null;
+  country?: string | null;
+  institution?: string | null;
+  city?: string | null;
+  maxStars?: number | null;
+  fullySolvedCount?: number;
+  partiallySolvedCount?: number;
+  easySolvedCount?: number;
+  mediumSolvedCount?: number;
+  hardSolvedCount?: number;
+  challengeSolvedCount?: number;
+  longChallengeCount?: number;
+  cookOffCount?: number;
+  lunchtimeCount?: number;
+  startersCount?: number;
+  division?: string | null;
+  bestContestRank?: number | null;
+  averageContestRank?: number | null;
+  lastActive?: Date | null;
+  activeDaysCount?: number;
+  ratingHistory?: any[];
+  contestHistory?: any[];
+  difficultyDistribution?: any;
+  activitySummary?: any;
+  statisticDetails?: any;
 }
 
 export interface IPlatformScraper {
