@@ -351,6 +351,117 @@ export function getStudentRecommendation(student: any): string {
   return "Practice advanced Tree segment structures (HLD, Centroid trees) for elite optimization.";
 }
 
+// ---------------------------------------------------------------------------
+// New utility functions for coding streak estimation and performance scores
+// ---------------------------------------------------------------------------
+/**
+ * Estimate coding streak based on CodeChef rating history dates.
+ * Returns current streak, longest streak, last active date, and activity flags.
+ */
+export function calculateCodingStreak(student: any) {
+  const rawHistory = student.codechefProfile?.ratingHistory;
+  let history: any[] = [];
+  try {
+    history = typeof rawHistory === "string" ? JSON.parse(rawHistory) : rawHistory || [];
+  } catch (e) {
+    history = [];
+  }
+
+  if (!Array.isArray(history) || history.length === 0) {
+    return {
+      currentStreak: null,
+      longestStreak: null,
+      lastActiveDate: null,
+      activeThisWeek: false,
+      activeThisMonth: false,
+    };
+  }
+
+  // Convert to timestamps at start of UTC day
+  const dates = history
+    .map((h: any) => new Date(h.date))
+    .filter((d: Date) => !isNaN(d.getTime()))
+    .map((d: Date) => d.setUTCHours(0, 0, 0, 0))
+    .sort((a: number, b: number) => a - b);
+
+  // Compute longest consecutive streak
+  let longest = 1;
+  let current = 1;
+  for (let i = 1; i < dates.length; i++) {
+    const diff = dates[i] - dates[i - 1];
+    if (diff === 86400000) {
+      current += 1;
+    } else {
+      longest = Math.max(longest, current);
+      current = 1;
+    }
+  }
+  longest = Math.max(longest, current);
+
+  // Compute current streak (from most recent backwards)
+  let currentStreak = 1;
+  for (let i = dates.length - 1; i > 0; i--) {
+    if (dates[i] - dates[i - 1] === 86400000) {
+      currentStreak += 1;
+    } else {
+      break;
+    }
+  }
+
+  const lastActive = new Date(dates[dates.length - 1]);
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+  const diffFromToday = today - dates[dates.length - 1];
+  const activeThisWeek = diffFromToday <= 7 * 86400000;
+  const activeThisMonth = diffFromToday <= 30 * 86400000;
+
+  return {
+    currentStreak,
+    longestStreak: longest,
+    lastActiveDate: lastActive.toISOString().split('T')[0],
+    activeThisWeek,
+    activeThisMonth,
+  };
+}
+
+/**
+ * Generate a set of performance scores for a student based on raw metrics.
+ */
+export function generatePerformanceScores(student: any) {
+  const rating = student.codechefProfile?.currentRating || 0;
+  const highestRating = student.codechefProfile?.highestRating || rating;
+  const stars = student.codechefProfile?.stars || 1;
+  const highestStars = student.codechefProfile?.highestStars || stars;
+  const contestCount = student.codechefProfile?.contestCount || 0;
+  const problemsSolved = student.codechefProfile?.problemsSolved || 0;
+  const consistency = student.aiAnalysis?.consistencyScore || 0;
+  const talent = student.aiAnalysis?.talentScore || 0;
+  const growth = student.aiAnalysis?.growthScore || 0;
+  const learning = student.aiAnalysis?.learningScore || 0;
+
+  const talentScore = Math.round(talent);
+  const problemSolvingScore = Math.min(100, Math.round((problemsSolved / 200) * 100));
+  const contestScore = Math.min(100, Math.round((contestCount / 20) * 100));
+  const consistencyScore = Math.min(100, Math.round(consistency));
+  const learningScore = Math.min(100, Math.round(learning));
+  const growthScore = Math.min(100, Math.round(growth));
+  const competitiveProgrammingScore = Math.min(
+    100,
+    Math.round((rating / 2000) * 100 + (stars / 5) * 20)
+  );
+
+  return {
+    talentScore,
+    problemSolvingScore,
+    contestScore,
+    consistencyScore,
+    learningScore,
+    growthScore,
+    competitiveProgrammingScore,
+  };
+}
+
+
 export class InsightsService {
   static getInsights(students: any[]) {
     const activeStudents = students.filter(s => s.codechefProfile && s.aiAnalysis);
@@ -412,7 +523,12 @@ export class InsightsService {
       discoveryReports,
       confidence,
       collegeStats,
-      departmentInsights
+      departmentInsights,
+      studentMetrics: activeStudents.map((s: any) => ({
+        id: s.id,
+        codingStreak: calculateCodingStreak(s),
+        performanceScores: generatePerformanceScores(s)
+      }))
     };
   }
 }
