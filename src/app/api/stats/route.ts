@@ -76,9 +76,19 @@ export async function GET(request: NextRequest) {
         codechefProfile: { isNot: null },
         aiAnalysis: { isNot: null },
       },
-      include: {
-        codechefProfile: true,
-        aiAnalysis: true,
+      select: {
+        codechefProfile: {
+          select: {
+            currentRating: true,
+            contestCount: true,
+          },
+        },
+        aiAnalysis: {
+          select: {
+            talentScore: true,
+            consistencyScore: true,
+          },
+        },
       },
     });
 
