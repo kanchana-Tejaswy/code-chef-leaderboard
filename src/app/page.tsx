@@ -78,6 +78,11 @@ interface StatsData {
   };
   contestParticipationPercent: SparklineData;
   placementReadinessIndex: SparklineData;
+  averageTalentScore: SparklineData;
+  averageCPScore: SparklineData;
+  averageConsistencyScore: SparklineData;
+  averageProblemsSolved: SparklineData;
+  averageContestParticipation: SparklineData;
 }
 
 interface ActivityItem {
@@ -253,8 +258,8 @@ export default function LandingPage() {
   const loadDashboardData = async () => {
     try {
       const [statsRes, activityRes] = await Promise.all([
-        fetch("/api/stats"),
-        fetch("/api/activity"),
+        fetch("/api/stats", { cache: "no-store" }),
+        fetch("/api/activity", { cache: "no-store" }),
       ]);
 
       if (statsRes.ok && activityRes.ok) {
@@ -777,31 +782,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Live sync indicators */}
-        <div className="flex flex-wrap gap-4 shrink-0 mt-4 lg:mt-0 relative z-10">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#262626] bg-[#0A0A0A]/50">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#22C55E] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#22C55E]"></span>
-            </span>
-            <span className="text-[10px] font-bold text-[#FAFAFA] uppercase tracking-wider">System Active</span>
-          </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#262626] bg-[#0A0A0A]/50">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#F59E0B] opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-[#F59E0B]"></span>
-            </span>
-            <span className="text-[10px] font-bold text-[#FAFAFA] uppercase tracking-wider">Daily Sync Running</span>
-          </div>
-
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-[#262626] bg-[#0A0A0A]/50" title="Last automated sync cycle timestamp">
-            <CheckCircle className="h-3 w-3 text-[#EAB308]" />
-            <span className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-wider">
-              Updated: {lastSyncTime}
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* 2. EXECUTIVE OVERVIEW SECTION */}

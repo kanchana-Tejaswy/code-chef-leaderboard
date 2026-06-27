@@ -411,7 +411,7 @@ export function calculateCodingStreak(student: any) {
   const lastActive = new Date(dates[dates.length - 1]);
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
-  const diffFromToday = today - dates[dates.length - 1];
+  const diffFromToday = today.getTime() - dates[dates.length - 1];
   const activeThisWeek = diffFromToday <= 7 * 86400000;
   const activeThisMonth = diffFromToday <= 30 * 86400000;
 

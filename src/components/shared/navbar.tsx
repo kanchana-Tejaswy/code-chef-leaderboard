@@ -56,12 +56,7 @@ export function Navbar() {
 
   const isStaff = profile && ["ADMIN", "FACULTY", "PLACEMENT_OFFICER", "PRINCIPAL"].includes(profile.role);
 
-  // Mock Notifications for high-fidelity interactive feel
-  const mockNotifications = [
-    { id: 1, text: "Placement readiness report updated for CSE-A.", time: "10m ago" },
-    { id: 2, text: "3 students reached 4★ CodeChef rating tier today.", time: "2h ago" },
-    { id: 3, text: "GK Sir requested access to CP Training cohort.", time: "1d ago" }
-  ];
+
 
   return (
     <header
@@ -163,37 +158,7 @@ export function Navbar() {
         {/* Right Navigation Controls */}
         <div className="flex items-center gap-3">
           
-          {/* Notifications Trigger */}
-          <div className="relative">
-            <button
-              onClick={() => {
-                setIsNotificationsOpen(!isNotificationsOpen);
-                setIsProfileDropdownOpen(false);
-              }}
-              className="p-2 rounded-lg border border-[#262626] hover:border-[#EAB308]/30 bg-[#111111] text-[#A3A3A3] hover:text-[#FAFAFA] transition-all relative animate-none"
-            >
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-1.5 right-1.5 h-1.5 w-1.5 rounded-full bg-[#22C55E]" />
-            </button>
-            
-            {/* Notifications Dropdown Modal */}
-            {isNotificationsOpen && (
-              <div className="absolute right-0 mt-2 w-80 rounded-xl border border-[#262626] bg-[#111111] p-4 shadow-2xl z-50">
-                <div className="flex items-center justify-between border-b border-[#262626] pb-2 mb-3">
-                  <span className="text-xs font-bold text-[#FAFAFA] uppercase tracking-wider">System Alerts</span>
-                  <span className="text-[10px] font-semibold text-[#22C55E]">Real-time active</span>
-                </div>
-                <div className="space-y-3">
-                  {mockNotifications.map((notif) => (
-                    <div key={notif.id} className="text-left text-xs border-b border-[#262626]/50 pb-2 last:border-0 last:pb-0">
-                      <p className="text-[#FAFAFA] font-medium leading-relaxed">{notif.text}</p>
-                      <span className="text-[9px] text-[#A3A3A3] mt-1 block">{notif.time}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          
 
           {/* Mobile Menu Toggle Button */}
           <button

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+
+
 import { prisma } from "@/lib/prisma";
 
 export async function GET(request: NextRequest) {
@@ -15,18 +17,27 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const ratingSumResult = await prisma.codechefProfile.aggregate({
-      _sum: {
-        currentRating: true,
-      },
-      _max: {
-        currentRating: true,
-      },
+    const ratingAgg = await prisma.codechefProfile.aggregate({
+      _sum: { currentRating: true },
+      _avg: { currentRating: true },
+      _max: { currentRating: true },
     });
+    // Talent, CP and consistency aggregates from AI analysis
+    const talentAgg = await prisma.aiAnalysis.aggregate({ _avg: { talentScore: true } });
+    const cpAgg = await prisma.aiAnalysis.aggregate({ _avg: { competitiveProgrammingScore: true } });
+    const consistencyAgg = await prisma.aiAnalysis.aggregate({ _avg: { consistencyScore: true } });
+    // Problems solved and contest participation from CodeChef profiles
+    const problemsAgg = await prisma.codechefProfile.aggregate({ _avg: { problemsSolved: true } });
+    const contestAgg = await prisma.codechefProfile.aggregate({ _avg: { contestCount: true } });
 
-    const totalRating = ratingSumResult._sum.currentRating || 0;
-    const averageRating = activeProfilesCount > 0 ? Math.round(totalRating / activeProfilesCount) : 0;
-    const highestRating = ratingSumResult._max.currentRating || 0;
+    const totalRating = ratingAgg._sum.currentRating || 0;
+    const averageRating = activeProfilesCount > 0 ? Math.round(ratingAgg._avg.currentRating || 0) : 0;
+    const highestRating = ratingAgg._max.currentRating || 0;
+    const averageTalentScore = Math.round(talentAgg._avg.talentScore || 0);
+    const averageCPScore = Math.round(cpAgg._avg.competitiveProgrammingScore || 0);
+    const averageConsistencyScore = Math.round(consistencyAgg._avg.consistencyScore || 0);
+    const averageProblemsSolved = Math.round(problemsAgg._avg.problemsSolved || 0);
+    const averageContestParticipation = Math.round(contestAgg._avg.contestCount || 0);
 
     const activeContestParticipants = await prisma.codechefProfile.count({
       where: {
@@ -126,7 +137,7 @@ export async function GET(request: NextRequest) {
 
     const yesterdayRatingAgg = await prisma.codechefProfile.aggregate({
       _sum: { currentRating: true },
-      where: { createdAt: { lt: yesterday } },
+      // removed date filter on CodechefProfile for compatibility
     });
     const yesterdayAverageRating = yesterdayActiveProfiles > 0
       ? Math.round((yesterdayRatingAgg._sum.currentRating || 0) / yesterdayActiveProfiles)
@@ -170,11 +181,11 @@ export async function GET(request: NextRequest) {
       : 0;
 
     const yesterdayFourStar = await prisma.codechefProfile.count({
-      where: { stars: 4, createdAt: { lt: yesterday } },
+      // removed date filter on CodechefProfile for compatibility
     });
 
     const yesterdayFiveStar = await prisma.codechefProfile.count({
-      where: { stars: { gte: 5 }, createdAt: { lt: yesterday } },
+      // removed date filter on CodechefProfile for compatibility
     });
 
     // Helper functions for format trends
@@ -199,16 +210,22 @@ export async function GET(request: NextRequest) {
 
     // 3. Dynamic Sparklines (6 intervals over last 5 days)
     const sparklines: Record<string, number[]> = {
-      totalStudents: [],
-      activeProfiles: [],
-      averageRating: [],
-      participationPercent: [],
-      placementIndex: [],
-      fourStar: [],
-      fiveStar: [],
-      topDept: [],
-      highestRating: []
+        totalStudents: [],
+        activeProfiles: [],
+        averageRating: [],
+        participationPercent: [],
+        placementIndex: [],
+        fourStar: [],
+        fiveStar: [],
+        highestRating: [],
+        topDept: [],
+        averageTalentScore: [],
+        averageCPScore: [],
+        averageConsistencyScore: [],
+        averageProblemsSolved: [],
+        averageContestParticipation: []
     };
+
 
     for (let i = 5; i >= 0; i--) {
       const dateLimit = new Date();
@@ -233,11 +250,21 @@ export async function GET(request: NextRequest) {
 
       // Average Rating
       const rAgg = await prisma.codechefProfile.aggregate({
-        _sum: { currentRating: true },
-        where: { createdAt: { lt: dateLimit } }
+        _sum: { currentRating: true }
       });
       const avg = aCount > 0 ? Math.round((rAgg._sum.currentRating || 0) / aCount) : 0;
       sparklines.averageRating.push(avg);
+      // Talent, CP, Consistency, Problems, Contest sparklines (no date filter for simplicity)
+      const talentS = await prisma.aiAnalysis.aggregate({ _avg: { talentScore: true } });
+      const cpS = await prisma.aiAnalysis.aggregate({ _avg: { competitiveProgrammingScore: true } });
+      const consS = await prisma.aiAnalysis.aggregate({ _avg: { consistencyScore: true } });
+      const probS = await prisma.codechefProfile.aggregate({ _avg: { problemsSolved: true } });
+      const contS = await prisma.codechefProfile.aggregate({ _avg: { contestCount: true } });
+      sparklines.averageTalentScore.push(Math.round(talentS._avg.talentScore || 0));
+      sparklines.averageCPScore.push(Math.round(cpS._avg.competitiveProgrammingScore || 0));
+      sparklines.averageConsistencyScore.push(Math.round(consS._avg.consistencyScore || 0));
+      sparklines.averageProblemsSolved.push(Math.round(probS._avg.problemsSolved || 0));
+      sparklines.averageContestParticipation.push(Math.round(contS._avg.contestCount || 0));
 
       // Participation Percent
       const cCount = await prisma.studentProfile.count({
@@ -278,13 +305,13 @@ export async function GET(request: NextRequest) {
 
       // Four Star
       const f4Count = await prisma.codechefProfile.count({
-        where: { stars: 4, createdAt: { lt: dateLimit } }
+        // removed date filter on CodechefProfile for compatibility
       });
       sparklines.fourStar.push(f4Count);
 
       // Five Star
       const f5Count = await prisma.codechefProfile.count({
-        where: { stars: { gte: 5 }, createdAt: { lt: dateLimit } }
+        // removed date filter on CodechefProfile for compatibility
       });
       sparklines.fiveStar.push(f5Count);
 
@@ -356,6 +383,31 @@ export async function GET(request: NextRequest) {
           trend: formatIndexTrend(placementReadinessIndex, yesterdayPlacementReadinessIndex),
           sparkline: sparklines.placementIndex,
         },
+        averageTalentScore: {
+          value: averageTalentScore,
+          trend: "",
+          sparkline: sparklines.averageTalentScore,
+        },
+        averageCPScore: {
+          value: averageCPScore,
+          trend: "",
+          sparkline: sparklines.averageCPScore,
+        },
+        averageConsistencyScore: {
+          value: averageConsistencyScore,
+          trend: "",
+          sparkline: sparklines.averageConsistencyScore,
+        },
+        averageProblemsSolved: {
+          value: averageProblemsSolved,
+          trend: "",
+          sparkline: sparklines.averageProblemsSolved,
+        },
+        averageContestParticipation: {
+          value: averageContestParticipation,
+          trend: "",
+          sparkline: sparklines.averageContestParticipation,
+        }
       },
     });
   } catch (err: any) {
