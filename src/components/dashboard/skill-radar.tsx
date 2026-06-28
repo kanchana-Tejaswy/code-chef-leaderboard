@@ -80,17 +80,17 @@ export function SkillRadar({ aiAnalysis, stars, contestCount }: SkillRadarProps)
     <div className="h-64 w-full flex items-center justify-center">
       <ResponsiveContainer width="100%" height="100%">
         <RadarChart cx="50%" cy="50%" outerRadius="75%" data={data}>
-          <PolarGrid stroke="#262626" />
+          <PolarGrid stroke="var(--brand-border)" />
           <PolarAngleAxis
             dataKey="subject"
-            stroke="#A3A3A3"
+            stroke="var(--chart-axis)"
             fontSize={9}
             fontWeight="bold"
           />
           <PolarRadiusAxis
             angle={30}
             domain={[0, 100]}
-            stroke="#A3A3A3"
+            stroke="var(--chart-axis)"
             fontSize={8}
             tick={false}
             axisLine={false}
@@ -100,7 +100,7 @@ export function SkillRadar({ aiAnalysis, stars, contestCount }: SkillRadarProps)
               if (active && payload && payload.length) {
                 const dataPoint = payload[0].payload;
                 return (
-                  <div className="glass-panel p-2.5 rounded-xl border border-[#262626] shadow-xl text-left">
+                  <div className="glass-panel p-2.5 rounded-xl border border-brand-border shadow-xl text-left">
                     <p className="text-[10px] font-bold text-[#EAB308] uppercase tracking-wider mb-0.5">
                       {dataPoint.subject}
                     </p>
@@ -109,7 +109,7 @@ export function SkillRadar({ aiAnalysis, stars, contestCount }: SkillRadarProps)
                         {dataPoint.value}%
                       </span>
                       {dataPoint.raw && (
-                        <span className="text-[10px] text-[#A3A3A3] font-semibold">
+                        <span className="text-[10px] text-brand-muted font-semibold">
                           ({dataPoint.raw})
                         </span>
                       )}

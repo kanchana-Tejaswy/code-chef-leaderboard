@@ -71,7 +71,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
           <Link href={`/?userId=${second.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
             {second.student.name}
           </Link>
-          <span className="text-[9px] text-[#A3A3A3] font-bold mb-3">{second.student.rollNumber}</span>
+          <span className="text-[9px] text-brand-muted font-bold mb-3">{second.student.rollNumber}</span>
           
           {/* Pedestal Stand */}
           <div className="w-full h-24 sm:h-28 bg-gradient-to-t from-zinc-950/80 to-zinc-900/30 border-t border-x border-zinc-800/40 rounded-t-2xl flex flex-col justify-center items-center shadow-[0_-4px_30px_rgba(0,0,0,0.4)]">
@@ -101,7 +101,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
           <Link href={`/?userId=${first.student.id}`} className="text-xs sm:text-sm font-black text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
             {first.student.name}
           </Link>
-          <span className="text-[9px] text-[#A3A3A3] font-bold mb-3">{first.student.rollNumber}</span>
+          <span className="text-[9px] text-brand-muted font-bold mb-3">{first.student.rollNumber}</span>
 
           {/* Pedestal Stand */}
           <div className="w-full h-32 sm:h-36 bg-gradient-to-t from-zinc-950/90 to-zinc-900/50 border-t border-x border-[#EAB308]/15 rounded-t-2xl flex flex-col justify-center items-center shadow-[0_-4px_35px_rgba(234,179,8,0.1)] relative">
@@ -131,7 +131,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
           <Link href={`/?userId=${third.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
             {third.student.name}
           </Link>
-          <span className="text-[9px] text-[#A3A3A3] font-bold mb-3">{third.student.rollNumber}</span>
+          <span className="text-[9px] text-brand-muted font-bold mb-3">{third.student.rollNumber}</span>
 
           {/* Pedestal Stand */}
           <div className="w-full h-20 sm:h-24 bg-gradient-to-t from-zinc-950/80 to-zinc-900/30 border-t border-x border-zinc-800/40 rounded-t-2xl flex flex-col justify-center items-center shadow-[0_-4px_30px_rgba(0,0,0,0.4)]">
@@ -295,7 +295,7 @@ function LeaderboardContent() {
         </span>
       );
     }
-    return <span className="text-xs font-bold text-[#A3A3A3]">#{pos}</span>;
+    return <span className="text-xs font-bold text-brand-muted">#{pos}</span>;
   };
 
   // Obtain Top 3 from paginated list if on page 1 of default ranking
@@ -307,21 +307,21 @@ function LeaderboardContent() {
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8">
       
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#262626] pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-6">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-[#EAB308]/10 border border-[#EAB308]/20 text-[#EAB308] rounded-xl">
             <Trophy className="h-6 w-6" />
           </div>
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white">ACE Leaderboard</h1>
-            <p className="text-sm text-[#A3A3A3] mt-1">Real-time student rankings based on verified CodeChef performance</p>
+            <p className="text-sm text-brand-muted mt-1">Real-time student rankings based on verified CodeChef performance</p>
           </div>
         </div>
 
         <a
           href={getExportUrl()}
           download
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 border border-[#262626] hover:border-[#EAB308]/30 text-sm font-bold text-zinc-300 hover:text-white transition-all shadow-[0_1px_10px_rgba(0,0,0,0.4)]"
+          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 border border-brand-border hover:border-[#EAB308]/30 text-sm font-bold text-zinc-300 hover:text-white transition-all shadow-[0_1px_10px_rgba(0,0,0,0.4)]"
         >
           <Download className="h-4 w-4" />
           Export Standings
@@ -389,7 +389,7 @@ function LeaderboardContent() {
                     className={`py-1 rounded-lg text-xs font-semibold border text-center transition-all ${
                       active
                         ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
-                        : "bg-zinc-950/40 border-zinc-900 text-[#A3A3A3] hover:text-zinc-200"
+                        : "bg-zinc-950/40 border-zinc-900 text-brand-muted hover:text-zinc-200"
                     }`}
                   >
                     {year}Y
@@ -414,7 +414,7 @@ function LeaderboardContent() {
                     className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1 transition-all ${
                       active
                         ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
-                        : "bg-zinc-950/40 border-zinc-900 text-[#A3A3A3] hover:text-zinc-200"
+                        : "bg-zinc-950/40 border-zinc-900 text-brand-muted hover:text-zinc-200"
                     }`}
                   >
                     <span>{star}</span>
@@ -442,16 +442,16 @@ function LeaderboardContent() {
                 setPage(1);
               }}
               placeholder="Search by student name or roll number..."
-              className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-[#262626] bg-[#0A0A0A]/50 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50 focus:ring-1 focus:ring-[#EAB308]/20 transition-all duration-200"
+              className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-brand-border bg-brand-bg/50 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50 focus:ring-1 focus:ring-[#EAB308]/20 transition-all duration-200"
             />
           </div>
 
           {/* Standings Table Card */}
-          <div className="glass-card rounded-3xl overflow-hidden border border-[#262626] shadow-xl">
+          <div className="glass-card rounded-3xl overflow-hidden border border-brand-border shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left">
                 <thead>
-                  <tr className="border-b border-[#262626] bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                  <tr className="border-b border-brand-border bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                     <th 
                       onClick={() => handleSort("rank")} 
                       className="py-4.5 px-6 text-center w-16 cursor-pointer select-none hover:text-white transition-colors"
@@ -487,7 +487,7 @@ function LeaderboardContent() {
                       <td colSpan={7} className="py-24 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <Loader2 className="h-8 w-8 animate-spin text-[#EAB308]" />
-                          <span className="text-xs text-[#A3A3A3] font-semibold">Loading standings...</span>
+                          <span className="text-xs text-brand-muted font-semibold">Loading standings...</span>
                         </div>
                       </td>
                     </tr>
@@ -496,7 +496,7 @@ function LeaderboardContent() {
                       <td colSpan={7} className="py-24 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <Trophy className="h-8 w-8 text-zinc-650" />
-                          <span className="text-sm text-[#A3A3A3] font-bold">No students found.</span>
+                          <span className="text-sm text-brand-muted font-bold">No students found.</span>
                           <span className="text-xs text-zinc-600">Try adjusting your filters or search terms.</span>
                         </div>
                       </td>
@@ -508,14 +508,14 @@ function LeaderboardContent() {
                         className="hover:bg-white/[0.01] transition-all group"
                       >
                         {/* Rank */}
-                        <td className="py-4 px-6 text-center font-extrabold text-sm text-[#A3A3A3]">
+                        <td className="py-4 px-6 text-center font-extrabold text-sm text-brand-muted">
                           {getRankBadge(entry.rank)}
                         </td>
 
                         {/* Student Info */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full overflow-hidden border border-[#262626] flex items-center justify-center bg-zinc-950 shrink-0">
+                            <div className="h-8 w-8 rounded-full overflow-hidden border border-brand-border flex items-center justify-center bg-zinc-950 shrink-0">
                               {entry.student.profilePictureUrl ? (
                                 <img src={entry.student.profilePictureUrl} alt={entry.student.name} className="h-full w-full object-cover" />
                               ) : (
@@ -528,7 +528,7 @@ function LeaderboardContent() {
                               <span className="text-sm font-bold text-white group-hover:text-[#EAB308] transition-colors">
                                 {entry.student.name}
                               </span>
-                              <span className="text-[10px] text-[#A3A3A3] font-semibold tracking-wider mt-0.5">
+                              <span className="text-[10px] text-brand-muted font-semibold tracking-wider mt-0.5">
                                 {entry.student.rollNumber}
                               </span>
                             </div>
@@ -541,7 +541,7 @@ function LeaderboardContent() {
                             <span className="text-xs font-semibold text-zinc-300">
                               {entry.student.department}
                             </span>
-                            <span className="text-[10px] font-bold text-[#A3A3A3] border border-[#262626] bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase">
+                            <span className="text-[10px] font-bold text-brand-muted border border-brand-border bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase">
                               {entry.student.year} Yr
                             </span>
                           </div>
@@ -571,7 +571,7 @@ function LeaderboardContent() {
                         <td className="py-4 px-6 text-center">
                           <Link
                             href={`/?userId=${entry.student.id}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-[#262626] bg-[#0A0A0A] text-[#A3A3A3] hover:text-[#FAFAFA] hover:border-zinc-700 hover:bg-zinc-900 transition-all"
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-brand-text hover:border-zinc-700 hover:bg-zinc-900 transition-all"
                             title="View Student Portfolio"
                           >
                             <Eye className="h-3.5 w-3.5" />
@@ -586,7 +586,7 @@ function LeaderboardContent() {
 
             {/* Pagination Controls */}
             {!isLoading && totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-[#262626] bg-zinc-950/20 px-6 py-4.5">
+              <div className="flex items-center justify-between border-t border-brand-border bg-zinc-950/20 px-6 py-4.5">
                 <div className="flex-1 flex items-center justify-between">
                   <div>
                     <p className="text-xs text-zinc-500 font-semibold">
@@ -600,7 +600,7 @@ function LeaderboardContent() {
                       <button
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         disabled={page === 1}
-                        className="relative inline-flex items-center px-3 py-2 rounded-l-xl border border-[#262626] bg-[#0A0A0A] text-xs font-semibold text-[#A3A3A3] hover:text-white hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        className="relative inline-flex items-center px-3 py-2 rounded-l-xl border border-brand-border bg-brand-bg text-xs font-semibold text-brand-muted hover:text-white hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
@@ -615,7 +615,7 @@ function LeaderboardContent() {
                             className={`relative inline-flex items-center px-4.5 py-2 border text-xs font-bold transition-all ${
                               active
                                 ? "z-10 bg-[#EAB308] border-[#EAB308] text-[#0A0A0A] shadow-[0_1px_10px_rgba(234,179,8,0.25)]"
-                                : "border-[#262626] bg-[#0A0A0A] text-[#A3A3A3] hover:text-white hover:bg-zinc-900"
+                                : "border-brand-border bg-brand-bg text-brand-muted hover:text-white hover:bg-zinc-900"
                             }`}
                           >
                             {pNum}
@@ -626,7 +626,7 @@ function LeaderboardContent() {
                       <button
                         onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                         disabled={page === totalPages}
-                        className="relative inline-flex items-center px-3 py-2 rounded-r-xl border border-[#262626] bg-[#0A0A0A] text-xs font-semibold text-[#A3A3A3] hover:text-white hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        className="relative inline-flex items-center px-3 py-2 rounded-r-xl border border-brand-border bg-brand-bg text-xs font-semibold text-brand-muted hover:text-white hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </button>
@@ -646,10 +646,10 @@ function LeaderboardContent() {
 export default function LeaderboardPage() {
   return (
     <Suspense fallback={
-      <div className="flex-1 flex items-center justify-center p-12 bg-[#0A0A0A]">
+      <div className="flex-1 flex items-center justify-center p-12 bg-brand-bg">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-[#EAB308]" />
-          <span className="text-xs text-[#A3A3A3] font-semibold">Loading standings...</span>
+          <span className="text-xs text-brand-muted font-semibold">Loading standings...</span>
         </div>
       </div>
     }>

@@ -9,10 +9,10 @@ export function calculatePlacementReadiness(rating: number, contestCount: number
 
 export function calculatePredictionConfidence(N: number, activeStudents: any[]): string {
   if (N < 3) return "Confidence unavailable due to limited historical data.";
-  
+
   const totalContests = activeStudents.reduce((acc, s) => acc + (s.codechefProfile?.contestCount || 0), 0);
   const avgContests = activeStudents.length > 0 ? totalContests / activeStudents.length : 0;
-  
+
   if (avgContests === 0) {
     return "Confidence unavailable due to limited historical data.";
   }
@@ -21,7 +21,7 @@ export function calculatePredictionConfidence(N: number, activeStudents: any[]):
   const avgConsistency = activeStudents.length > 0
     ? activeStudents.reduce((acc, s) => acc + (s.aiAnalysis?.consistencyScore || 0), 0) / activeStudents.length
     : 0;
-  
+
   let score = 0;
   // 1. Student volume contribution (up to 40)
   score += Math.min(40, (N / 12) * 40);
@@ -117,24 +117,24 @@ export function predictGrowth(activeStudents: any[], confidence: string) {
 export function getTopImprovingStudents(activeStudents: any[]) {
   const list = activeStudents.map(s => {
     const current = s.codechefProfile?.currentRating || 0;
-    
+
     // Parse ratingHistory
     let ratingHistoryList: any[] = [];
     try {
       ratingHistoryList = typeof s.codechefProfile.ratingHistory === "string"
         ? JSON.parse(s.codechefProfile.ratingHistory)
         : s.codechefProfile.ratingHistory || [];
-    } catch(e) {}
+    } catch (e) { }
 
     let prevRating = 1200;
     if (Array.isArray(ratingHistoryList) && ratingHistoryList.length > 0) {
-      const sorted = [...ratingHistoryList].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const sorted = [...ratingHistoryList].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       prevRating = sorted[0]?.rating || 1200;
     }
-    
+
     const growthPoints = current - prevRating;
     const growthPercent = prevRating > 0 ? (growthPoints / prevRating) * 100 : 0;
-    
+
     return {
       id: s.id,
       name: s.name,
@@ -154,14 +154,14 @@ export function getTopImprovingStudents(activeStudents: any[]) {
 
 export function generateDepartmentInsights(students: any[]) {
   const depts = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
-  
+
   const deptStats = depts.map(dept => {
     const deptStudents = students.filter(s => s.department === dept);
     const active = deptStudents.filter(s => s.codechefProfile);
-    
+
     const totalRating = active.reduce((acc, s) => acc + (s.codechefProfile?.currentRating || 0), 0);
     const avgRating = active.length > 0 ? totalRating / active.length : 0;
-    
+
     const totalTalent = active.reduce((acc, s) => acc + (s.aiAnalysis?.talentScore || 0), 0);
     const avgTalent = active.length > 0 ? totalTalent / active.length : 0;
 
@@ -204,12 +204,12 @@ export function generateDepartmentInsights(students: any[]) {
     };
   }
 
-  const highestPerforming = [...deptStats].sort((a,b) => b.avgRating - a.avgRating)[0]?.dept || "Unknown";
-  const lowestPerforming = [...deptStats].sort((a,b) => a.avgRating - b.avgRating)[0]?.dept || "Unknown";
-  const fastestGrowing = [...deptStats].sort((a,b) => b.avgGrowth - a.avgGrowth)[0]?.dept || "Unknown";
-  const bestContestParticipation = [...deptStats].sort((a,b) => b.avgContests - a.avgContests)[0]?.dept || "Unknown";
-  const highestTalent = [...deptStats].sort((a,b) => b.avgTalent - a.avgTalent)[0]?.dept || "Unknown";
-  const mostPlacementReady = [...deptStats].sort((a,b) => b.prCount - a.prCount)[0]?.dept || "Unknown";
+  const highestPerforming = [...deptStats].sort((a, b) => b.avgRating - a.avgRating)[0]?.dept || "Unknown";
+  const lowestPerforming = [...deptStats].sort((a, b) => a.avgRating - b.avgRating)[0]?.dept || "Unknown";
+  const fastestGrowing = [...deptStats].sort((a, b) => b.avgGrowth - a.avgGrowth)[0]?.dept || "Unknown";
+  const bestContestParticipation = [...deptStats].sort((a, b) => b.avgContests - a.avgContests)[0]?.dept || "Unknown";
+  const highestTalent = [...deptStats].sort((a, b) => b.avgTalent - a.avgTalent)[0]?.dept || "Unknown";
+  const mostPlacementReady = [...deptStats].sort((a, b) => b.prCount - a.prCount)[0]?.dept || "Unknown";
 
   return {
     highestPerforming,
@@ -223,7 +223,7 @@ export function generateDepartmentInsights(students: any[]) {
 
 export function generateCollegeInsights(students: any[]) {
   const active = students.filter(s => s.codechefProfile && s.aiAnalysis);
-  
+
   const totalRating = active.reduce((acc, s) => acc + (s.codechefProfile?.currentRating || 0), 0);
   const averageCollegeRating = active.length > 0 ? Math.round(totalRating / active.length) : 0;
 
@@ -261,7 +261,7 @@ export function generateAIRecommendations(students: any[], collegeStats: any) {
     const r = s.codechefProfile?.currentRating || 0;
     return r >= 1300 && r < 1400;
   }).length;
-  
+
   if (borderlineCount > 0) {
     recommendations.push({
       title: "Focused Practice for Borderline 3-Star Coders",
@@ -482,7 +482,7 @@ export class InsightsService {
         const consistencyScore = s.aiAnalysis?.consistencyScore || 0;
         const talentScore = s.aiAnalysis?.talentScore || 0;
         const score = calculatePlacementReadiness(rating, contestCount, consistencyScore, talentScore);
-        
+
         return {
           id: s.id,
           name: s.name,

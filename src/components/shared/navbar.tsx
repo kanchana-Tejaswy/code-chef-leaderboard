@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useAuth } from "@/app/providers";
+import { useAuth, useTheme } from "@/app/providers";
 import {
   LogOut,
   LayoutDashboard,
@@ -17,12 +17,15 @@ import {
   TrendingUp,
   Sparkles,
   Layers,
-  HelpCircle
+  HelpCircle,
+  Sun,
+  Moon
 } from "lucide-react";
 
 export function Navbar() {
   const pathname = usePathname();
   const { user, profile, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -62,7 +65,7 @@ export function Navbar() {
     <header
       className={`sticky top-0 z-50 w-full transition-all duration-300 ${
         scrolled
-          ? "border-b border-[#262626]/80 bg-[#0A0A0A]/75 backdrop-blur-xl shadow-lg"
+          ? "border-b border-brand-border/80 bg-brand-bg/75 backdrop-blur-xl shadow-lg"
           : "border-b border-transparent bg-transparent"
       }`}
     >
@@ -126,10 +129,10 @@ export function Navbar() {
             
             {/* Title Text */}
             <div className="flex flex-col">
-              <span className="text-sm font-extrabold tracking-wider uppercase text-[#FAFAFA] group-hover:text-[#EAB308] transition-colors">
+              <span className="text-sm font-extrabold tracking-wider uppercase text-brand-text group-hover:text-[#EAB308] transition-colors">
                 ACE Talent
               </span>
-              <span className="text-[9px] font-black tracking-widest text-[#A3A3A3] leading-none">
+              <span className="text-[9px] font-black tracking-widest text-brand-muted leading-none">
                 INTELLIGENCE
               </span>
             </div>
@@ -158,12 +161,34 @@ export function Navbar() {
         {/* Right Navigation Controls */}
         <div className="flex items-center gap-3">
           
-          
+          {/* Theme Toggle Button */}
+          <button
+            onClick={toggleTheme}
+            aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+            className="relative p-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted hover:text-brand-text hover:border-[#EAB308]/30 transition-all duration-300 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-[#EAB308]/50 cursor-pointer"
+          >
+            <div className="relative w-4 h-4 flex items-center justify-center">
+              <Sun
+                className={`h-4 w-4 absolute transition-all duration-500 ease-out transform ${
+                  theme === "dark"
+                    ? "rotate-90 scale-0 opacity-0"
+                    : "rotate-0 scale-100 opacity-100 text-[#EAB308]"
+                }`}
+              />
+              <Moon
+                className={`h-4 w-4 absolute transition-all duration-500 ease-out transform ${
+                  theme === "dark"
+                    ? "rotate-0 scale-100 opacity-100 text-[#F59E0B]"
+                    : "-rotate-90 scale-0 opacity-0"
+                }`}
+              />
+            </div>
+          </button>
 
           {/* Mobile Menu Toggle Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 rounded-lg border border-[#262626] bg-[#111111] text-[#A3A3A3] hover:text-[#FAFAFA]"
+            className="md:hidden p-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted hover:text-brand-text"
           >
             {isMobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </button>
@@ -172,7 +197,7 @@ export function Navbar() {
 
       {/* Mobile Menu Panel */}
       {isMobileMenuOpen && (
-        <div className="md:hidden border-t border-[#262626] bg-[#0A0A0A] px-4 py-4 space-y-2">
+        <div className="md:hidden border-t border-brand-border bg-brand-bg px-4 py-4 space-y-2">
           <Link
             href="/"
             onClick={() => setIsMobileMenuOpen(false)}

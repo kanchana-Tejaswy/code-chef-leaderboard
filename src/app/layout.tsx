@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import { AuthProvider } from "./providers";
+import { AuthProvider, ThemeProvider } from "./providers";
 import { Navbar } from "@/components/shared/navbar";
 
 const geistSans = Geist({
@@ -37,14 +37,35 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#0A0A0A] text-[#FAFAFA] selection:bg-[#EAB308]/30 selection:text-white">
-        <AuthProvider>
-          <Navbar />
-          <main className="flex-1 flex flex-col">{children}</main>
-        </AuthProvider>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  var theme = localStorage.getItem('theme') || 'light';
+                  if (theme === 'dark') {
+                    document.documentElement.classList.add('dark');
+                  } else {
+                    document.documentElement.classList.remove('dark');
+                  }
+                } catch (e) {}
+              })();
+            `
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col bg-brand-bg text-brand-text selection:bg-[#EAB308]/30 selection:text-brand-text">
+        <ThemeProvider>
+          <AuthProvider>
+            <Navbar />
+            <main className="flex-1 flex flex-col">{children}</main>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
 }
+

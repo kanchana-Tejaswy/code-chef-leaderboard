@@ -138,10 +138,10 @@ export default function InsightsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-12 min-h-[calc(100vh-4rem)] bg-[#0A0A0A]">
+      <div className="flex-1 flex items-center justify-center p-12 min-h-[calc(100vh-4rem)] bg-brand-bg">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-9 w-9 animate-spin text-[#EAB308]" />
-          <span className="text-xs text-[#A3A3A3] font-bold tracking-wider uppercase animate-pulse">
+          <span className="text-xs text-brand-muted font-bold tracking-wider uppercase animate-pulse">
             Running Neural Placement Predictive Models...
           </span>
         </div>
@@ -151,7 +151,7 @@ export default function InsightsPage() {
 
   if (error || !data) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8 bg-[#0A0A0A] text-center">
+      <div className="flex-1 flex items-center justify-center p-8 bg-brand-bg text-center">
         <div className="glass-card max-w-md p-8 rounded-2xl border border-red-500/10">
           <Brain className="h-8 w-8 text-red-400 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-white mb-2">Insights Generation Failed</h2>
@@ -172,29 +172,29 @@ export default function InsightsPage() {
   // 1. Empty State Check: Database requires at least 3 students for predictive mapping
   if (data.insufficientData) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-[#0A0A0A] min-h-screen">
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-brand-bg min-h-screen">
         {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#262626] pb-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-[#EAB308]/10 border border-[#EAB308]/20 text-[#EAB308] rounded-xl">
               <Brain className="h-6 w-6" />
             </div>
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-white">AI Insights</h1>
-              <p className="text-sm text-[#A3A3A3] mt-1">
+              <p className="text-sm text-brand-muted mt-1">
                 Neural intelligence scoring, career mapping, and placement projections for ACE
               </p>
             </div>
           </div>
         </div>
 
-        <div className="border border-dashed border-[#262626] bg-[#111111]/40 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-4 max-w-xl mx-auto my-8 relative overflow-hidden">
+        <div className="border border-dashed border-brand-border bg-brand-card/40 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-4 max-w-xl mx-auto my-8 relative overflow-hidden">
           <div className="absolute top-0 right-0 h-28 w-28 bg-[#EAB308]/5 rounded-full blur-2xl pointer-events-none" />
           <div className="h-12 w-12 rounded-2xl bg-[#EAB308]/10 border border-[#EAB308]/20 flex items-center justify-center text-[#EAB308] mb-2">
             <Brain className="h-6 w-6" />
           </div>
-          <h3 className="text-sm font-bold text-[#FAFAFA] uppercase tracking-wider">Insufficient Profile Data</h3>
-          <p className="text-[11px] text-[#A3A3A3] max-w-sm leading-relaxed font-semibold">
+          <h3 className="text-sm font-bold text-brand-text uppercase tracking-wider">Insufficient Profile Data</h3>
+          <p className="text-[11px] text-brand-muted max-w-sm leading-relaxed font-semibold">
             More student profiles are required before meaningful AI insights can be generated. Please add and analyze at least 3 student profiles on the dashboard to build the institutional predictive models.
           </p>
           <Link
@@ -209,16 +209,16 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-[#0A0A0A] min-h-screen">
+    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-brand-bg min-h-screen">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#262626] pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-6">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-[#EAB308]/10 border border-[#EAB308]/20 text-[#EAB308] rounded-xl">
             <Brain className="h-6 w-6" />
           </div>
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white">AI Insights</h1>
-            <p className="text-sm text-[#A3A3A3] mt-1">
+            <p className="text-sm text-brand-muted mt-1">
               Neural intelligence scoring, career mapping, and placement projections for ACE
             </p>
           </div>
@@ -227,43 +227,43 @@ export default function InsightsPage() {
 
       {/* College Intelligence Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-7 gap-4 relative z-10">
-        <div className="border border-[#262626] bg-[#111111] p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
+        <div className="border border-brand-border bg-brand-card p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
           <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
             <Layers className="h-3 w-3 text-[#EAB308]" /> Avg Rating
           </span>
           <span className="text-lg font-black text-white mt-2">{data.collegeStats.averageCollegeRating}</span>
         </div>
-        <div className="border border-[#262626] bg-[#111111] p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
+        <div className="border border-brand-border bg-brand-card p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
           <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
             <Brain className="h-3 w-3 text-[#22C55E]" /> Avg Talent
           </span>
           <span className="text-lg font-black text-white mt-2">{data.collegeStats.averageTalentScore}</span>
         </div>
-        <div className="border border-[#262626] bg-[#111111] p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
+        <div className="border border-brand-border bg-brand-card p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
           <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
             <TrendingUp className="h-3 w-3 text-[#F59E0B]" /> Active Coders
           </span>
           <span className="text-lg font-black text-white mt-2">{data.collegeStats.totalActiveCoders}</span>
         </div>
-        <div className="border border-[#262626] bg-[#111111] p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
+        <div className="border border-brand-border bg-brand-card p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
           <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
             <Zap className="h-3 w-3 text-[#EAB308]" /> Avg Contests
           </span>
           <span className="text-lg font-black text-white mt-2">{data.collegeStats.averageContestParticipation}</span>
         </div>
-        <div className="border border-[#262626] bg-[#111111] p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
+        <div className="border border-brand-border bg-brand-card p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
           <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
             <CheckCircle className="h-3 w-3 text-[#22C55E]" /> Avg Solved
           </span>
           <span className="text-lg font-black text-white mt-2">{data.collegeStats.averageProblemsSolved}</span>
         </div>
-        <div className="border border-[#262626] bg-[#111111] p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
+        <div className="border border-brand-border bg-brand-card p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
           <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
             <Award className="h-3 w-3 text-secondary" /> 3★+ Coders
           </span>
           <span className="text-lg font-black text-white mt-2">{data.collegeStats.studentsAbove3Star}</span>
         </div>
-        <div className="border border-[#262626] bg-[#111111] p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
+        <div className="border border-brand-border bg-brand-card p-4 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300 text-left">
           <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest flex items-center gap-1">
             <Award className="h-3 w-3 text-primary" /> 4★+ Coders
           </span>
@@ -285,7 +285,7 @@ export default function InsightsPage() {
             </h2>
             <div className="flex flex-col gap-4">
               {data.recommendations.length === 0 ? (
-                <div className="py-6 text-center text-xs text-zinc-500 font-semibold leading-relaxed border border-dashed border-[#262626] rounded-2xl">
+                <div className="py-6 text-center text-xs text-zinc-500 font-semibold leading-relaxed border border-dashed border-brand-border rounded-2xl">
                   No automated recommendations generated for this batch yet.
                 </div>
               ) : (
@@ -381,7 +381,7 @@ export default function InsightsPage() {
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse text-left">
                   <thead>
-                    <tr className="border-b border-[#262626] bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                    <tr className="border-b border-brand-border bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                       <th className="py-3 px-5">Student</th>
                       <th className="py-3 px-4 text-center">Current Rating</th>
                       <th className="py-3 px-4 text-center">Stars</th>
@@ -405,7 +405,7 @@ export default function InsightsPage() {
                               <span className="text-xs font-bold text-white group-hover:text-[#EAB308] transition-colors">
                                 {s.name}
                               </span>
-                              <span className="text-[9px] text-[#A3A3A3] font-semibold mt-0.5">
+                              <span className="text-[9px] text-brand-muted font-semibold mt-0.5">
                                 {s.rollNumber} • {s.department} • {s.year} Yr
                               </span>
                             </div>
@@ -428,7 +428,7 @@ export default function InsightsPage() {
                           <td className="py-3 px-5 text-center">
                             <Link
                               href={`/?userId=${s.id}`}
-                              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-[#262626] hover:border-[#EAB308]/30 text-[#A3A3A3] hover:text-white transition-all text-xs"
+                              className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-brand-border hover:border-[#EAB308]/30 text-brand-muted hover:text-white transition-all text-xs"
                             >
                               <ArrowRight className="h-3.5 w-3.5" />
                             </Link>
@@ -449,7 +449,7 @@ export default function InsightsPage() {
           
           {/* AI Growth Predictions */}
           <div className="glass-card rounded-3xl p-6 border border-white/5 shadow-xl flex flex-col gap-6 text-left">
-            <div className="flex items-center justify-between border-b border-[#262626] pb-2">
+            <div className="flex items-center justify-between border-b border-brand-border pb-2">
               <h2 className="text-sm font-bold text-white flex items-center gap-2">
                 <Zap className="h-4.5 w-4.5 text-[#EAB308] animate-pulse" />
                 AI Growth Projections
@@ -457,7 +457,7 @@ export default function InsightsPage() {
             </div>
             
             {data.predictionError ? (
-              <div className="py-8 px-4 text-center text-xs text-zinc-500 font-semibold leading-relaxed border border-dashed border-[#262626] rounded-2xl bg-zinc-950/20">
+              <div className="py-8 px-4 text-center text-xs text-zinc-500 font-semibold leading-relaxed border border-dashed border-brand-border rounded-2xl bg-zinc-950/20">
                 <AlertTriangle className="h-5 w-5 text-amber-500/80 mx-auto mb-2" />
                 {data.predictionError}
               </div>
@@ -501,14 +501,14 @@ export default function InsightsPage() {
             
             <div className="flex flex-col gap-4 max-h-[30rem] overflow-y-auto pr-1">
               {data.placementReady.length === 0 ? (
-                <div className="py-8 text-center text-xs text-zinc-500 font-semibold border border-dashed border-[#262626] rounded-2xl bg-zinc-950/20">
+                <div className="py-8 text-center text-xs text-zinc-500 font-semibold border border-dashed border-brand-border rounded-2xl bg-zinc-950/20">
                   No students currently meet the placement readiness benchmark.
                 </div>
               ) : (
                 data.placementReady.map((s) => (
                   <div
                     key={s.id}
-                    className="flex flex-col p-4 rounded-2xl border border-[#262626] bg-zinc-950/40 hover:border-[#22C55E]/30 transition-all group relative overflow-hidden"
+                    className="flex flex-col p-4 rounded-2xl border border-brand-border bg-zinc-950/40 hover:border-[#22C55E]/30 transition-all group relative overflow-hidden"
                   >
                     <div className="absolute top-0 right-0 h-16 w-16 bg-[#22C55E]/2 rounded-full blur-xl pointer-events-none" />
                     <div className="flex items-start justify-between gap-4">
@@ -519,7 +519,7 @@ export default function InsightsPage() {
                         >
                           {s.name}
                         </Link>
-                        <span className="text-[9px] text-[#A3A3A3] font-semibold mt-0.5">
+                        <span className="text-[9px] text-brand-muted font-semibold mt-0.5">
                           {s.rollNumber} • {s.department}
                         </span>
                       </div>
@@ -532,7 +532,7 @@ export default function InsightsPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="mt-3 pt-2.5 border-t border-[#262626]/30 flex flex-col gap-1 text-left">
+                    <div className="mt-3 pt-2.5 border-t border-brand-border/30 flex flex-col gap-1 text-left">
                       <span className="text-[8px] font-black text-zinc-500 uppercase tracking-widest">AI Recommendation</span>
                       <p className="text-[9.5px] text-zinc-350 leading-relaxed font-bold">
                         {s.aiRecommendation}

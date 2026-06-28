@@ -149,7 +149,7 @@ function ScoreCircle({ score, label, color = "#EAB308" }: { score: number; label
   const strokeDashoffset = circumference - (Math.min(100, Math.max(0, score)) / 100) * circumference;
 
   return (
-    <div className="flex flex-col items-center gap-2.5 p-3 bg-zinc-950/40 border border-[#262626] rounded-2xl hover:border-zinc-800 transition-all text-center">
+    <div className="flex flex-col items-center gap-2.5 p-3 bg-zinc-950/40 border border-brand-border rounded-2xl hover:border-zinc-800 transition-all text-center">
       <div className="relative flex items-center justify-center h-14 w-14">
         <svg className="w-full h-full transform -rotate-90">
           {/* Background circle */}
@@ -237,7 +237,7 @@ export default function LandingPage() {
   const getTrendBadge = (trendString: string) => {
     if (!trendString || trendString.includes("No") || trendString.includes("data")) {
       return (
-        <span className="text-[10px] font-bold text-zinc-500 bg-[#1A1A1A]/40 px-2 py-0.5 rounded-full border border-zinc-800">
+        <span className="text-[10px] font-bold text-zinc-500 bg-brand-highlight/40 px-2 py-0.5 rounded-full border border-zinc-800">
           N/A
         </span>
       );
@@ -710,15 +710,15 @@ export default function LandingPage() {
         </span>
       );
     }
-    return <span className="text-xs font-bold text-[#A3A3A3]">#{pos}</span>;
+    return <span className="text-xs font-bold text-brand-muted">#{pos}</span>;
   };
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-12 min-h-[calc(100vh-4rem)] bg-[#0A0A0A]">
+      <div className="flex-1 flex items-center justify-center p-12 min-h-[calc(100vh-4rem)] bg-brand-bg">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-9 w-9 animate-spin text-[#EAB308]" />
-          <span className="text-xs text-[#A3A3A3] font-bold tracking-wider uppercase">
+          <span className="text-xs text-brand-muted font-bold tracking-wider uppercase">
             Loading Institutional Talent Intelligence Console...
           </span>
         </div>
@@ -727,10 +727,10 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-[#0A0A0A] min-h-screen">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-brand-bg min-h-screen">
 
       {/* 1. HERO SECTION WITH SYSTEM PULSE INDICATORS */}
-      <div className="relative rounded-3xl border border-[#262626] bg-[#111111]/75 backdrop-blur-xl p-8 overflow-hidden shadow-2xl flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+      <div className="relative rounded-3xl border border-brand-border bg-brand-card/75 backdrop-blur-xl p-8 overflow-hidden shadow-2xl flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
 
         {/* Radial Gold Glow */}
         <div
@@ -773,10 +773,10 @@ export default function LandingPage() {
             </svg>
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-[#FAFAFA]">
+            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-brand-text">
               ACE Talent Intelligence Platform
             </h1>
-            <p className="text-xs sm:text-sm text-[#A3A3A3] mt-1 max-w-2xl leading-relaxed font-medium">
+            <p className="text-xs sm:text-sm text-brand-muted mt-1 max-w-2xl leading-relaxed font-medium">
               Identifying, Verifying, and Nurturing Future Engineering Talent Through Real-Time Competitive Programming Analytics.
             </p>
           </div>
@@ -789,94 +789,94 @@ export default function LandingPage() {
       {stats && stats.totalStudents.value > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 relative z-10">
           {/* Card 1: Total Students */}
-          <div className="border border-[#262626] bg-[#111111] p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
             <div className="flex items-start justify-between">
               <div className="flex flex-col">
-                <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
                   <Users className="h-3.5 w-3.5 text-[#EAB308]" />
                   Total Students
                 </span>
-                <span className="text-2xl font-black text-[#FAFAFA] mt-3 tracking-tight">
+                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
                   {stats.totalStudents.value}
                 </span>
               </div>
               {getTrendBadge(stats.totalStudents.trend)}
             </div>
-            <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
+            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
               <Sparkline data={stats.totalStudents.sparkline} color="#EAB308" />
             </div>
           </div>
 
           {/* Card 2: Active CodeChef Profiles */}
-          <div className="border border-[#262626] bg-[#111111] p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
             <div className="flex items-start justify-between">
               <div className="flex flex-col">
-                <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
                   <Code className="h-3.5 w-3.5 text-[#F59E0B]" />
                   Active Profiles
                 </span>
-                <span className="text-2xl font-black text-[#FAFAFA] mt-3 tracking-tight">
+                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
                   {stats.activeCodechef.value}
                 </span>
               </div>
               {getTrendBadge(stats.activeCodechef.trend)}
             </div>
-            <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
+            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
               <Sparkline data={stats.activeCodechef.sparkline} color="#F59E0B" />
             </div>
           </div>
 
           {/* Card 3: Average Rating */}
-          <div className="border border-[#262626] bg-[#111111] p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
             <div className="flex items-start justify-between">
               <div className="flex flex-col">
-                <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
                   <TrendingUp className="h-3.5 w-3.5 text-[#22C55E]" />
                   Average Rating
                 </span>
-                <span className="text-2xl font-black text-[#FAFAFA] mt-3 tracking-tight">
+                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
                   {stats.averageRating.value}
                 </span>
               </div>
               {getTrendBadge(stats.averageRating.trend)}
             </div>
-            <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
+            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
               <Sparkline data={stats.averageRating.sparkline} color="#22C55E" />
             </div>
           </div>
 
           {/* Card 4: Contest Participation % */}
-          <div className="border border-[#262626] bg-[#111111] p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
             <div className="flex items-start justify-between">
               <div className="flex flex-col">
-                <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
                   <Target className="h-3.5 w-3.5 text-[#F59E0B]" />
                   Participation Rate
                 </span>
-                <span className="text-2xl font-black text-[#FAFAFA] mt-3 tracking-tight">
+                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
                   {stats.contestParticipationPercent?.value || 0}%
                 </span>
               </div>
               {getTrendBadge(stats.contestParticipationPercent?.trend || "")}
             </div>
-            <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
+            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
               <Sparkline data={stats.contestParticipationPercent?.sparkline || [0, 0, 0, 0, 0, 0]} color="#F59E0B" />
             </div>
           </div>
 
           {/* Card 5: Top Department */}
-          <div className="border border-[#262626] bg-[#111111] p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
             <div className="flex items-start justify-between">
               <div className="flex flex-col">
-                <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
                   <GraduationCap className="h-3.5 w-3.5 text-[#EAB308]" />
                   Top Department
                 </span>
-                <span className="text-2xl font-black text-[#FAFAFA] mt-3 tracking-tight truncate max-w-[6.5rem] block">
+                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight truncate max-w-[6.5rem] block">
                   {stats.topDepartment.value}
                 </span>
               </div>
@@ -884,28 +884,28 @@ export default function LandingPage() {
                 {stats.topDepartment.trend}
               </span>
             </div>
-            <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
+            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
               <Sparkline data={stats.topDepartment.sparkline} color="#EAB308" />
             </div>
           </div>
 
           {/* Card 6: Placement Readiness Index */}
-          <div className="border border-[#262626] bg-[#111111] p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
             <div className="flex items-start justify-between">
               <div className="flex flex-col">
-                <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
                   <ShieldCheck className="h-3.5 w-3.5 text-[#22C55E]" />
                   Placement Ready Index
                 </span>
-                <span className="text-2xl font-black text-[#FAFAFA] mt-3 tracking-tight">
+                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
                   {stats.placementReadinessIndex?.value || 0}%
                 </span>
               </div>
               {getTrendBadge(stats.placementReadinessIndex?.trend || "")}
             </div>
-            <div className="mt-4 border-t border-[#262626]/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-[#A3A3A3] font-bold uppercase tracking-wider">Historical Trend</span>
+            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
               <Sparkline data={stats.placementReadinessIndex?.sparkline || [0, 0, 0, 0, 0, 0]} color="#22C55E" />
             </div>
           </div>
@@ -919,18 +919,18 @@ export default function LandingPage() {
         <div id="leaderboard" className={`${!stats || stats.totalStudents.value === 0 ? "xl:col-span-3 max-w-4xl mx-auto w-full" : "xl:col-span-2"} flex flex-col gap-6`}>
 
           {/* Add Student Card */}
-          <div className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-5 relative overflow-hidden">
+          <div className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-5 relative overflow-hidden">
             {/* Ambient Background Glow */}
             <div className="absolute top-0 right-0 h-40 w-40 bg-[#EAB308]/5 rounded-full blur-3xl pointer-events-none" />
 
-            <div className="flex items-center justify-between border-b border-[#262626] pb-4">
+            <div className="flex items-center justify-between border-b border-brand-border pb-4">
               <div className="flex items-center gap-2">
                 <UserPlus className="h-5 w-5 text-[#EAB308]" />
                 <div>
-                  <h2 className="text-sm font-bold text-[#FAFAFA] uppercase tracking-wider">
+                  <h2 className="text-sm font-bold text-brand-text uppercase tracking-wider">
                     Add Student
                   </h2>
-                  <p className="text-[10px] text-[#A3A3A3] font-semibold tracking-wide">
+                  <p className="text-[10px] text-brand-muted font-semibold tracking-wide">
                     Analyze a new student competitive profile and insert into leaderboard
                   </p>
                 </div>
@@ -941,7 +941,7 @@ export default function LandingPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {/* Student Name */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
                     Student Name
                   </label>
                   <input
@@ -951,13 +951,13 @@ export default function LandingPage() {
                     onChange={(e) => setFormName(e.target.value)}
                     disabled={isAnalyzing}
                     placeholder="Name"
-                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
                 </div>
 
                 {/* Roll Number */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
                     Roll Number
                   </label>
                   <input
@@ -967,20 +967,20 @@ export default function LandingPage() {
                     onChange={(e) => setFormRollNumber(e.target.value)}
                     disabled={isAnalyzing}
                     placeholder="roll number "
-                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 uppercase"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 uppercase"
                   />
                 </div>
 
                 {/* Branch / Department */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
                     Branch / Department
                   </label>
                   <select
                     value={formDepartment}
                     onChange={(e) => setFormDepartment(e.target.value)}
                     disabled={isAnalyzing}
-                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
                   >
                     <option value="CSE">CSE - Computer Science</option>
                     <option value="IT">IT - Information Technology</option>
@@ -995,14 +995,14 @@ export default function LandingPage() {
 
                 {/* Academic Year */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
                     Academic Year
                   </label>
                   <select
                     value={formYear}
                     onChange={(e) => setFormYear(Number(e.target.value))}
                     disabled={isAnalyzing}
-                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
                   >
                     <option value={1}>1st Year</option>
                     <option value={2}>2nd Year</option>
@@ -1013,14 +1013,14 @@ export default function LandingPage() {
 
                 {/* Section */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
                     Section
                   </label>
                   <select
                     value={formSection}
                     onChange={(e) => setFormSection(e.target.value)}
                     disabled={isAnalyzing}
-                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
                   >
                     <option value="A">Section A</option>
                     <option value="B">Section B</option>
@@ -1039,7 +1039,7 @@ export default function LandingPage() {
 
                 {/* CodeChef URL */}
                 <div className="flex flex-col gap-1.5">
-                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
                     CodeChef Profile URL
                   </label>
                   <input
@@ -1049,7 +1049,7 @@ export default function LandingPage() {
                     onChange={(e) => setFormUrl(e.target.value)}
                     disabled={isAnalyzing}
                     placeholder=" code chef url"
-                    className="px-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
                 </div>
               </div>
@@ -1063,10 +1063,10 @@ export default function LandingPage() {
 
               {/* Progress Steps / Success Logs */}
               {isAnalyzing && (
-                <div className="p-5 rounded-2xl border border-[#262626] bg-[#0A0A0A]/70 flex flex-col gap-3 font-mono text-[10px] text-zinc-400 select-none">
-                  <div className="flex items-center gap-2 border-b border-[#262626] pb-2 mb-1">
+                <div className="p-5 rounded-2xl border border-brand-border bg-brand-bg/70 flex flex-col gap-3 font-mono text-[10px] text-zinc-400 select-none">
+                  <div className="flex items-center gap-2 border-b border-brand-border pb-2 mb-1">
                     <Loader2 className="h-3.5 w-3.5 animate-spin text-[#EAB308]" />
-                    <span className="text-[#FAFAFA] font-bold uppercase tracking-wider text-[9px]">Analyzing Competitive Profile...</span>
+                    <span className="text-brand-text font-bold uppercase tracking-wider text-[9px]">Analyzing Competitive Profile...</span>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5 text-zinc-350">
@@ -1101,7 +1101,7 @@ export default function LandingPage() {
                   </div>
 
                   {analysisSuccessLogs.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-[#262626]/50 flex flex-col gap-1">
+                    <div className="mt-2 pt-2 border-t border-brand-border/50 flex flex-col gap-1">
                       {analysisSuccessLogs.map((log, idx) => (
                         <div key={idx} className="flex items-center gap-1.5 text-[#22C55E] font-bold">
                           <span className="text-[#22C55E] font-extrabold">✓</span>
@@ -1119,7 +1119,7 @@ export default function LandingPage() {
                   type="button"
                   onClick={handleClearForm}
                   disabled={isAnalyzing}
-                  className="px-4 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-[#A3A3A3] hover:text-white text-xs font-bold transition-all disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-brand-muted hover:text-white text-xs font-bold transition-all disabled:opacity-50"
                 >
                   Clear Form
                 </button>
@@ -1147,15 +1147,15 @@ export default function LandingPage() {
           {stats && stats.totalStudents.value > 0 ? (
             <>
               {/* Executive Filter Console */}
-              <div className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-5">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#262626] pb-4">
+              <div className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-brand-border pb-4">
               <div className="flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-[#EAB308]" />
                 <div>
-                  <h2 className="text-sm font-bold text-[#FAFAFA] uppercase tracking-wider">
+                  <h2 className="text-sm font-bold text-brand-text uppercase tracking-wider">
                     CodeChef Talent Standings Directory
                   </h2>
-                  <p className="text-[10px] text-[#A3A3A3] font-semibold tracking-wide">
+                  <p className="text-[10px] text-brand-muted font-semibold tracking-wide">
                     Live dynamic search and institutional filtering bounds
                   </p>
                 </div>
@@ -1164,14 +1164,14 @@ export default function LandingPage() {
                 <a
                   href={getExportUrl()}
                   download
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#0A0A0A] border border-[#262626] hover:border-[#EAB308]/30 hover:text-white text-xs font-bold text-[#A3A3A3] transition-all shadow-sm shrink-0"
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-bg border border-brand-border hover:border-[#EAB308]/30 hover:text-white text-xs font-bold text-brand-muted transition-all shadow-sm shrink-0"
                 >
                   <Download className="h-3.5 w-3.5" />
                   Excel Export
                 </a>
                 <button
                   onClick={clearFilters}
-                  className="px-3 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-[#A3A3A3] hover:text-white text-xs font-bold transition-all shrink-0"
+                  className="px-3 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-brand-muted hover:text-white text-xs font-bold transition-all shrink-0"
                 >
                   Reset Filters
                 </button>
@@ -1194,19 +1194,19 @@ export default function LandingPage() {
                     setPage(1);
                   }}
                   placeholder="Filter name or roll number..."
-                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 text-xs text-[#FAFAFA] placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50 transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50 transition-all duration-200"
                 />
               </div>
 
               {/* Department Dropdown Tag Selector */}
               <div className="relative group">
-                <div className="flex flex-wrap gap-1 px-3 py-2 border border-[#262626] bg-[#0A0A0A]/50 rounded-xl min-h-[38px] cursor-pointer items-center justify-between">
-                  <span className="text-[10px] text-[#A3A3A3] font-bold uppercase tracking-wider">
+                <div className="flex flex-wrap gap-1 px-3 py-2 border border-brand-border bg-brand-bg/50 rounded-xl min-h-[38px] cursor-pointer items-center justify-between">
+                  <span className="text-[10px] text-brand-muted font-bold uppercase tracking-wider">
                     {selectedDepts.length > 0 ? `${selectedDepts.length} Depts` : "Departments"}
                   </span>
                   <Filter className="h-3.5 w-3.5 text-zinc-500" />
                 </div>
-                <div className="absolute left-0 mt-1.5 w-52 rounded-xl border border-[#262626] bg-[#111111] p-2 shadow-2xl hidden group-hover:block z-50">
+                <div className="absolute left-0 mt-1.5 w-52 rounded-xl border border-brand-border bg-brand-card p-2 shadow-2xl hidden group-hover:block z-50">
                   <div className="grid grid-cols-2 gap-1">
                     {departments.map((dept) => {
                       const active = selectedDepts.includes(dept);
@@ -1216,7 +1216,7 @@ export default function LandingPage() {
                           onClick={() => toggleDept(dept)}
                           className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all text-left truncate ${active
                             ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
-                            : "bg-zinc-950/20 border-transparent text-[#A3A3A3] hover:text-[#FAFAFA]"
+                            : "bg-zinc-950/20 border-transparent text-brand-muted hover:text-brand-text"
                             }`}
                         >
                           {dept}
@@ -1229,13 +1229,13 @@ export default function LandingPage() {
 
               {/* Year Dropdown Tag Selector */}
               <div className="relative group">
-                <div className="flex flex-wrap gap-1 px-3 py-2 border border-[#262626] bg-[#0A0A0A]/50 rounded-xl min-h-[38px] cursor-pointer items-center justify-between">
-                  <span className="text-[10px] text-[#A3A3A3] font-bold uppercase tracking-wider">
+                <div className="flex flex-wrap gap-1 px-3 py-2 border border-brand-border bg-brand-bg/50 rounded-xl min-h-[38px] cursor-pointer items-center justify-between">
+                  <span className="text-[10px] text-brand-muted font-bold uppercase tracking-wider">
                     {selectedYears.length > 0 ? `${selectedYears.join(", ")} Yr` : "Academic Year"}
                   </span>
                   <Calendar className="h-3.5 w-3.5 text-zinc-500" />
                 </div>
-                <div className="absolute right-0 mt-1.5 w-40 rounded-xl border border-[#262626] bg-[#111111] p-2 shadow-2xl hidden group-hover:block z-50">
+                <div className="absolute right-0 mt-1.5 w-40 rounded-xl border border-brand-border bg-brand-card p-2 shadow-2xl hidden group-hover:block z-50">
                   <div className="flex flex-col gap-1">
                     {years.map((year) => {
                       const active = selectedYears.includes(year);
@@ -1245,7 +1245,7 @@ export default function LandingPage() {
                           onClick={() => toggleYear(year)}
                           className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all text-left ${active
                             ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
-                            : "bg-zinc-950/20 border-transparent text-[#A3A3A3] hover:text-[#FAFAFA]"
+                            : "bg-zinc-950/20 border-transparent text-brand-muted hover:text-brand-text"
                             }`}
                         >
                           {year === 1 ? "1st" : year === 2 ? "2nd" : year === 3 ? "3rd" : `${year}th`} Year
@@ -1259,8 +1259,8 @@ export default function LandingPage() {
             </div>
 
             {/* Stars Filter Row */}
-            <div className="flex items-center gap-2 flex-wrap border-t border-[#262626]/50 pt-3">
-              <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest mr-2 flex items-center gap-1">
+            <div className="flex items-center gap-2 flex-wrap border-t border-brand-border/50 pt-3">
+              <span className="text-[9px] font-black text-brand-muted uppercase tracking-widest mr-2 flex items-center gap-1">
                 <Star className="h-3 w-3 text-amber-500 fill-amber-500/20" />
                 Filter Stars:
               </span>
@@ -1273,7 +1273,7 @@ export default function LandingPage() {
                       onClick={() => toggleStars(star)}
                       className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border flex items-center gap-1 transition-all ${active
                         ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30 shadow-inner"
-                        : "bg-[#0A0A0A]/50 border-[#262626] text-[#A3A3A3] hover:text-[#FAFAFA] hover:border-zinc-850"
+                        : "bg-brand-bg/50 border-brand-border text-brand-muted hover:text-brand-text hover:border-zinc-850"
                         }`}
                     >
                       {star}★
@@ -1285,14 +1285,14 @@ export default function LandingPage() {
           </div>
 
           {/* Standings Table Console */}
-          <div className="border border-[#262626] bg-[#111111] rounded-3xl overflow-hidden shadow-xl">
+          <div className="border border-brand-border bg-brand-card rounded-3xl overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left">
                 <thead>
-                  <tr className="border-b border-[#262626] bg-zinc-950/30 text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">
+                  <tr className="border-b border-brand-border bg-zinc-950/30 text-[9px] font-black text-brand-muted uppercase tracking-widest">
                     <th
                       onClick={() => handleSort("rank")}
-                      className="py-4 px-6 text-center w-16 cursor-pointer select-none hover:text-[#FAFAFA] transition-colors"
+                      className="py-4 px-6 text-center w-16 cursor-pointer select-none hover:text-brand-text transition-colors"
                     >
                       Rank {renderSortIcon("rank")}
                     </th>
@@ -1300,19 +1300,19 @@ export default function LandingPage() {
                     <th className="py-4 px-4 text-center select-none">Dept / Year</th>
                     <th
                       onClick={() => handleSort("rating")}
-                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-[#FAFAFA] transition-colors"
+                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
                     >
                       Rating {renderSortIcon("rating")}
                     </th>
                     <th
                       onClick={() => handleSort("stars")}
-                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-[#FAFAFA] transition-colors"
+                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
                     >
                       Stars {renderSortIcon("stars")}
                     </th>
                     <th
                       onClick={() => handleSort("talentScore")}
-                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-[#FAFAFA] transition-colors"
+                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
                     >
                       Talent Score {renderSortIcon("talentScore")}
                     </th>
@@ -1327,7 +1327,7 @@ export default function LandingPage() {
                       <td colSpan={9} className="py-24 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <Loader2 className="h-7 w-7 animate-spin text-[#EAB308]" />
-                          <span className="text-xs text-[#A3A3A3] font-bold">Querying ACE Student archives...</span>
+                          <span className="text-xs text-brand-muted font-bold">Querying ACE Student archives...</span>
                         </div>
                       </td>
                     </tr>
@@ -1357,7 +1357,7 @@ export default function LandingPage() {
                           <td className="py-4 px-4">
                             <div className="flex items-center gap-3">
                               {/* Avatar */}
-                              <div className="h-8.5 w-8.5 rounded-xl border border-[#262626] overflow-hidden bg-zinc-950 flex items-center justify-center shrink-0">
+                              <div className="h-8.5 w-8.5 rounded-xl border border-brand-border overflow-hidden bg-zinc-950 flex items-center justify-center shrink-0">
                                 {entry.student.profilePictureUrl ? (
                                   <img
                                     src={entry.student.profilePictureUrl}
@@ -1371,10 +1371,10 @@ export default function LandingPage() {
                                 )}
                               </div>
                               <div className="flex flex-col text-left">
-                                <span className="text-xs font-bold text-[#FAFAFA] group-hover:text-[#EAB308] transition-colors">
+                                <span className="text-xs font-bold text-brand-text group-hover:text-[#EAB308] transition-colors">
                                   {entry.student.name}
                                 </span>
-                                <span className="text-[10px] text-[#A3A3A3] font-semibold mt-0.5">
+                                <span className="text-[10px] text-brand-muted font-semibold mt-0.5">
                                   {entry.student.rollNumber} • {entry.student.codechefUsername}
                                 </span>
                               </div>
@@ -1383,13 +1383,13 @@ export default function LandingPage() {
 
                           {/* Year / Dept */}
                           <td className="py-4 px-4 text-center">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 border border-[#262626] bg-[#0A0A0A] rounded-lg text-[9px] font-extrabold text-[#A3A3A3]">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 border border-brand-border bg-brand-bg rounded-lg text-[9px] font-extrabold text-brand-muted">
                               {entry.student.department} • {entry.student.year}Y
                             </span>
                           </td>
 
                           {/* Rating */}
-                          <td className="py-4 px-4 text-center text-xs font-black text-[#FAFAFA]">
+                          <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
                             {entry.rating}
                           </td>
 
@@ -1433,7 +1433,7 @@ export default function LandingPage() {
                               {/* View Profile */}
                               <button
                                 onClick={() => setSelectedStudentId(entry.student.id)}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#262626] hover:border-[#EAB308]/30 bg-zinc-950 text-[9px] font-extrabold text-[#A3A3A3] hover:text-white transition-all shadow-sm"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#EAB308]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white transition-all shadow-sm"
                                 title="View detailed profile"
                               >
                                 View
@@ -1443,7 +1443,7 @@ export default function LandingPage() {
                               <button
                                 onClick={() => handleRefreshStudent(entry.student.id)}
                                 disabled={isRefreshingId === entry.student.id}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#262626] hover:border-[#22C55E]/30 bg-zinc-950 text-[9px] font-extrabold text-[#A3A3A3] hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#22C55E]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                                 title="Refresh CodeChef metrics"
                               >
                                 {isRefreshingId === entry.student.id ? (
@@ -1458,7 +1458,7 @@ export default function LandingPage() {
                               <button
                                 onClick={() => handleDeleteStudent(entry.student.id)}
                                 disabled={isDeletingId === entry.student.id}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-[#262626] hover:border-red-500/30 bg-zinc-950 text-[9px] font-extrabold text-red-500/80 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-red-500/30 bg-zinc-950 text-[9px] font-extrabold text-red-500/80 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                                 title="Delete student profile"
                               >
                                 {isDeletingId === entry.student.id ? (
@@ -1480,13 +1480,13 @@ export default function LandingPage() {
 
             {/* Pagination console panel */}
             {!isLeaderboardLoading && totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-[#262626] bg-zinc-950/20 px-6 py-4">
+              <div className="flex items-center justify-between border-t border-brand-border bg-zinc-950/20 px-6 py-4">
                 <div className="flex-1 flex items-center justify-between">
                   <div>
-                    <p className="text-[10px] text-[#A3A3A3] font-bold">
-                      Showing <span className="text-[#FAFAFA]">{Math.min(total, (page - 1) * limit + 1)}</span> to{" "}
-                      <span className="text-[#FAFAFA]">{Math.min(total, page * limit)}</span> of{" "}
-                      <span className="text-[#FAFAFA]">{total}</span> candidates
+                    <p className="text-[10px] text-brand-muted font-bold">
+                      Showing <span className="text-brand-text">{Math.min(total, (page - 1) * limit + 1)}</span> to{" "}
+                      <span className="text-brand-text">{Math.min(total, page * limit)}</span> of{" "}
+                      <span className="text-brand-text">{total}</span> candidates
                     </p>
                   </div>
                   <div>
@@ -1494,7 +1494,7 @@ export default function LandingPage() {
                       <button
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         disabled={page === 1}
-                        className="relative inline-flex items-center px-2.5 py-1.5 rounded-l-lg border border-[#262626] bg-zinc-950 text-xs font-semibold text-[#A3A3A3] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        className="relative inline-flex items-center px-2.5 py-1.5 rounded-l-lg border border-brand-border bg-zinc-950 text-xs font-semibold text-brand-muted hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
@@ -1511,7 +1511,7 @@ export default function LandingPage() {
                             onClick={() => setPage(pNum)}
                             className={`relative inline-flex items-center px-3.5 py-1.5 border text-xs font-bold transition-all ${active
                               ? "bg-[#EAB308] border-[#EAB308]/55 text-[#0A0A0A] shadow-md font-extrabold"
-                              : "border-[#262626] bg-zinc-950 text-[#A3A3A3] hover:text-white hover:bg-zinc-905"
+                              : "border-brand-border bg-zinc-950 text-brand-muted hover:text-white hover:bg-zinc-905"
                               }`}
                           >
                             {pNum}
@@ -1522,7 +1522,7 @@ export default function LandingPage() {
                       <button
                         onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                         disabled={page === totalPages}
-                        className="relative inline-flex items-center px-2.5 py-1.5 rounded-r-lg border border-[#262626] bg-zinc-950 text-xs font-semibold text-[#A3A3A3] hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        className="relative inline-flex items-center px-2.5 py-1.5 rounded-r-lg border border-brand-border bg-zinc-950 text-xs font-semibold text-brand-muted hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </button>
@@ -1535,13 +1535,13 @@ export default function LandingPage() {
         </>
       ) : (
         /* Beautiful Centered Empty State Card */
-        <div className="border border-dashed border-[#262626] bg-[#111111]/40 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-4 relative overflow-hidden">
+        <div className="border border-dashed border-brand-border bg-brand-card/40 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-4 relative overflow-hidden">
           <div className="absolute top-0 right-0 h-28 w-28 bg-[#EAB308]/5 rounded-full blur-2xl pointer-events-none" />
           <div className="h-12 w-12 rounded-2xl bg-[#EAB308]/10 border border-[#EAB308]/20 flex items-center justify-center text-[#EAB308] mb-2">
             <Trophy className="h-6 w-6" />
           </div>
-          <h3 className="text-sm font-bold text-[#FAFAFA] uppercase tracking-wider">No student profiles analyzed yet.</h3>
-          <p className="text-[11px] text-[#A3A3A3] max-w-sm leading-relaxed font-semibold">
+          <h3 className="text-sm font-bold text-brand-text uppercase tracking-wider">No student profiles analyzed yet.</h3>
+          <p className="text-[11px] text-brand-muted max-w-sm leading-relaxed font-semibold">
             Begin by registering student details and a valid CodeChef profile URL to compile automated talent analytics and build the competitive programming leaderboard.
           </p>
           <button
@@ -1565,8 +1565,8 @@ export default function LandingPage() {
           <div className="flex flex-col gap-6">
 
           {/* AI TALENT INSIGHTS CONSOLE */}
-          <div id="insights" className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-5">
-            <div className="flex items-center justify-between border-b border-[#262626] pb-3">
+          <div id="insights" className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-5">
+            <div className="flex items-center justify-between border-b border-brand-border pb-3">
               <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
                 <Lightbulb className="h-4.5 w-4.5 text-[#F59E0B]" />
                 AI Talent Insights Engine
@@ -1577,8 +1577,8 @@ export default function LandingPage() {
             </div>
 
             {/* AI Insights statements */}
-            <div className="bg-[#0A0A0A] border border-[#262626] p-4 rounded-2xl text-left flex flex-col gap-2">
-              <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider flex items-center gap-1.5">
+            <div className="bg-brand-bg border border-brand-border p-4 rounded-2xl text-left flex flex-col gap-2">
+              <span className="text-[9px] font-black text-brand-muted uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="h-3.5 w-3.5 text-[#EAB308]" />
                 Cohort Dynamics Summary
               </span>
@@ -1611,8 +1611,8 @@ export default function LandingPage() {
                     Emerging
                   </span>
                 </div>
-                <h4 className="text-xs font-extrabold text-[#FAFAFA] mt-1">{insights.topEmerging.name}</h4>
-                <p className="text-[10px] text-[#A3A3A3] font-semibold mt-0.5 leading-relaxed">{insights.topEmerging.details}</p>
+                <h4 className="text-xs font-extrabold text-brand-text mt-1">{insights.topEmerging.name}</h4>
+                <p className="text-[10px] text-brand-muted font-semibold mt-0.5 leading-relaxed">{insights.topEmerging.details}</p>
                 {insights.topEmerging.id && (
                   <button onClick={() => setSelectedStudentId(insights.topEmerging.id || null)} className="text-[9px] font-bold text-[#EAB308] hover:text-white mt-2 self-start flex items-center gap-0.5">
                     Profile Analytics <ChevronRight className="h-3 w-3" />
@@ -1630,8 +1630,8 @@ export default function LandingPage() {
                     Consistency
                   </span>
                 </div>
-                <h4 className="text-xs font-extrabold text-[#FAFAFA] mt-1">{insights.mostConsistent.name}</h4>
-                <p className="text-[10px] text-[#A3A3A3] font-semibold mt-0.5 leading-relaxed">{insights.mostConsistent.details}</p>
+                <h4 className="text-xs font-extrabold text-brand-text mt-1">{insights.mostConsistent.name}</h4>
+                <p className="text-[10px] text-brand-muted font-semibold mt-0.5 leading-relaxed">{insights.mostConsistent.details}</p>
                 {insights.mostConsistent.id && (
                   <button onClick={() => setSelectedStudentId(insights.mostConsistent.id || null)} className="text-[9px] font-bold text-[#22C55E] hover:text-white mt-2 self-start flex items-center gap-0.5">
                     Profile Analytics <ChevronRight className="h-3 w-3" />
@@ -1649,8 +1649,8 @@ export default function LandingPage() {
                     Accelerating
                   </span>
                 </div>
-                <h4 className="text-xs font-extrabold text-[#FAFAFA] mt-1">{insights.fastestGrowth.name}</h4>
-                <p className="text-[10px] text-[#A3A3A3] font-semibold mt-0.5 leading-relaxed">{insights.fastestGrowth.details}</p>
+                <h4 className="text-xs font-extrabold text-brand-text mt-1">{insights.fastestGrowth.name}</h4>
+                <p className="text-[10px] text-brand-muted font-semibold mt-0.5 leading-relaxed">{insights.fastestGrowth.details}</p>
                 {insights.fastestGrowth.id && (
                   <button onClick={() => setSelectedStudentId(insights.fastestGrowth.id || null)} className="text-[9px] font-bold text-[#F59E0B] hover:text-white mt-2 self-start flex items-center gap-0.5">
                     Profile Analytics <ChevronRight className="h-3 w-3" />
@@ -1668,8 +1668,8 @@ export default function LandingPage() {
                     Lead Coder
                   </span>
                 </div>
-                <h4 className="text-xs font-extrabold text-[#FAFAFA] mt-1">{insights.deptLeader.name}</h4>
-                <p className="text-[10px] text-[#A3A3A3] font-semibold mt-0.5 leading-relaxed">{insights.deptLeader.details}</p>
+                <h4 className="text-xs font-extrabold text-brand-text mt-1">{insights.deptLeader.name}</h4>
+                <p className="text-[10px] text-brand-muted font-semibold mt-0.5 leading-relaxed">{insights.deptLeader.details}</p>
                 {insights.deptLeader.id && (
                   <button onClick={() => setSelectedStudentId(insights.deptLeader.id || null)} className="text-[9px] font-bold text-[#F59E0B] hover:text-white mt-2 self-start flex items-center gap-0.5">
                     Profile Analytics <ChevronRight className="h-3 w-3" />
@@ -1681,8 +1681,8 @@ export default function LandingPage() {
           </div>
 
           {/* REAL-TIME ACTIVE ACTIVITY STREAM */}
-          <div className="border border-[#262626] bg-[#111111] rounded-3xl p-6 shadow-xl flex flex-col gap-4">
-            <h2 className="text-sm font-extrabold text-white flex items-center gap-2 border-b border-[#262626]/55 pb-3">
+          <div className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-4">
+            <h2 className="text-sm font-extrabold text-white flex items-center gap-2 border-b border-brand-border/55 pb-3">
               <Activity className="h-4.5 w-4.5 text-[#EAB308] animate-pulse" />
               Live activity feed
             </h2>
@@ -1695,17 +1695,17 @@ export default function LandingPage() {
                     if (type === "problem") return <BookOpen className="h-3.5 w-3.5 text-[#22C55E]" />;
                     if (type === "rating") return <TrendingUp className="h-3.5 w-3.5 text-[#EAB308]" />;
                     if (type === "star") return <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500/10" />;
-                    return <Clock className="h-3.5 w-3.5 text-[#A3A3A3]" />;
+                    return <Clock className="h-3.5 w-3.5 text-brand-muted" />;
                   };
                   return (
                     <div
                       key={act.id}
-                      className="p-3.5 rounded-xl border border-[#262626] bg-[#0A0A0A]/50 flex gap-3 text-left hover:border-zinc-800 transition-colors animate-fade-in"
+                      className="p-3.5 rounded-xl border border-brand-border bg-brand-bg/50 flex gap-3 text-left hover:border-zinc-800 transition-colors animate-fade-in"
                     >
                       <div className="shrink-0 mt-0.5">{getIcon(act.type)}</div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-[11px] font-bold text-[#FAFAFA] leading-relaxed">{act.message}</p>
-                        <span className="text-[8px] text-[#A3A3A3] font-bold block mt-1">
+                        <p className="text-[11px] font-bold text-brand-text leading-relaxed">{act.message}</p>
+                        <span className="text-[8px] text-brand-muted font-bold block mt-1">
                           {new Date(act.timestamp).toLocaleTimeString("en-US", {
                             hour: "2-digit",
                             minute: "2-digit",
@@ -1731,11 +1731,11 @@ export default function LandingPage() {
           {/* Close click boundary */}
           <div className="absolute inset-0" onClick={() => setSelectedStudentId(null)} />
 
-          <div className="border border-[#262626] bg-[#111111] w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl p-6 sm:p-8 relative z-10 text-left flex flex-col gap-6 animate-scale-up">
+          <div className="border border-brand-border bg-brand-card w-full max-w-4xl max-h-[92vh] overflow-y-auto rounded-3xl shadow-2xl p-6 sm:p-8 relative z-10 text-left flex flex-col gap-6 animate-scale-up">
             {/* Close Button */}
             <button
               onClick={() => setSelectedStudentId(null)}
-              className="absolute top-5 right-5 p-2 rounded-xl border border-[#262626] hover:border-[#EAB308]/30 bg-zinc-950 text-[#A3A3A3] hover:text-white transition-colors"
+              className="absolute top-5 right-5 p-2 rounded-xl border border-brand-border hover:border-[#EAB308]/30 bg-zinc-950 text-brand-muted hover:text-white transition-colors"
             >
               <X className="h-4 w-4" />
             </button>
@@ -1749,7 +1749,7 @@ export default function LandingPage() {
               <div className="flex flex-col gap-6">
 
                 {/* Modal Header */}
-                <div className="flex flex-col border-b border-[#262626]/50 pb-5 text-left">
+                <div className="flex flex-col border-b border-brand-border/50 pb-5 text-left">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4.5">
                       <div className="h-16 w-16 rounded-2xl overflow-hidden border border-[#EAB308]/30 bg-zinc-950 flex items-center justify-center shrink-0 shadow-lg">
@@ -1764,18 +1764,18 @@ export default function LandingPage() {
                       <div>
                         <h3 className="text-xl font-extrabold text-white leading-none flex flex-wrap items-center gap-2">
                           {activeProfileDetails.name}
-                          <span className="text-[10px] bg-[#0A0A0A] border border-[#262626] text-[#EAB308] px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider">
+                          <span className="text-[10px] bg-brand-bg border border-brand-border text-[#EAB308] px-2.5 py-0.5 rounded-full font-extrabold uppercase tracking-wider">
                             {activeProfileDetails.rollNumber}
                           </span>
                         </h3>
-                        <p className="text-xs text-[#A3A3A3] mt-2 font-bold">
+                        <p className="text-xs text-brand-muted mt-2 font-bold">
                           {activeProfileDetails.department} Department • Section {activeProfileDetails.section || "A"} • Year {activeProfileDetails.year}
                         </p>
                       </div>
                     </div>
 
                     <div className="flex flex-wrap gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 border border-[#262626] bg-[#0A0A0A]/50 rounded-xl text-[10px] font-black uppercase text-zinc-400">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 border border-brand-border bg-brand-bg/50 rounded-xl text-[10px] font-black uppercase text-zinc-400">
                         {activeProfileDetails.codechefProfile?.division || "Div N/A"}
                       </span>
                       <span className={`inline-flex items-center gap-1 px-3 py-1 border rounded-xl text-[10px] font-black uppercase ${getStarColorClass(activeProfileDetails.codechefProfile?.stars || 1)}`}>
@@ -1785,7 +1785,7 @@ export default function LandingPage() {
                   </div>
 
                   {/* Meta location & institution details */}
-                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-4 text-[10px] text-zinc-400 font-bold border-t border-[#262626]/20 pt-3">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-4 text-[10px] text-zinc-400 font-bold border-t border-brand-border/20 pt-3">
                     {activeProfileDetails.codechefProfile?.institution && (
                       <span className="flex items-center gap-1.5">
                         <GraduationCap className="h-3.5 w-3.5 text-zinc-500" />
@@ -1820,7 +1820,7 @@ export default function LandingPage() {
                 </div>
 
                 {/* Tab Navigation Menu */}
-                <div className="flex border-b border-[#262626] gap-2 pb-px overflow-x-auto">
+                <div className="flex border-b border-brand-border gap-2 pb-px overflow-x-auto">
                   {[
                     { id: "overview", label: "Overview" },
                     { id: "problems", label: "Problem Solving" },
@@ -1885,16 +1885,16 @@ export default function LandingPage() {
 
                           {/* Executive stats cards */}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Current Rating</span>
                               <span className="text-xl font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.currentRating || 0}
                               </span>
-                              <span className="text-[9px] text-[#A3A3A3] font-semibold mt-1">
+                              <span className="text-[9px] text-brand-muted font-semibold mt-1">
                                 Division: {activeProfileDetails.codechefProfile?.division || "N/A"}
                               </span>
                             </div>
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Global / Country Rank</span>
                               <span className="text-xl font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.globalRank || "N/A"}
@@ -1903,7 +1903,7 @@ export default function LandingPage() {
                                 Country Rank: {activeProfileDetails.codechefProfile?.countryRank || "N/A"}
                               </span>
                             </div>
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Stars Tier</span>
                               <span className="text-xl font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.stars || 1}★
@@ -1912,7 +1912,7 @@ export default function LandingPage() {
                                 Highest Rating: {activeProfileDetails.codechefProfile?.highestRating || 0}
                               </span>
                             </div>
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Consistency / Volume</span>
                               <span className="text-xl font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.activeDaysCount || 0} Days
@@ -1927,8 +1927,8 @@ export default function LandingPage() {
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
                             {/* Rating Chart */}
-                            <div className="md:col-span-2 border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl">
-                              <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4 text-left">
+                            <div className="md:col-span-2 border border-brand-border bg-brand-bg/40 p-5 rounded-3xl">
+                              <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-4 text-left">
                                 CodeChef Rating Timeline Progress
                               </span>
                               <RatingChart contests={activeProfileDetails.codechefProfile?.contests || []} />
@@ -1937,7 +1937,7 @@ export default function LandingPage() {
                             {/* Sidebar outcomes & strengths */}
                             <div className="flex flex-col gap-6">
                               {/* Expected outcomes */}
-                              <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
+                              <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
                                 <span className="text-[10px] font-black text-[#EAB308] uppercase tracking-widest flex items-center gap-1.5">
                                   <Target className="h-3.5 w-3.5" />
                                   Expected Outcomes
@@ -1965,7 +1965,7 @@ export default function LandingPage() {
                               </div>
 
                               {/* Strengths & Weaknesses list */}
-                              <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
+                              <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
                                 <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5">
                                   <Sparkles className="h-3.5 w-3.5 text-[#EAB308]" />
                                   Key Algorithmic Traits
@@ -1985,7 +1985,7 @@ export default function LandingPage() {
                                       )}
                                     </ul>
                                   </div>
-                                  <div className="border-t border-[#262626]/50 pt-3">
+                                  <div className="border-t border-brand-border/50 pt-3">
                                     <span className="text-[9px] font-black text-[#EF4444] uppercase tracking-widest block mb-1">Areas of Friction</span>
                                     <ul className="space-y-1 text-[10px] text-zinc-400 font-bold leading-relaxed">
                                       {getJsonArray(activeProfileDetails.aiAnalysis?.weaknesses).slice(0, 3).map((wk: string, i: number) => (
@@ -2013,19 +2013,19 @@ export default function LandingPage() {
 
                           {/* Count cards */}
                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Total Problems Solved</span>
                               <span className="text-xl font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.problemsSolved || 0}
                               </span>
                             </div>
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-[#22C55E] uppercase tracking-widest">Fully Solved Count</span>
                               <span className="text-xl font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.fullySolvedCount || 0}
                               </span>
                             </div>
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-[#3B82F6] uppercase tracking-widest">Partially Solved Count</span>
                               <span className="text-xl font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.partiallySolvedCount || 0}
@@ -2037,8 +2037,8 @@ export default function LandingPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                             {/* Pie chart */}
-                            <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl flex flex-col items-center">
-                              <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest self-start mb-4">
+                            <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl flex flex-col items-center">
+                              <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest self-start mb-4">
                                 Problem Difficulty distribution
                               </span>
                               <div className="h-64 w-full flex items-center justify-center">
@@ -2062,7 +2062,7 @@ export default function LandingPage() {
                                         if (active && payload && payload.length) {
                                           const dataPoint = payload[0].payload;
                                           return (
-                                            <div className="glass-panel p-2.5 rounded-xl border border-[#262626] shadow-xl text-left bg-zinc-950/90 text-white">
+                                            <div className="glass-panel p-2.5 rounded-xl border border-brand-border shadow-xl text-left bg-zinc-950/90 text-white">
                                               <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: dataPoint.color }}>
                                                 {dataPoint.name}
                                               </span>
@@ -2082,8 +2082,8 @@ export default function LandingPage() {
                             </div>
 
                             {/* Detailed levels counts list */}
-                            <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
-                              <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block">
+                            <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
+                              <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block">
                                 Difficulty Level Share Index
                               </span>
                               <div className="space-y-4">
@@ -2120,25 +2120,25 @@ export default function LandingPage() {
 
                           {/* Contest type counter cards */}
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Starters Contests</span>
                               <span className="text-lg font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.startersCount || 0}
                               </span>
                             </div>
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Cook-Offs</span>
                               <span className="text-lg font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.cookOffCount || 0}
                               </span>
                             </div>
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Lunchtimes</span>
                               <span className="text-lg font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.lunchtimeCount || 0}
                               </span>
                             </div>
-                            <div className="border border-[#262626] bg-[#0A0A0A]/50 p-4 rounded-2xl flex flex-col text-left">
+                            <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Long Challenges</span>
                               <span className="text-lg font-black text-white mt-1">
                                 {activeProfileDetails.codechefProfile?.longChallengeCount || 0}
@@ -2147,24 +2147,24 @@ export default function LandingPage() {
                           </div>
 
                           {/* Contest Rank progress chart */}
-                          <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl">
-                            <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4 text-left">
+                          <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl">
+                            <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-4 text-left">
                               CodeChef Contest Rank Progress Timeline (Lower is Better)
                             </span>
                             <PerformanceChart contests={activeProfileDetails.codechefProfile?.contests || []} />
                           </div>
 
                           {/* Tabular chronological log */}
-                          <div className="border border-[#262626] bg-[#0A0A0A]/40 rounded-3xl overflow-hidden text-left">
-                            <div className="px-6 py-4 border-b border-[#262626]/50 bg-[#0A0A0A]/20">
-                              <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest">
+                          <div className="border border-brand-border bg-brand-bg/40 rounded-3xl overflow-hidden text-left">
+                            <div className="px-6 py-4 border-b border-brand-border/50 bg-brand-bg/20">
+                              <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest">
                                 Contest Participation ledger
                               </span>
                             </div>
                             <div className="overflow-x-auto max-h-72">
                               <table className="w-full text-left border-collapse">
                                 <thead>
-                                  <tr className="border-b border-[#262626] bg-zinc-950/40 text-[9px] uppercase tracking-wider text-zinc-500 font-extrabold">
+                                  <tr className="border-b border-brand-border bg-zinc-950/40 text-[9px] uppercase tracking-wider text-zinc-500 font-extrabold">
                                     <th className="py-3 px-6">Contest Code</th>
                                     <th className="py-3 px-6">Contest Name</th>
                                     <th className="py-3 px-6 text-center">Global Rank</th>
@@ -2202,8 +2202,8 @@ export default function LandingPage() {
                         <div className="flex flex-col gap-6 animate-fade-in">
 
                           {/* Circular SVG score gauge block */}
-                          <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl">
-                            <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4.5 text-left">
+                          <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl">
+                            <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-4.5 text-left">
                               AI Multi-Dimensional Algorithmic Skill Indexes
                             </span>
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -2222,8 +2222,8 @@ export default function LandingPage() {
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
                             {/* Skill Radar */}
-                            <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl">
-                              <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4 text-left">
+                            <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl">
+                              <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-4 text-left">
                                 Candidate Skill Radar Matrix
                               </span>
                               <SkillRadar
@@ -2234,7 +2234,7 @@ export default function LandingPage() {
                             </div>
 
                             {/* Career recommends & suggested companies */}
-                            <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
+                            <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
                               <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5">
                                 <Briefcase className="h-3.5 w-3.5 text-[#EAB308]" />
                                 AI Career Direction Recommendations
@@ -2242,17 +2242,17 @@ export default function LandingPage() {
                               <div className="space-y-4.5">
                                 <div>
                                   <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-1">Primary Role Alignment</span>
-                                  <span className="text-sm font-extrabold text-[#FAFAFA] leading-snug block">
+                                  <span className="text-sm font-extrabold text-brand-text leading-snug block">
                                     {activeProfileDetails.aiAnalysis?.careerRecommendation || "Software Development Engineer (SDE)"}
                                   </span>
                                 </div>
-                                <div className="border-t border-[#262626]/50 pt-3.5">
+                                <div className="border-t border-brand-border/50 pt-3.5">
                                   <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Target Corporate Placements</span>
                                   <div className="flex flex-wrap gap-1.5">
                                     {getJsonArray(activeProfileDetails.aiAnalysis?.suggestedCompanies).map((company: string, idx: number) => (
                                       <span
                                         key={idx}
-                                        className="px-2.5 py-1 text-[9px] font-extrabold text-[#FAFAFA] bg-[#EAB308]/5 border border-[#EAB308]/20 rounded-lg hover:border-[#EAB308]/40 hover:bg-[#EAB308]/10 transition-all cursor-default"
+                                        className="px-2.5 py-1 text-[9px] font-extrabold text-brand-text bg-[#EAB308]/5 border border-[#EAB308]/20 rounded-lg hover:border-[#EAB308]/40 hover:bg-[#EAB308]/10 transition-all cursor-default"
                                       >
                                         {company}
                                       </span>
@@ -2268,20 +2268,20 @@ export default function LandingPage() {
                           </div>
 
                           {/* Recommended Learning Path checklist indicators */}
-                          <div className="border border-[#262626] bg-[#0A0A0A]/40 p-5 rounded-3xl text-left">
+                          <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl text-left">
                             <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5 mb-4">
                               <Sparkles className="h-3.5 w-3.5 text-[#EAB308]" />
                               Dynamic Competitive Programming Learning Path
                             </span>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                               {getJsonArray(activeProfileDetails.aiAnalysis?.recommendedLearningPath).map((pathNode: string, idx: number) => (
-                                <div key={idx} className="flex items-start gap-3 p-3 bg-zinc-950/45 border border-[#262626]/60 rounded-2xl hover:border-zinc-800 transition-colors">
+                                <div key={idx} className="flex items-start gap-3 p-3 bg-zinc-950/45 border border-brand-border/60 rounded-2xl hover:border-zinc-800 transition-colors">
                                   <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30 text-[10px] font-black text-[#EAB308] mt-0.5">
                                     {idx + 1}
                                   </span>
                                   <div className="flex flex-col">
                                     <span className="text-xs font-bold text-white leading-relaxed">{pathNode}</span>
-                                    <span className="text-[9px] text-[#A3A3A3] font-bold mt-0.5">Recommended Algorithmic Milestone</span>
+                                    <span className="text-[9px] text-brand-muted font-bold mt-0.5">Recommended Algorithmic Milestone</span>
                                   </div>
                                 </div>
                               ))}

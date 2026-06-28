@@ -6,7 +6,7 @@ import { AlertCircle, ArrowLeft, Brain } from "lucide-react";
 
 export default function NotFound() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] bg-[#0A0A0A] text-center px-4 relative overflow-hidden">
+    <div className="flex-1 flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] bg-brand-bg text-center px-4 relative overflow-hidden">
       {/* Radial Gold Glow */}
       <div
         className="absolute inset-0 pointer-events-none"
@@ -33,7 +33,7 @@ export default function NotFound() {
           </p>
         </div>
 
-        <div className="w-full pt-4 border-t border-[#262626]/50">
+        <div className="w-full pt-4 border-t border-brand-border/50">
           <Link
             href="/"
             className="inline-flex items-center justify-center gap-2 w-full px-5 py-3 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all shadow-[0_4px_20px_rgba(234,179,8,0.2)]"

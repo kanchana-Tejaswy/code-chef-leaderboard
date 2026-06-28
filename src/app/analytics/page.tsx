@@ -81,10 +81,10 @@ export default function AnalyticsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-12 min-h-[calc(100vh-4rem)] bg-[#0A0A0A]">
+      <div className="flex-1 flex items-center justify-center p-12 min-h-[calc(100vh-4rem)] bg-brand-bg">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-9 w-9 animate-spin text-[#EAB308]" />
-          <span className="text-xs text-[#A3A3A3] font-bold tracking-wider uppercase">
+          <span className="text-xs text-brand-muted font-bold tracking-wider uppercase">
             Compiling Academic Algorithmic Analytics...
           </span>
         </div>
@@ -94,7 +94,7 @@ export default function AnalyticsPage() {
 
   if (error || !data) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8 bg-[#0A0A0A] text-center">
+      <div className="flex-1 flex items-center justify-center p-8 bg-brand-bg text-center">
         <div className="glass-card max-w-md p-8 rounded-2xl border border-red-500/10">
           <TrendingDown className="h-8 w-8 text-red-400 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-white mb-2">Analytics Loading Failed</h2>
@@ -117,8 +117,8 @@ export default function AnalyticsPage() {
 
   if (totalProfiles === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8 bg-[#0A0A0A] text-center min-h-[calc(100vh-4rem)]">
-        <div className="border border-dashed border-[#262626] bg-[#111111]/40 max-w-md p-12 rounded-3xl flex flex-col items-center justify-center gap-4 relative overflow-hidden">
+      <div className="flex-1 flex items-center justify-center p-8 bg-brand-bg text-center min-h-[calc(100vh-4rem)]">
+        <div className="border border-dashed border-brand-border bg-brand-card/40 max-w-md p-12 rounded-3xl flex flex-col items-center justify-center gap-4 relative overflow-hidden">
           <div className="absolute top-0 right-0 h-28 w-28 bg-[#EAB308]/5 rounded-full blur-2xl pointer-events-none" />
           <div className="h-12 w-12 rounded-2xl bg-[#EAB308]/10 border border-[#EAB308]/20 flex items-center justify-center text-[#EAB308]">
             <BarChart2 className="h-6 w-6" />
@@ -144,16 +144,16 @@ export default function AnalyticsPage() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-[#0A0A0A] min-h-screen">
+    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-brand-bg min-h-screen">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#262626] pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-6">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-[#EAB308]/10 border border-[#EAB308]/20 text-[#EAB308] rounded-xl">
             <BarChart2 className="h-6 w-6" />
           </div>
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white font-sans">Institutional Analytics</h1>
-            <p className="text-sm text-[#A3A3A3] mt-1">
+            <p className="text-sm text-brand-muted mt-1">
               Deeper algorithmic performance trends and skill distribution datasets across ACE College
             </p>
           </div>
@@ -162,12 +162,12 @@ export default function AnalyticsPage() {
 
       {/* Overview Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        <div className="border border-[#262626] bg-[#111111] p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300">
-          <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+        <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300">
+          <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5 text-[#EAB308]" />
             Ranked Profiles
           </span>
-          <span className="text-3xl font-black text-[#FAFAFA] mt-4 tracking-tight">
+          <span className="text-3xl font-black text-brand-text mt-4 tracking-tight">
             {totalProfiles}
           </span>
           <span className="text-[10px] text-zinc-500 font-medium mt-1">
@@ -175,12 +175,12 @@ export default function AnalyticsPage() {
           </span>
         </div>
 
-        <div className="border border-[#262626] bg-[#111111] p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300">
-          <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+        <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300">
+          <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
             <TrendingUp className="h-3.5 w-3.5 text-[#22C55E]" />
             Global Avg Rating
           </span>
-          <span className="text-3xl font-black text-[#FAFAFA] mt-4 tracking-tight">
+          <span className="text-3xl font-black text-brand-text mt-4 tracking-tight">
             {globalAvgRating}
           </span>
           <span className="text-[10px] text-[#22C55E] font-medium mt-1">
@@ -188,12 +188,12 @@ export default function AnalyticsPage() {
           </span>
         </div>
 
-        <div className="border border-[#262626] bg-[#111111] p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300">
-          <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+        <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300">
+          <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
             <Activity className="h-3.5 w-3.5 text-[#F59E0B]" />
             Recent Term Submissions
           </span>
-          <span className="text-3xl font-black text-[#FAFAFA] mt-4 tracking-tight">
+          <span className="text-3xl font-black text-brand-text mt-4 tracking-tight">
             {data.contestParticipation.reduce((acc, curr) => acc + curr.count, 0)}
           </span>
           <span className="text-[10px] text-zinc-500 font-medium mt-1">
@@ -217,11 +217,11 @@ export default function AnalyticsPage() {
           <div className="h-72 w-full pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.departmentPerformance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1F1F1F" vertical={false} />
-                <XAxis dataKey="name" stroke="#525252" fontSize={10} fontWeight="bold" tickLine={false} />
-                <YAxis stroke="#525252" fontSize={10} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--chart-axis)" fontSize={10} fontWeight="bold" tickLine={false} />
+                <YAxis stroke="var(--chart-axis)" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "#111111", border: "1px border #262626", borderRadius: "12px" }}
+                  contentStyle={{ backgroundColor: "var(--brand-card)", border: "1px solid var(--brand-border)", borderRadius: "12px" }}
                   labelClassName="text-white text-xs font-bold"
                   itemStyle={{ color: "#EAB308", fontSize: "11px", fontWeight: "bold" }}
                 />
@@ -249,11 +249,11 @@ export default function AnalyticsPage() {
                     <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1F1F1F" vertical={false} />
-                <XAxis dataKey="range" stroke="#525252" fontSize={10} fontWeight="bold" tickLine={false} />
-                <YAxis stroke="#525252" fontSize={10} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                <XAxis dataKey="range" stroke="var(--chart-axis)" fontSize={10} fontWeight="bold" tickLine={false} />
+                <YAxis stroke="var(--chart-axis)" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "#111111", border: "1px border #262626", borderRadius: "12px" }}
+                  contentStyle={{ backgroundColor: "var(--brand-card)", border: "1px solid var(--brand-border)", borderRadius: "12px" }}
                   labelClassName="text-white text-xs font-bold"
                   itemStyle={{ color: "#F59E0B", fontSize: "11px", fontWeight: "bold" }}
                 />
@@ -275,11 +275,11 @@ export default function AnalyticsPage() {
           <div className="h-72 w-full pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data.contestParticipation} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1F1F1F" vertical={false} />
-                <XAxis dataKey="date" stroke="#525252" fontSize={10} fontWeight="bold" tickLine={false} />
-                <YAxis stroke="#525252" fontSize={10} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                <XAxis dataKey="date" stroke="var(--chart-axis)" fontSize={10} fontWeight="bold" tickLine={false} />
+                <YAxis stroke="var(--chart-axis)" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "#111111", border: "1px border #262626", borderRadius: "12px" }}
+                  contentStyle={{ backgroundColor: "var(--brand-card)", border: "1px solid var(--brand-border)", borderRadius: "12px" }}
                   labelClassName="text-white text-xs font-bold"
                   itemStyle={{ color: "#22C55E", fontSize: "11px", fontWeight: "bold" }}
                 />
@@ -307,11 +307,11 @@ export default function AnalyticsPage() {
                     <stop offset="95%" stopColor="#EAB308" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1F1F1F" vertical={false} />
-                <XAxis dataKey="month" stroke="#525252" fontSize={10} fontWeight="bold" tickLine={false} />
-                <YAxis stroke="#525252" fontSize={10} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                <XAxis dataKey="month" stroke="var(--chart-axis)" fontSize={10} fontWeight="bold" tickLine={false} />
+                <YAxis stroke="var(--chart-axis)" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "#111111", border: "1px border #262626", borderRadius: "12px" }}
+                  contentStyle={{ backgroundColor: "var(--brand-card)", border: "1px solid var(--brand-border)", borderRadius: "12px" }}
                   labelClassName="text-white text-xs font-bold"
                   itemStyle={{ color: "#EAB308", fontSize: "11px", fontWeight: "bold" }}
                 />
@@ -333,11 +333,11 @@ export default function AnalyticsPage() {
           <div className="h-72 w-full pt-4">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.talentScoreDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#1F1F1F" vertical={false} />
-                <XAxis dataKey="range" stroke="#525252" fontSize={10} fontWeight="bold" tickLine={false} />
-                <YAxis stroke="#525252" fontSize={10} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+                <XAxis dataKey="range" stroke="var(--chart-axis)" fontSize={10} fontWeight="bold" tickLine={false} />
+                <YAxis stroke="var(--chart-axis)" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ backgroundColor: "#111111", border: "1px border #262626", borderRadius: "12px" }}
+                  contentStyle={{ backgroundColor: "var(--brand-card)", border: "1px solid var(--brand-border)", borderRadius: "12px" }}
                   labelClassName="text-white text-xs font-bold"
                   itemStyle={{ color: "#10B981", fontSize: "11px", fontWeight: "bold" }}
                 />

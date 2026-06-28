@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 interface UserProfile {
   id: string;
@@ -60,3 +60,50 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     </AuthContext.Provider>
   );
 }
+
+interface ThemeContextType {
+  theme: "light" | "dark";
+  toggleTheme: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType>({
+  theme: "light",
+  toggleTheme: () => {},
+});
+
+export const useTheme = () => useContext(ThemeContext);
+
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = useState<"light" | "dark">("light");
+
+  useEffect(() => {
+    const storedTheme = localStorage.getItem("theme") as "light" | "dark" | null;
+    if (storedTheme === "dark") {
+      setTheme("dark");
+      document.documentElement.classList.add("dark");
+    } else {
+      setTheme("light");
+      document.documentElement.classList.remove("dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((prevTheme) => {
+      const nextTheme = prevTheme === "light" ? "dark" : "light";
+      localStorage.setItem("theme", nextTheme);
+      if (nextTheme === "dark") {
+        document.documentElement.classList.add("dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+      }
+      return nextTheme;
+    });
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+

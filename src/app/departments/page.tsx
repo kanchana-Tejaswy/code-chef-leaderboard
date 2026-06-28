@@ -76,15 +76,15 @@ export default function DepartmentsPage() {
         </span>
       );
     }
-    return <span className="text-sm font-extrabold text-[#A3A3A3]">#{pos}</span>;
+    return <span className="text-sm font-extrabold text-brand-muted">#{pos}</span>;
   };
 
   if (isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-12 min-h-[calc(100vh-4rem)] bg-[#0A0A0A]">
+      <div className="flex-1 flex items-center justify-center p-12 min-h-[calc(100vh-4rem)] bg-brand-bg">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-9 w-9 animate-spin text-[#EAB308]" />
-          <span className="text-xs text-[#A3A3A3] font-bold tracking-wider uppercase">
+          <span className="text-xs text-brand-muted font-bold tracking-wider uppercase">
             Aggregating Academic Department Standings...
           </span>
         </div>
@@ -94,7 +94,7 @@ export default function DepartmentsPage() {
 
   if (error || departments.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8 bg-[#0A0A0A] text-center">
+      <div className="flex-1 flex items-center justify-center p-8 bg-brand-bg text-center">
         <div className="glass-card max-w-md p-8 rounded-2xl border border-red-500/10">
           <GraduationCap className="h-8 w-8 text-red-400 mx-auto mb-3" />
           <h2 className="text-lg font-bold text-white mb-2">Departments Standings Failed</h2>
@@ -113,16 +113,16 @@ export default function DepartmentsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-[#0A0A0A] min-h-screen">
+    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-brand-bg min-h-screen">
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[#262626] pb-6">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-6">
         <div className="flex items-center gap-3">
           <div className="p-2.5 bg-[#EAB308]/10 border border-[#EAB308]/20 text-[#EAB308] rounded-xl">
             <Building className="h-6 w-6" />
           </div>
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white">Department Standings</h1>
-            <p className="text-sm text-[#A3A3A3] mt-1">
+            <p className="text-sm text-brand-muted mt-1">
               Comparative analysis and standings across ACE engineering departments
             </p>
           </div>
@@ -155,7 +155,7 @@ export default function DepartmentsPage() {
             </div>
 
             {/* Bottom info */}
-            <div className="border-t border-[#262626]/50 pt-4 flex flex-col gap-3">
+            <div className="border-t border-brand-border/50 pt-4 flex flex-col gap-3">
               <div className="flex justify-between text-xs">
                 <span className="text-zinc-500 font-semibold">Active profiles:</span>
                 <span className="text-white font-bold">{d.activeCount} / {d.studentCount}</span>
@@ -187,8 +187,8 @@ export default function DepartmentsPage() {
       </div>
 
       {/* Directory Table of Rankings */}
-      <div className="glass-card rounded-3xl overflow-hidden border border-[#262626] shadow-xl mt-4">
-        <div className="px-6 py-5 border-b border-[#262626] flex items-center justify-between">
+      <div className="glass-card rounded-3xl overflow-hidden border border-brand-border shadow-xl mt-4">
+        <div className="px-6 py-5 border-b border-brand-border flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-white uppercase tracking-wider">Complete Department Standings</h2>
             <p className="text-xs text-zinc-400 mt-0.5">Ranked standings table of all academic branches</p>
@@ -197,7 +197,7 @@ export default function DepartmentsPage() {
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-left">
             <thead>
-              <tr className="border-b border-[#262626] bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+              <tr className="border-b border-brand-border bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                 <th className="py-4 px-6 text-center w-16">Rank</th>
                 <th className="py-4 px-6">Department</th>
                 <th className="py-4 px-6 text-center">Student Count</th>
