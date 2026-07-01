@@ -410,5 +410,140 @@ html:not(.dark) {
     background-color: #f1f5f9 !important;
     color: var(--brand-text) !important;
   }
+
+  /* Added custom overrides for multi-platform dashboard elements in light mode */
+  .bg-\[\#111111\]\/60 {
+    background-color: rgba(255, 255, 255, 0.6) !important;
+  }
+  .bg-\[\#111111\]\/70 {
+    background-color: rgba(255, 255, 255, 0.7) !important;
+  }
+  .bg-\[\#EAB308\]\/10 {
+    background-color: rgba(234, 179, 8, 0.12) !important;
+  }
+  .bg-\[\#EAB308\]\/20 {
+    background-color: rgba(234, 179, 8, 0.22) !important;
+  }
+  .bg-\[\#F59E0B\]\/20 {
+    background-color: rgba(245, 158, 11, 0.22) !important;
+  }
+  .bg-purple-500\/5 {
+    background-color: rgba(147, 51, 234, 0.05) !important;
+  }
+  .bg-purple-500\/10 {
+    background-color: rgba(147, 51, 234, 0.1) !important;
+  }
+  .bg-purple-500\/20 {
+    background-color: rgba(147, 51, 234, 0.18) !important;
+  }
+
+  .border-\[\#262626\]\/60 {
+    border-color: rgba(226, 232, 240, 0.6) !important;
+  }
+  .border-\[\#262626\]\/40 {
+    border-color: rgba(226, 232, 240, 0.4) !important;
+  }
+  .border-\[\#262626\]\/30 {
+    border-color: rgba(226, 232, 240, 0.3) !important;
+  }
+  
+  .border-purple-500\/20 {
+    border-color: rgba(126, 34, 206, 0.2) !important;
+  }
+  .border-purple-500\/30 {
+    border-color: rgba(126, 34, 206, 0.3) !important;
+  }
+  .border-\[\#EAB308\]\/20 {
+    border-color: rgba(180, 83, 9, 0.2) !important;
+  }
+  .border-\[\#EAB308\]\/30 {
+    border-color: rgba(180, 83, 9, 0.3) !important;
+  }
+  .border-\[\#F59E0B\]\/30 {
+    border-color: rgba(194, 65, 12, 0.3) !important;
+  }
+  
+  .hover\:border-purple-500\/40:hover {
+    border-color: rgba(126, 34, 206, 0.4) !important;
+  }
+  .hover\:border-\[\#EAB308\]\/40:hover {
+    border-color: rgba(180, 83, 9, 0.4) !important;
+  }
+
+  .text-\[\#EAB308\] {
+    color: #b45309 !important; /* amber-700 */
+  }
+  .text-purple-400 {
+    color: #7e22ce !important; /* purple-700 */
+  }
+  .text-zinc-350 {
+    color: #475569 !important;
+  }
+  .stroke-zinc-900 {
+    stroke: var(--brand-border) !important;
+  }
+  .stroke-\[\#EAB308\] {
+    stroke: #d97706 !important;
+  }
+
+  /* Heatmap squares overrides for proper contrast in light mode */
+  .bg-\[\#EAB308\]\/20 {
+    background-color: #fef08a !important; /* yellow-200 */
+  }
+  .bg-\[\#EAB308\]\/40 {
+    background-color: #fde047 !important; /* yellow-300 */
+  }
+  .bg-\[\#EAB308\]\/70 {
+    background-color: #eab308 !important; /* yellow-500 */
+  }
+  .bg-\[\#EAB308\] {
+    background-color: #ca8a04 !important; /* yellow-600 */
+  }
+  
+  .bg-amber-500\/20 {
+    background-color: #fed7aa !important; /* orange-200 */
+  }
+  .bg-amber-500\/40 {
+    background-color: #fdbb2f !important;
+  }
+  .bg-amber-500\/70 {
+    background-color: #f59e0b !important;
+  }
+  .bg-amber-500 {
+    background-color: #d97706 !important;
+  }
+  
+  .bg-purple-500\/20 {
+    background-color: #e9d5ff !important; /* purple-200 */
+  }
+  .bg-purple-500\/40 {
+    background-color: #c084fc !important;
+  }
+  .bg-purple-500\/70 {
+    background-color: #9333ea !important;
+  }
+  .bg-purple-500 {
+    background-color: #7e22ce !important;
+  }
+
+  /* Recharts tooltips & axis labels theme adaptations */
+  .recharts-default-tooltip {
+    background-color: var(--brand-card) !important;
+    border: 1px solid var(--brand-border) !important;
+    border-radius: 8px !important;
+  }
+  .recharts-tooltip-item,
+  .recharts-tooltip-label {
+    color: var(--brand-text) !important;
+    font-family: inherit !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+  }
+  .recharts-cartesian-axis-tick-value {
+    fill: var(--brand-muted) !important;
+    font-family: inherit !important;
+    font-size: 9px !important;
+    font-weight: 700 !important;
+  }
 }
 

@@ -98,6 +98,11 @@ interface LeaderboardStudent {
   rating: number;
   stars: number;
   talentScore: number;
+  overallScore: number;
+  codechefScore: number;
+  leetcodeScore: number;
+  githubScore: number;
+  trendDirection: string;
   student: {
     id: string;
     name: string;
@@ -106,6 +111,8 @@ interface LeaderboardStudent {
     year: number;
     profilePictureUrl: string | null;
     codechefUsername: string;
+    leetcodeUsername?: string | null;
+    githubUsername?: string | null;
     codechefProfile?: {
       currentRating: number;
       highestRating: number;
@@ -182,16 +189,75 @@ function ScoreCircle({ score, label, color = "#EAB308" }: { score: number; label
   );
 }
 
+function CalendarHeatmap({ data }: { data: Record<string, number> }) {
+  const now = new Date();
+  const days = [];
+  for (let i = 364; i >= 0; i--) {
+    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const dateStr = d.toISOString().split("T")[0];
+    const count = data[dateStr] || 0;
+    days.push({ date: dateStr, count });
+  }
+
+  const weeks = [];
+  for (let i = 0; i < days.length; i += 7) {
+    weeks.push(days.slice(i, i + 7));
+  }
+
+  return (
+    <div className="flex flex-col gap-1 overflow-x-auto pb-2 select-none border border-brand-border bg-brand-card/50 p-4 rounded-2xl w-full">
+      <div className="text-[9px] text-brand-muted uppercase tracking-wider font-black mb-3">Global Developer Activity Grid (All Students)</div>
+      <div className="flex gap-[2.5px] min-w-max">
+        {weeks.map((week, wIdx) => (
+          <div key={wIdx} className="flex flex-col gap-[2.5px]">
+            {week.map((day, dIdx) => {
+              let color = "bg-zinc-900"; // 0
+              if (day.count > 0 && day.count <= 5) color = "bg-[#EAB308]/20";
+              else if (day.count > 5 && day.count <= 15) color = "bg-[#EAB308]/40";
+              else if (day.count > 15 && day.count <= 30) color = "bg-[#EAB308]/70";
+              else if (day.count > 30) color = "bg-[#EAB308]";
+
+              return (
+                <div
+                  key={dIdx}
+                  className={`h-[8px] w-[8px] rounded-[1.5px] ${color} transition-all hover:scale-125`}
+                  title={`${day.date}: ${day.count} aggregated developer actions`}
+                />
+              );
+            })}
+          </div>
+        ))}
+      </div>
+      <div className="flex items-center justify-between mt-2 text-[8px] text-brand-muted font-bold px-1">
+        <span>Less</span>
+        <div className="flex gap-[3px] items-center">
+          <div className="h-[8px] w-[8px] rounded-[1.5px] bg-zinc-900" />
+          <div className="h-[8px] w-[8px] rounded-[1.5px] bg-[#EAB308]/20" />
+          <div className="h-[8px] w-[8px] rounded-[1.5px] bg-[#EAB308]/40" />
+          <div className="h-[8px] w-[8px] rounded-[1.5px] bg-[#EAB308]/70" />
+          <div className="h-[8px] w-[8px] rounded-[1.5px] bg-[#EAB308]" />
+        </div>
+        <span>More</span>
+      </div>
+    </div>
+  );
+}
+
 export default function LandingPage() {
   // Global Data States
   const [stats, setStats] = useState<StatsData | null>(null);
   const [activities, setActivities] = useState<ActivityItem[]>([]);
   const [entries, setEntries] = useState<LeaderboardStudent[]>([]);
+  const [deptDist, setDeptDist] = useState<any[]>([]);
+  const [topPerformers, setTopPerformers] = useState<any[]>([]);
+  const [globalHeatmap, setGlobalHeatmap] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   // Add Student Form States
   const [formName, setFormName] = useState("");
-  const [formUrl, setFormUrl] = useState("");
+  const [formCodechefUrl, setFormCodechefUrl] = useState("");
+  const [formLeetcodeUrl, setFormLeetcodeUrl] = useState("");
+  const [formGithubUrl, setFormGithubUrl] = useState("");
   const [formRollNumber, setFormRollNumber] = useState("");
   const [formDepartment, setFormDepartment] = useState("CSE");
   const [formYear, setFormYear] = useState(3);
@@ -202,12 +268,15 @@ export default function LandingPage() {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [analysisSuccessLogs, setAnalysisSuccessLogs] = useState<string[]>([]);
   const [activeModalTab, setActiveModalTab] = useState("overview");
+  const [isDeptDropdownOpen, setIsDeptDropdownOpen] = useState(false);
+  const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
 
   // Action Loading States
   const [isRefreshingId, setIsRefreshingId] = useState<string | null>(null);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   // Centerpiece Leaderboard Filtering, Sorting & Pagination
+  const [leaderboardFilter, setLeaderboardFilter] = useState<"overallScore" | "codechefScore" | "leetcodeScore" | "githubScore">("overallScore");
   const [search, setSearch] = useState("");
   const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
@@ -216,8 +285,8 @@ export default function LandingPage() {
   const [limit] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [sortBy, setSortBy] = useState("rank");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState("overallScore");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
 
   // Student Profile Popup States
@@ -263,8 +332,14 @@ export default function LandingPage() {
       ]);
 
       if (statsRes.ok && activityRes.ok) {
-        setStats((await statsRes.json()).stats);
-        setActivities((await activityRes.json()).activities);
+        const statsData = await statsRes.json();
+        setStats(statsData.stats);
+        setDeptDist(statsData.departmentDistribution || []);
+        setTopPerformers(statsData.topPerformers || []);
+        setGlobalHeatmap(statsData.globalActivityHeatmap || {});
+        
+        const actData = await activityRes.json();
+        setActivities(actData.activities || []);
       }
     } catch (e) {
       console.error("Failed to load platform stats:", e);
@@ -286,7 +361,7 @@ export default function LandingPage() {
       params.set("sortBy", sortBy);
       params.set("sortOrder", sortOrder);
 
-      const res = await fetch(`/api/leaderboard?${params.toString()}`);
+      const res = await fetch(`/api/leaderboard?${params.toString()}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setEntries(data.entries || []);
@@ -326,8 +401,8 @@ export default function LandingPage() {
       setAnalysisError("Roll Number is required.");
       return;
     }
-    if (!formUrl.trim()) {
-      setAnalysisError("CodeChef Profile URL is required.");
+    if (!formCodechefUrl.trim() && !formLeetcodeUrl.trim() && !formGithubUrl.trim()) {
+      setAnalysisError("At least one profile URL (CodeChef, LeetCode, or GitHub) is required.");
       return;
     }
 
@@ -352,12 +427,13 @@ export default function LandingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formName,
-          url: formUrl,
           rollNumber: formRollNumber,
           department: formDepartment,
           year: formYear,
-          branch: formDepartment,
           section: formSection,
+          codechefUrl: formCodechefUrl,
+          leetcodeUrl: formLeetcodeUrl,
+          githubUrl: formGithubUrl,
         }),
       });
 
@@ -378,7 +454,9 @@ export default function LandingPage() {
 
         // Reset Form
         setFormName("");
-        setFormUrl("");
+        setFormCodechefUrl("");
+        setFormLeetcodeUrl("");
+        setFormGithubUrl("");
         setFormRollNumber("");
         setFormDepartment("CSE");
         setFormYear(3);
@@ -394,7 +472,7 @@ export default function LandingPage() {
 
       } else {
         const errorData = await res.json().catch(() => ({}));
-        setAnalysisError(errorData.error || "Failed to analyze student. Verify URL and try again.");
+        setAnalysisError(errorData.error || "Failed to analyze student. Verify URLs and try again.");
         setIsAnalyzing(false);
         setAnalysisStepIndex(0);
       }
@@ -409,7 +487,9 @@ export default function LandingPage() {
 
   const handleClearForm = () => {
     setFormName("");
-    setFormUrl("");
+    setFormCodechefUrl("");
+    setFormLeetcodeUrl("");
+    setFormGithubUrl("");
     setFormRollNumber("");
     setFormDepartment("CSE");
     setFormYear(3);
@@ -452,6 +532,7 @@ export default function LandingPage() {
         method: "DELETE",
       });
       if (res.ok) {
+        alert("Student profile deleted successfully.");
         await fetchLeaderboard();
         await loadDashboardData();
       } else {
@@ -787,7 +868,7 @@ export default function LandingPage() {
 
       {/* 2. EXECUTIVE OVERVIEW SECTION */}
       {stats && stats.totalStudents.value > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 relative z-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 relative z-10">
           {/* Card 1: Total Students */}
           <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
             <div className="flex items-start justify-between">
@@ -1044,11 +1125,40 @@ export default function LandingPage() {
                   </label>
                   <input
                     type="text"
-                    required
-                    value={formUrl}
-                    onChange={(e) => setFormUrl(e.target.value)}
+                    value={formCodechefUrl}
+                    onChange={(e) => setFormCodechefUrl(e.target.value)}
                     disabled={isAnalyzing}
-                    placeholder=" code chef url"
+                    placeholder="https://www.codechef.com/users/username"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
+                  />
+                </div>
+
+                {/* LeetCode URL */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    LeetCode Profile URL
+                  </label>
+                  <input
+                    type="text"
+                    value={formLeetcodeUrl}
+                    onChange={(e) => setFormLeetcodeUrl(e.target.value)}
+                    disabled={isAnalyzing}
+                    placeholder="https://leetcode.com/username"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
+                  />
+                </div>
+
+                {/* GitHub URL */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                    GitHub Profile URL
+                  </label>
+                  <input
+                    type="text"
+                    value={formGithubUrl}
+                    onChange={(e) => setFormGithubUrl(e.target.value)}
+                    disabled={isAnalyzing}
+                    placeholder="https://github.com/username"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
                 </div>
@@ -1178,6 +1288,35 @@ export default function LandingPage() {
               </div>
             </div>
 
+            {/* Top Bar Standings Platform Selector Filters */}
+            <div className="flex border border-brand-border bg-[#111111]/40 p-1 rounded-2xl gap-1 w-full max-w-md mb-6">
+              {[
+                { name: "Overall", value: "overallScore" },
+                { name: "CodeChef", value: "codechefScore" },
+                { name: "LeetCode", value: "leetcodeScore" },
+                { name: "GitHub", value: "githubScore" }
+              ].map((tab) => {
+                const active = leaderboardFilter === tab.value;
+                return (
+                  <button
+                    key={tab.value}
+                    onClick={() => {
+                      setLeaderboardFilter(tab.value as any);
+                      setSortBy(tab.value);
+                      setPage(1);
+                    }}
+                    className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                      active
+                        ? "bg-[#EAB308]/20 border border-[#EAB308]/30 text-[#EAB308]"
+                        : "border border-transparent text-brand-muted hover:text-brand-text"
+                    }`}
+                  >
+                    {tab.name}
+                  </button>
+                );
+              })}
+            </div>
+
             {/* Custom Search & Filters Grid */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
@@ -1200,20 +1339,26 @@ export default function LandingPage() {
 
               {/* Department Dropdown Tag Selector */}
               <div className="relative group">
-                <div className="flex flex-wrap gap-1 px-3 py-2 border border-brand-border bg-brand-bg/50 rounded-xl min-h-[38px] cursor-pointer items-center justify-between">
+                <div 
+                  onClick={() => setIsDeptDropdownOpen(!isDeptDropdownOpen)}
+                  className="flex flex-wrap gap-1 px-3 py-2 border border-brand-border bg-brand-bg/50 rounded-xl min-h-[38px] cursor-pointer items-center justify-between"
+                >
                   <span className="text-[10px] text-brand-muted font-bold uppercase tracking-wider">
                     {selectedDepts.length > 0 ? `${selectedDepts.length} Depts` : "Departments"}
                   </span>
                   <Filter className="h-3.5 w-3.5 text-zinc-500" />
                 </div>
-                <div className="absolute left-0 mt-1.5 w-52 rounded-xl border border-brand-border bg-brand-card p-2 shadow-2xl hidden group-hover:block z-50">
+                <div className={`absolute left-0 mt-1.5 w-52 rounded-xl border border-brand-border bg-brand-card p-2 shadow-2xl z-50 ${isDeptDropdownOpen ? "block" : "hidden group-hover:block"}`}>
                   <div className="grid grid-cols-2 gap-1">
                     {departments.map((dept) => {
                       const active = selectedDepts.includes(dept);
                       return (
                         <button
                           key={dept}
-                          onClick={() => toggleDept(dept)}
+                          onClick={() => {
+                            toggleDept(dept);
+                            // Keep open for multiple selections
+                          }}
                           className={`px-2 py-1.5 rounded-lg text-[10px] font-bold border transition-all text-left truncate ${active
                             ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
                             : "bg-zinc-950/20 border-transparent text-brand-muted hover:text-brand-text"
@@ -1229,20 +1374,25 @@ export default function LandingPage() {
 
               {/* Year Dropdown Tag Selector */}
               <div className="relative group">
-                <div className="flex flex-wrap gap-1 px-3 py-2 border border-brand-border bg-brand-bg/50 rounded-xl min-h-[38px] cursor-pointer items-center justify-between">
+                <div 
+                  onClick={() => setIsYearDropdownOpen(!isYearDropdownOpen)}
+                  className="flex flex-wrap gap-1 px-3 py-2 border border-brand-border bg-brand-bg/50 rounded-xl min-h-[38px] cursor-pointer items-center justify-between"
+                >
                   <span className="text-[10px] text-brand-muted font-bold uppercase tracking-wider">
                     {selectedYears.length > 0 ? `${selectedYears.join(", ")} Yr` : "Academic Year"}
                   </span>
                   <Calendar className="h-3.5 w-3.5 text-zinc-500" />
                 </div>
-                <div className="absolute right-0 mt-1.5 w-40 rounded-xl border border-brand-border bg-brand-card p-2 shadow-2xl hidden group-hover:block z-50">
+                <div className={`absolute right-0 mt-1.5 w-40 rounded-xl border border-brand-border bg-brand-card p-2 shadow-2xl z-50 ${isYearDropdownOpen ? "block" : "hidden group-hover:block"}`}>
                   <div className="flex flex-col gap-1">
                     {years.map((year) => {
                       const active = selectedYears.includes(year);
                       return (
                         <button
                           key={year}
-                          onClick={() => toggleYear(year)}
+                          onClick={() => {
+                            toggleYear(year);
+                          }}
                           className={`px-3 py-1.5 rounded-lg text-[10px] font-bold border transition-all text-left ${active
                             ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
                             : "bg-zinc-950/20 border-transparent text-brand-muted hover:text-brand-text"
@@ -1290,34 +1440,36 @@ export default function LandingPage() {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-brand-border bg-zinc-950/30 text-[9px] font-black text-brand-muted uppercase tracking-widest">
-                    <th
-                      onClick={() => handleSort("rank")}
-                      className="py-4 px-6 text-center w-16 cursor-pointer select-none hover:text-brand-text transition-colors"
-                    >
-                      Rank {renderSortIcon("rank")}
+                    <th className="py-4 px-6 text-center w-16 select-none">
+                      Rank
                     </th>
-                    <th className="py-4 px-4 select-none">Student details</th>
-                    <th className="py-4 px-4 text-center select-none">Dept / Year</th>
+                    <th className="py-4 px-4 select-none">Student Name</th>
                     <th
-                      onClick={() => handleSort("rating")}
+                      onClick={() => handleSort("overallScore")}
                       className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
                     >
-                      Rating {renderSortIcon("rating")}
+                      Overall Score {renderSortIcon("overallScore")}
                     </th>
                     <th
-                      onClick={() => handleSort("stars")}
+                      onClick={() => handleSort("codechefScore")}
                       className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
                     >
-                      Stars {renderSortIcon("stars")}
+                      CodeChef Score {renderSortIcon("codechefScore")}
                     </th>
                     <th
-                      onClick={() => handleSort("talentScore")}
+                      onClick={() => handleSort("leetcodeScore")}
                       className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
                     >
-                      Talent Score {renderSortIcon("talentScore")}
+                      LeetCode Score {renderSortIcon("leetcodeScore")}
                     </th>
-                    <th className="py-4 px-4 text-center select-none">Growth %</th>
-                    <th className="py-4 px-4 text-center select-none">Status</th>
+                    <th
+                      onClick={() => handleSort("githubScore")}
+                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
+                    >
+                      GitHub Score {renderSortIcon("githubScore")}
+                    </th>
+                    <th className="py-4 px-4 text-center select-none">Department</th>
+                    <th className="py-4 px-4 text-center select-none">Trend</th>
                     <th className="py-4 px-6 text-center w-40 select-none">Actions</th>
                   </tr>
                 </thead>
@@ -1343,9 +1495,6 @@ export default function LandingPage() {
                     </tr>
                   ) : (
                     entries.map((entry) => {
-                      const growth = calculateStudentGrowth(entry);
-                      const status = getStudentStatus(entry);
-
                       return (
                         <tr key={entry.id} className="hover:bg-white/[0.008] transition-colors group">
                           {/* Rank */}
@@ -1371,80 +1520,81 @@ export default function LandingPage() {
                                 )}
                               </div>
                               <div className="flex flex-col text-left">
-                                <span className="text-xs font-bold text-brand-text group-hover:text-[#EAB308] transition-colors">
+                                <Link
+                                  href={`/student/${entry.student.id}`}
+                                  className="text-xs font-black text-brand-text hover:text-[#EAB308] transition-colors hover:underline"
+                                >
                                   {entry.student.name}
-                                </span>
-                                <span className="text-[10px] text-brand-muted font-semibold mt-0.5">
-                                  {entry.student.rollNumber} • {entry.student.codechefUsername}
+                                </Link>
+                                <span className="text-[9px] text-brand-muted font-semibold mt-0.5">
+                                  {entry.student.rollNumber}
                                 </span>
                               </div>
                             </div>
                           </td>
 
-                          {/* Year / Dept */}
-                          <td className="py-4 px-4 text-center">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 border border-brand-border bg-brand-bg rounded-lg text-[9px] font-extrabold text-brand-muted">
-                              {entry.student.department} • {entry.student.year}Y
-                            </span>
+                          {/* Overall Score */}
+                          <td className="py-4 px-4 text-center text-xs font-black text-[#EAB308]">
+                            {entry.overallScore}
                           </td>
 
-                          {/* Rating */}
+                          {/* CodeChef Score */}
                           <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
-                            {entry.rating}
+                            {entry.codechefScore}
                           </td>
 
-                          {/* Stars */}
+                          {/* LeetCode Score */}
+                          <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
+                            {entry.leetcodeScore}
+                          </td>
+
+                          {/* GitHub Score */}
+                          <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
+                            {entry.githubScore}
+                          </td>
+
+                          {/* Department */}
                           <td className="py-4 px-4 text-center">
-                            <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-lg border text-[9px] font-bold ${getStarColorClass(entry.stars)}`}>
-                              {entry.stars}★
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 border border-brand-border bg-brand-bg rounded-lg text-[9px] font-extrabold text-zinc-400 uppercase">
+                              {entry.student.department}
                             </span>
                           </td>
 
-                          {/* Talent Score */}
+                          {/* Trend Indicator */}
                           <td className="py-4 px-4 text-center">
-                            <span className="text-xs font-black text-[#EAB308]">
-                              {Math.round(entry.talentScore)}
-                            </span>
-                          </td>
-
-                          {/* Growth % */}
-                          <td className="py-4 px-4 text-center">
-                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-black ${growth.value >= 0 ? "text-[#22C55E]" : "text-[#EF4444]"
-                              }`}>
-                              {growth.value >= 0 ? (
-                                <ChevronUp className="h-3 w-3 inline" />
-                              ) : (
-                                <ChevronDown className="h-3 w-3 inline" />
-                              )}
-                              {Math.abs(growth.percent).toFixed(1)}%
-                            </span>
-                          </td>
-
-                          {/* Status */}
-                          <td className="py-4 px-4 text-center">
-                            <span className={`inline-flex items-center px-2 py-0.5 border rounded-lg text-[8px] font-bold tracking-wider uppercase leading-none ${status.style}`}>
-                              {status.label}
-                            </span>
+                            {entry.trendDirection === "UP" ? (
+                              <span className="text-[#22C55E] bg-[#22C55E]/5 border border-[#22C55E]/15 text-[9px] font-black px-2 py-0.5 rounded-lg">
+                                ▲ UP
+                              </span>
+                            ) : entry.trendDirection === "DOWN" ? (
+                              <span className="text-red-500 bg-red-500/5 border border-red-500/15 text-[9px] font-black px-2 py-0.5 rounded-lg">
+                                ▼ DOWN
+                              </span>
+                            ) : (
+                              <span className="text-zinc-500 bg-zinc-900 border border-zinc-800 text-[9px] font-black px-2 py-0.5 rounded-lg">
+                                ▬ STABLE
+                              </span>
+                            )}
                           </td>
 
                           {/* Action Buttons */}
                           <td className="py-4 px-6 text-center">
                             <div className="flex items-center justify-center gap-1.5">
                               {/* View Profile */}
-                              <button
-                                onClick={() => setSelectedStudentId(entry.student.id)}
+                              <Link
+                                href={`/student/${entry.student.id}`}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#EAB308]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white transition-all shadow-sm"
                                 title="View detailed profile"
                               >
                                 View
-                              </button>
+                              </Link>
 
                               {/* Refresh Data */}
                               <button
                                 onClick={() => handleRefreshStudent(entry.student.id)}
                                 disabled={isRefreshingId === entry.student.id}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#22C55E]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                                title="Refresh CodeChef metrics"
+                                title="Refresh metrics"
                               >
                                 {isRefreshingId === entry.student.id ? (
                                   <Loader2 className="h-3 w-3 animate-spin text-[#22C55E]" />
@@ -1564,120 +1714,72 @@ export default function LandingPage() {
         {stats && stats.totalStudents.value > 0 && (
           <div className="flex flex-col gap-6">
 
-          {/* AI TALENT INSIGHTS CONSOLE */}
-          <div id="insights" className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-5">
-            <div className="flex items-center justify-between border-b border-brand-border pb-3">
-              <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
-                <Lightbulb className="h-4.5 w-4.5 text-[#F59E0B]" />
-                AI Talent Insights Engine
+          {/* TOP PERFORMERS COHORT */}
+          <div className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-4">
+            <h2 className="text-sm font-extrabold text-white flex items-center gap-2 border-b border-brand-border/55 pb-3">
+              <Trophy className="h-4.5 w-4.5 text-[#EAB308]" />
+              Top Performers
+            </h2>
+            <div className="flex flex-col gap-3">
+              {topPerformers.map((perf, index) => (
+                <div key={perf.id} className="p-3 border border-brand-border bg-[#111111]/40 rounded-2xl flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[10px] font-black text-[#EAB308] bg-[#EAB308]/10 h-6 w-6 rounded-lg flex items-center justify-center border border-[#EAB308]/20">
+                      #{index + 1}
+                    </span>
+                    <div className="flex flex-col text-left">
+                      <Link href={`/student/${perf.student.id}`} className="text-xs font-black text-white hover:text-[#EAB308] transition-all hover:underline">
+                        {perf.student.name}
+                      </Link>
+                      <span className="text-[8px] text-zinc-500 font-bold uppercase tracking-wider">{perf.student.department} • {perf.student.rollNumber}</span>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black text-[#EAB308]">{perf.overallScore}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* DEPARTMENT ENROLLMENTS */}
+          {deptDist.length > 0 && (
+            <div className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-4">
+              <h2 className="text-sm font-extrabold text-white flex items-center gap-2 border-b border-brand-border/55 pb-3">
+                <Users className="h-4.5 w-4.5 text-blue-400" />
+                Department distribution
               </h2>
-              <span className="text-[9px] uppercase tracking-widest font-black text-[#22C55E] bg-[#22C55E]/5 px-2 py-0.5 border border-[#22C55E]/10 rounded">
-                Active Analysis
-              </span>
+              <div className="h-44 w-full flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={deptDist}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={50}
+                      innerRadius={30}
+                      paddingAngle={3}
+                      dataKey="value"
+                      label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                      fontSize={8}
+                    >
+                      {deptDist.map((entry, index) => {
+                        const colors = ["#EAB308", "#3B82F6", "#10B981", "#8B5CF6", "#EF4444"];
+                        return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                      })}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626", fontSize: 9 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
             </div>
+          )}
 
-            {/* AI Insights statements */}
-            <div className="bg-brand-bg border border-brand-border p-4 rounded-2xl text-left flex flex-col gap-2">
-              <span className="text-[9px] font-black text-brand-muted uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="h-3.5 w-3.5 text-[#EAB308]" />
-                Cohort Dynamics Summary
-              </span>
-              <ul className="space-y-2 text-[10px] text-zinc-300 font-bold">
-                <li className="flex items-start gap-1.5">
-                  <span className="text-[#EAB308]">•</span>
-                  <span>{insights.placementReadyCount} students have surpassed the 1400 placement ready bar.</span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-[#EAB308]">•</span>
-                  <span>Average rating of the top department is at peak this season.</span>
-                </li>
-                <li className="flex items-start gap-1.5">
-                  <span className="text-[#EAB308]">•</span>
-                  <span>Top 12 students qualified for advanced competitive programming cohort.</span>
-                </li>
-              </ul>
-            </div>
-
-            {/* AI Insights Intelligence Cards Grid */}
-            <div className="flex flex-col gap-3.5">
-
-              {/* Card 1: Top Emerging Talent */}
-              <div className="p-4 rounded-2xl border border-[#EAB308]/10 bg-[#EAB308]/5 text-left flex flex-col gap-1 transition-all hover:border-[#EAB308]/25">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-[#EAB308] uppercase tracking-widest">
-                    Top Emerging Talent
-                  </span>
-                  <span className="text-[8px] font-black tracking-widest uppercase bg-[#EAB308]/10 border border-[#EAB308]/25 px-1.5 py-0.5 rounded text-[#EAB308]">
-                    Emerging
-                  </span>
-                </div>
-                <h4 className="text-xs font-extrabold text-brand-text mt-1">{insights.topEmerging.name}</h4>
-                <p className="text-[10px] text-brand-muted font-semibold mt-0.5 leading-relaxed">{insights.topEmerging.details}</p>
-                {insights.topEmerging.id && (
-                  <button onClick={() => setSelectedStudentId(insights.topEmerging.id || null)} className="text-[9px] font-bold text-[#EAB308] hover:text-white mt-2 self-start flex items-center gap-0.5">
-                    Profile Analytics <ChevronRight className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-
-              {/* Card 2: Most Consistent Student */}
-              <div className="p-4 rounded-2xl border border-[#22C55E]/10 bg-[#22C55E]/5 text-left flex flex-col gap-1 transition-all hover:border-[#22C55E]/25">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-[#22C55E] uppercase tracking-widest">
-                    Most Consistent Student
-                  </span>
-                  <span className="text-[8px] font-black tracking-widest uppercase bg-[#22C55E]/10 border border-[#22C55E]/25 px-1.5 py-0.5 rounded text-[#22C55E]">
-                    Consistency
-                  </span>
-                </div>
-                <h4 className="text-xs font-extrabold text-brand-text mt-1">{insights.mostConsistent.name}</h4>
-                <p className="text-[10px] text-brand-muted font-semibold mt-0.5 leading-relaxed">{insights.mostConsistent.details}</p>
-                {insights.mostConsistent.id && (
-                  <button onClick={() => setSelectedStudentId(insights.mostConsistent.id || null)} className="text-[9px] font-bold text-[#22C55E] hover:text-white mt-2 self-start flex items-center gap-0.5">
-                    Profile Analytics <ChevronRight className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-
-              {/* Card 3: Fastest Growth Coder */}
-              <div className="p-4 rounded-2xl border border-[#F59E0B]/10 bg-[#F59E0B]/5 text-left flex flex-col gap-1 transition-all hover:border-[#F59E0B]/25">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-[#F59E0B] uppercase tracking-widest">
-                    Fastest Growth
-                  </span>
-                  <span className="text-[8px] font-black tracking-widest uppercase bg-[#F59E0B]/10 border border-[#F59E0B]/25 px-1.5 py-0.5 rounded text-[#F59E0B]">
-                    Accelerating
-                  </span>
-                </div>
-                <h4 className="text-xs font-extrabold text-brand-text mt-1">{insights.fastestGrowth.name}</h4>
-                <p className="text-[10px] text-brand-muted font-semibold mt-0.5 leading-relaxed">{insights.fastestGrowth.details}</p>
-                {insights.fastestGrowth.id && (
-                  <button onClick={() => setSelectedStudentId(insights.fastestGrowth.id || null)} className="text-[9px] font-bold text-[#F59E0B] hover:text-white mt-2 self-start flex items-center gap-0.5">
-                    Profile Analytics <ChevronRight className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-
-              {/* Card 4: Department Coding Leader */}
-              <div className="p-4 rounded-2xl border border-[#F59E0B]/10 bg-[#F59E0B]/5 text-left flex flex-col gap-1 transition-all hover:border-[#F59E0B]/25">
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-black text-[#F59E0B] uppercase tracking-widest">
-                    Department Leader
-                  </span>
-                  <span className="text-[8px] font-black tracking-widest uppercase bg-[#F59E0B]/10 border border-[#F59E0B]/25 px-1.5 py-0.5 rounded text-[#F59E0B]">
-                    Lead Coder
-                  </span>
-                </div>
-                <h4 className="text-xs font-extrabold text-brand-text mt-1">{insights.deptLeader.name}</h4>
-                <p className="text-[10px] text-brand-muted font-semibold mt-0.5 leading-relaxed">{insights.deptLeader.details}</p>
-                {insights.deptLeader.id && (
-                  <button onClick={() => setSelectedStudentId(insights.deptLeader.id || null)} className="text-[9px] font-bold text-[#F59E0B] hover:text-white mt-2 self-start flex items-center gap-0.5">
-                    Profile Analytics <ChevronRight className="h-3 w-3" />
-                  </button>
-                )}
-              </div>
-
-            </div>
+          {/* GLOBAL CODING ACTIVITY HEATMAP */}
+          <div className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-4">
+            <h2 className="text-sm font-extrabold text-white flex items-center gap-2 border-b border-brand-border/55 pb-3">
+              <Calendar className="h-4.5 w-4.5 text-purple-400" />
+              Activity Heatmap (Global)
+            </h2>
+            <CalendarHeatmap data={globalHeatmap} />
           </div>
 
           {/* REAL-TIME ACTIVE ACTIVITY STREAM */}
@@ -2199,99 +2301,108 @@ export default function LandingPage() {
 
                       {/* Tab 4: AI ROADMAP TAB */}
                       {activeModalTab === "ai" && (
-                        <div className="flex flex-col gap-6 animate-fade-in">
-
-                          {/* Circular SVG score gauge block */}
-                          <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl">
-                            <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-4.5 text-left">
-                              AI Multi-Dimensional Algorithmic Skill Indexes
-                            </span>
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                              {aiScores.map((score, idx) => (
-                                <ScoreCircle
-                                  key={idx}
-                                  score={score.val}
-                                  label={score.label}
-                                  color={score.color}
-                                />
-                              ))}
-                            </div>
+                        !activeProfileDetails.aiAnalysis ? (
+                          <div className="flex flex-col items-center justify-center py-24 text-center border border-brand-border bg-brand-bg/40 rounded-3xl gap-3 animate-fade-in">
+                            <span className="text-zinc-550 text-sm font-extrabold tracking-wider uppercase">Data unavailable</span>
+                            <p className="text-[11px] text-zinc-650 max-w-xs leading-relaxed font-bold">
+                              Synchronize student profile to compile dynamic AI performance score indexes.
+                            </p>
                           </div>
+                        ) : (
+                          <div className="flex flex-col gap-6 animate-fade-in">
 
-                          {/* Radar skill chart & recommendations splits */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                            {/* Skill Radar */}
+                            {/* Circular SVG score gauge block */}
                             <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl">
-                              <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-4 text-left">
-                                Candidate Skill Radar Matrix
+                              <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-4.5 text-left">
+                                AI Multi-Dimensional Algorithmic Skill Indexes
                               </span>
-                              <SkillRadar
-                                aiAnalysis={activeProfileDetails.aiAnalysis}
-                                stars={activeProfileDetails.codechefProfile?.stars || 1}
-                                contestCount={activeProfileDetails.codechefProfile?.contestCount || 0}
-                              />
+                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                                {aiScores.map((score, idx) => (
+                                  <ScoreCircle
+                                    key={idx}
+                                    score={score.val}
+                                    label={score.label}
+                                    color={score.color}
+                                  />
+                                ))}
+                              </div>
                             </div>
 
-                            {/* Career recommends & suggested companies */}
-                            <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
-                              <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5">
-                                <Briefcase className="h-3.5 w-3.5 text-[#EAB308]" />
-                                AI Career Direction Recommendations
-                              </span>
-                              <div className="space-y-4.5">
-                                <div>
-                                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-1">Primary Role Alignment</span>
-                                  <span className="text-sm font-extrabold text-brand-text leading-snug block">
-                                    {activeProfileDetails.aiAnalysis?.careerRecommendation || "Software Development Engineer (SDE)"}
-                                  </span>
-                                </div>
-                                <div className="border-t border-brand-border/50 pt-3.5">
-                                  <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Target Corporate Placements</span>
-                                  <div className="flex flex-wrap gap-1.5">
-                                    {getJsonArray(activeProfileDetails.aiAnalysis?.suggestedCompanies).map((company: string, idx: number) => (
-                                      <span
-                                        key={idx}
-                                        className="px-2.5 py-1 text-[9px] font-extrabold text-brand-text bg-[#EAB308]/5 border border-[#EAB308]/20 rounded-lg hover:border-[#EAB308]/40 hover:bg-[#EAB308]/10 transition-all cursor-default"
-                                      >
-                                        {company}
-                                      </span>
-                                    ))}
-                                    {getJsonArray(activeProfileDetails.aiAnalysis?.suggestedCompanies).length === 0 && (
-                                      <span className="text-zinc-500 text-xs italic">No placement targets computed.</span>
-                                    )}
+                            {/* Radar skill chart & recommendations splits */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                              {/* Skill Radar */}
+                              <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl">
+                                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest block mb-4 text-left">
+                                  Candidate Skill Radar Matrix
+                                </span>
+                                <SkillRadar
+                                  aiAnalysis={activeProfileDetails.aiAnalysis}
+                                  stars={activeProfileDetails.codechefProfile?.stars || 1}
+                                  contestCount={activeProfileDetails.codechefProfile?.contestCount || 0}
+                                />
+                              </div>
+
+                              {/* Career recommends & suggested companies */}
+                              <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
+                                <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5">
+                                  <Briefcase className="h-3.5 w-3.5 text-[#EAB308]" />
+                                  AI Career Direction Recommendations
+                                </span>
+                                <div className="space-y-4.5">
+                                  <div>
+                                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-1">Primary Role Alignment</span>
+                                    <span className="text-sm font-extrabold text-brand-text leading-snug block">
+                                      {activeProfileDetails.aiAnalysis?.careerRecommendation || "Software Development Engineer (SDE)"}
+                                    </span>
+                                  </div>
+                                  <div className="border-t border-brand-border/50 pt-3.5">
+                                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest block mb-2">Target Corporate Placements</span>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {getJsonArray(activeProfileDetails.aiAnalysis?.suggestedCompanies).map((company: string, idx: number) => (
+                                        <span
+                                          key={idx}
+                                          className="px-2.5 py-1 text-[9px] font-extrabold text-brand-text bg-[#EAB308]/5 border border-[#EAB308]/20 rounded-lg hover:border-[#EAB308]/40 hover:bg-[#EAB308]/10 transition-all cursor-default"
+                                        >
+                                          {company}
+                                        </span>
+                                      ))}
+                                      {getJsonArray(activeProfileDetails.aiAnalysis?.suggestedCompanies).length === 0 && (
+                                        <span className="text-zinc-500 text-xs italic">No placement targets computed.</span>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
+                              </div>
+
+                            </div>
+
+                            {/* Recommended Learning Path checklist indicators */}
+                            <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl text-left">
+                              <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5 mb-4">
+                                <Sparkles className="h-3.5 w-3.5 text-[#EAB308]" />
+                                Dynamic Competitive Programming Learning Path
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {getJsonArray(activeProfileDetails.aiAnalysis?.recommendedLearningPath).map((pathNode: string, idx: number) => (
+                                  <div key={idx} className="flex items-start gap-3 p-3 bg-zinc-950/45 border border-brand-border/60 rounded-2xl hover:border-zinc-800 transition-colors">
+                                    <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30 text-[10px] font-black text-[#EAB308] mt-0.5">
+                                      {idx + 1}
+                                    </span>
+                                    <div className="flex flex-col">
+                                      <span className="text-xs font-bold text-white leading-relaxed">{pathNode}</span>
+                                      <span className="text-[9px] text-brand-muted font-bold mt-0.5">Recommended Algorithmic Milestone</span>
+                                    </div>
+                                  </div>
+                                ))}
+                                {getJsonArray(activeProfileDetails.aiAnalysis?.recommendedLearningPath).length === 0 && (
+                                  <div className="text-zinc-550 text-xs italic">No path suggestions computed. Add student profiles to analyze.</div>
+                                )}
                               </div>
                             </div>
 
                           </div>
-
-                          {/* Recommended Learning Path checklist indicators */}
-                          <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl text-left">
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest flex items-center gap-1.5 mb-4">
-                              <Sparkles className="h-3.5 w-3.5 text-[#EAB308]" />
-                              Dynamic Competitive Programming Learning Path
-                            </span>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                              {getJsonArray(activeProfileDetails.aiAnalysis?.recommendedLearningPath).map((pathNode: string, idx: number) => (
-                                <div key={idx} className="flex items-start gap-3 p-3 bg-zinc-950/45 border border-brand-border/60 rounded-2xl hover:border-zinc-800 transition-colors">
-                                  <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#EAB308]/10 border border-[#EAB308]/30 text-[10px] font-black text-[#EAB308] mt-0.5">
-                                    {idx + 1}
-                                  </span>
-                                  <div className="flex flex-col">
-                                    <span className="text-xs font-bold text-white leading-relaxed">{pathNode}</span>
-                                    <span className="text-[9px] text-brand-muted font-bold mt-0.5">Recommended Algorithmic Milestone</span>
-                                  </div>
-                                </div>
-                              ))}
-                              {getJsonArray(activeProfileDetails.aiAnalysis?.recommendedLearningPath).length === 0 && (
-                                <div className="text-zinc-550 text-xs italic">No path suggestions computed. Add student profiles to analyze.</div>
-                              )}
-                            </div>
-                          </div>
-
-                        </div>
+                        )
                       )}
 
                     </div>

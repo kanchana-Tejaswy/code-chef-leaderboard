@@ -182,7 +182,7 @@ function LeaderboardContent() {
       params.set("sortBy", sortBy);
       params.set("sortOrder", sortOrder);
 
-      const response = await fetch(`/api/leaderboard?${params.toString()}`);
+      const response = await fetch(`/api/leaderboard?${params.toString()}`, { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
         setEntries(data.entries || []);
@@ -335,7 +335,7 @@ function LeaderboardContent() {
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
         
         {/* Filters Sidebar */}
-        <div className="glass-card rounded-2xl p-6 flex flex-col gap-6 sticky top-20">
+        <div className="glass-card rounded-2xl p-6 flex flex-col gap-6 lg:sticky lg:top-20">
           <div className="flex items-center justify-between">
             <span className="text-sm font-bold text-white flex items-center gap-2">
               <Filter className="h-4 w-4 text-[#EAB308]" />

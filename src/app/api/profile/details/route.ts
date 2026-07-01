@@ -14,6 +14,8 @@ export async function GET(request: NextRequest) {
       where: { id: userId },
       include: {
         codechefProfile: true,
+        leetcodeProfile: true,
+        githubProfile: true,
         aiAnalysis: true,
         leaderboardEntry: true,
       },

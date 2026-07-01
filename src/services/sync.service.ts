@@ -15,7 +15,7 @@ export class SyncService {
   ): Promise<{ success: boolean; error?: string }> {
     const startTime = Date.now();
 
-    // 1. Fetch Student Profile to get CodeChef Username
+    // 1. Fetch Student Profile to get usernames
     const student = await prisma.studentProfile.findUnique({
       where: { id: studentId },
     });
@@ -24,116 +24,274 @@ export class SyncService {
       return { success: false, error: "Student profile not found." };
     }
 
-    if (!student.codechefUsername) {
-      return { success: false, error: "No CodeChef username configured on this profile." };
+    if (!student.codechefUsername && !student.leetcodeUsername && !student.githubUsername) {
+      return { success: false, error: "No profile usernames configured for this student." };
     }
 
     try {
-      // 2. Perform Scrape
-      const scrapedData = await ScraperService.scrapeCodechef(student.codechefUsername);
+      // 2. Perform Scrapes for each active platform
+      let codechefData = null;
+      let leetcodeData = null;
+      let githubData = null;
 
-      // 3. Perform AI Analysis & Calculations
+      if (student.codechefUsername) {
+        try {
+          codechefData = await ScraperService.scrapeCodechef(student.codechefUsername);
+        } catch (err) {
+          console.error(`Failed to scrape CodeChef for student ${studentId}:`, err);
+        }
+      }
+
+      if (student.leetcodeUsername) {
+        try {
+          leetcodeData = await ScraperService.scrapeLeetcode(student.leetcodeUsername);
+        } catch (err) {
+          console.error(`Failed to scrape LeetCode for student ${studentId}:`, err);
+        }
+      }
+
+      if (student.githubUsername) {
+        try {
+          githubData = await ScraperService.scrapeGithub(student.githubUsername);
+        } catch (err) {
+          console.error(`Failed to scrape GitHub for student ${studentId}:`, err);
+        }
+      }
+
+      // Calculate individual scores (0-100)
+      const codechefScore = codechefData
+        ? Math.round(Math.min(100, (codechefData.currentRating / 2200) * 100))
+        : 0;
+
+      const leetcodeScore = leetcodeData
+        ? Math.round(Math.min(100, (leetcodeData.problemsSolved / 350) * 70 + (leetcodeData.currentRating > 0 ? (leetcodeData.currentRating / 2000) * 30 : 0)))
+        : 0;
+
+      const githubScore = githubData
+        ? Math.round(
+            Math.min(
+              100,
+              (((githubData.rawMetrics?.totalStars || 0) * 5 +
+                (githubData.rawMetrics?.totalForks || 0) * 10 +
+                (githubData.rawMetrics?.followers || 0) * 3 +
+                (githubData.rawMetrics?.totalRepositories || 0) * 2) /
+                100) *
+                50 +
+                (Object.keys(githubData.rawMetrics?.contributions || {}).length / 300) * 50
+            )
+          )
+        : 0;
+
+      // Compute weighted overall score based on configured platforms
+      let totalWeight = 0;
+      let weightedSum = 0;
+
+      if (student.codechefUsername && codechefData) {
+        weightedSum += codechefScore * 0.4;
+        totalWeight += 0.4;
+      }
+      if (student.leetcodeUsername && leetcodeData) {
+        weightedSum += leetcodeScore * 0.4;
+        totalWeight += 0.4;
+      }
+      if (student.githubUsername && githubData) {
+        weightedSum += githubScore * 0.2;
+        totalWeight += 0.2;
+      }
+
+      const overallScore = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
+
+      // 3. Perform AI Analysis & Calculations (CodeChef/LeetCode combined metrics)
       const analysis = AiEngineService.analyzeProfile({
-        currentRating: scrapedData.currentRating,
-        highestRating: scrapedData.highestRating,
-        stars: scrapedData.stars,
-        problemsSolved: scrapedData.problemsSolved,
-        contestCount: scrapedData.contestCount,
-        contests: scrapedData.contests,
-        fullySolvedCount: scrapedData.fullySolvedCount,
-        partiallySolvedCount: scrapedData.partiallySolvedCount,
-        bestContestRank: scrapedData.bestContestRank,
-        activeDaysCount: scrapedData.activeDaysCount,
+        currentRating: codechefData?.currentRating || (leetcodeData ? Math.round(leetcodeData.currentRating) : 1200),
+        highestRating: codechefData?.highestRating || (leetcodeData ? Math.round(leetcodeData.highestRating) : 1200),
+        stars: codechefData?.stars || (leetcodeData ? leetcodeData.stars : 1),
+        problemsSolved: (codechefData?.problemsSolved || 0) + (leetcodeData?.problemsSolved || 0),
+        contestCount: (codechefData?.contestCount || 0) + (leetcodeData?.contestCount || 0),
+        contests: codechefData?.contests || [],
+        fullySolvedCount: codechefData?.fullySolvedCount || (codechefData?.problemsSolved || 0) + (leetcodeData?.problemsSolved || 0),
+        partiallySolvedCount: codechefData?.partiallySolvedCount || 0,
+        bestContestRank: codechefData?.bestContestRank || null,
+        activeDaysCount: (codechefData?.activeDaysCount || 0) + (leetcodeData ? 30 : 0) + (githubData ? 50 : 0),
       });
+
+      // Override AI consistencyScore with overall consistency calculation if appropriate
+      if (leetcodeData && analysis.consistencyScore) {
+        analysis.consistencyScore = Math.round((analysis.consistencyScore + (leetcodeData.rawMetrics?.consistencyScore || 0)) / 2);
+      }
 
       // 4. Update Database inside a transaction
       await prisma.$transaction(async (tx) => {
-        // Fetch old CodeChef profile rating if exists
-        const oldProfile = await tx.codechefProfile.findUnique({
+        // Fetch old leaderboard entry rating if exists
+        const oldEntry = await tx.leaderboardEntry.findUnique({
           where: { studentId },
-          select: { currentRating: true },
+          select: { overallScore: true },
         });
-        const oldRating = oldProfile?.currentRating || 0;
+        const oldOverall = oldEntry?.overallScore || 0;
 
         // Update or insert CodeChef profile
-        await tx.codechefProfile.upsert({
-          where: { studentId },
-          create: {
-            studentId,
-            username: scrapedData.username,
-            fullName: scrapedData.fullName,
-            country: scrapedData.country,
-            institution: scrapedData.institution,
-            city: scrapedData.city,
-            currentRating: scrapedData.currentRating,
-            highestRating: scrapedData.highestRating,
-            stars: scrapedData.stars,
-            maxStars: scrapedData.maxStars,
-            globalRank: scrapedData.globalRank,
-            countryRank: scrapedData.countryRank,
-            problemsSolved: scrapedData.problemsSolved,
-            fullySolvedCount: scrapedData.fullySolvedCount,
-            partiallySolvedCount: scrapedData.partiallySolvedCount,
-            easySolvedCount: scrapedData.easySolvedCount,
-            mediumSolvedCount: scrapedData.mediumSolvedCount,
-            hardSolvedCount: scrapedData.hardSolvedCount,
-            challengeSolvedCount: scrapedData.challengeSolvedCount,
-            contestCount: scrapedData.contestCount,
-            longChallengeCount: scrapedData.longChallengeCount,
-            cookOffCount: scrapedData.cookOffCount,
-            lunchtimeCount: scrapedData.lunchtimeCount,
-            startersCount: scrapedData.startersCount,
-            division: scrapedData.division,
-            bestContestRank: scrapedData.bestContestRank,
-            averageContestRank: scrapedData.averageContestRank,
-            lastActive: scrapedData.lastActive,
-            activeDaysCount: scrapedData.activeDaysCount,
-            ratingHistory: scrapedData.ratingHistory as any,
-            contestHistory: scrapedData.contestHistory as any,
-            difficultyDistribution: scrapedData.difficultyDistribution as any,
-            activitySummary: scrapedData.activitySummary as any,
-            statisticDetails: scrapedData.statisticDetails as any,
-            contests: scrapedData.contests as any,
-            lastFetchedAt: new Date(),
-          },
-          update: {
-            username: scrapedData.username,
-            fullName: scrapedData.fullName,
-            country: scrapedData.country,
-            institution: scrapedData.institution,
-            city: scrapedData.city,
-            currentRating: scrapedData.currentRating,
-            highestRating: scrapedData.highestRating,
-            stars: scrapedData.stars,
-            maxStars: scrapedData.maxStars,
-            globalRank: scrapedData.globalRank,
-            countryRank: scrapedData.countryRank,
-            problemsSolved: scrapedData.problemsSolved,
-            fullySolvedCount: scrapedData.fullySolvedCount,
-            partiallySolvedCount: scrapedData.partiallySolvedCount,
-            easySolvedCount: scrapedData.easySolvedCount,
-            mediumSolvedCount: scrapedData.mediumSolvedCount,
-            hardSolvedCount: scrapedData.hardSolvedCount,
-            challengeSolvedCount: scrapedData.challengeSolvedCount,
-            contestCount: scrapedData.contestCount,
-            longChallengeCount: scrapedData.longChallengeCount,
-            cookOffCount: scrapedData.cookOffCount,
-            lunchtimeCount: scrapedData.lunchtimeCount,
-            startersCount: scrapedData.startersCount,
-            division: scrapedData.division,
-            bestContestRank: scrapedData.bestContestRank,
-            averageContestRank: scrapedData.averageContestRank,
-            lastActive: scrapedData.lastActive,
-            activeDaysCount: scrapedData.activeDaysCount,
-            ratingHistory: scrapedData.ratingHistory as any,
-            contestHistory: scrapedData.contestHistory as any,
-            difficultyDistribution: scrapedData.difficultyDistribution as any,
-            activitySummary: scrapedData.activitySummary as any,
-            statisticDetails: scrapedData.statisticDetails as any,
-            contests: scrapedData.contests as any,
-            lastFetchedAt: new Date(),
-          },
-        });
+        if (codechefData) {
+          await tx.codechefProfile.upsert({
+            where: { studentId },
+            create: {
+              studentId,
+              username: codechefData.username,
+              fullName: codechefData.fullName,
+              country: codechefData.country,
+              institution: codechefData.institution,
+              city: codechefData.city,
+              currentRating: codechefData.currentRating,
+              highestRating: codechefData.highestRating,
+              stars: codechefData.stars,
+              maxStars: codechefData.maxStars,
+              globalRank: codechefData.globalRank,
+              countryRank: codechefData.countryRank,
+              problemsSolved: codechefData.problemsSolved,
+              fullySolvedCount: codechefData.fullySolvedCount || 0,
+              partiallySolvedCount: codechefData.partiallySolvedCount || 0,
+              easySolvedCount: codechefData.easySolvedCount || 0,
+              mediumSolvedCount: codechefData.mediumSolvedCount || 0,
+              hardSolvedCount: codechefData.hardSolvedCount || 0,
+              challengeSolvedCount: codechefData.challengeSolvedCount || 0,
+              contestCount: codechefData.contestCount,
+              longChallengeCount: codechefData.longChallengeCount || 0,
+              cookOffCount: codechefData.cookOffCount || 0,
+              lunchtimeCount: codechefData.lunchtimeCount || 0,
+              startersCount: codechefData.startersCount || 0,
+              division: codechefData.division,
+              bestContestRank: codechefData.bestContestRank,
+              averageContestRank: codechefData.averageContestRank,
+              lastActive: codechefData.lastActive,
+              activeDaysCount: codechefData.activeDaysCount || 0,
+              ratingHistory: codechefData.ratingHistory as any,
+              contestHistory: codechefData.contestHistory as any,
+              difficultyDistribution: codechefData.difficultyDistribution as any,
+              activitySummary: codechefData.activitySummary as any,
+              statisticDetails: codechefData.statisticDetails as any,
+              contests: codechefData.contests as any,
+              lastFetchedAt: new Date(),
+            },
+            update: {
+              username: codechefData.username,
+              fullName: codechefData.fullName,
+              country: codechefData.country,
+              institution: codechefData.institution,
+              city: codechefData.city,
+              currentRating: codechefData.currentRating,
+              highestRating: codechefData.highestRating,
+              stars: codechefData.stars,
+              maxStars: codechefData.maxStars,
+              globalRank: codechefData.globalRank,
+              countryRank: codechefData.countryRank,
+              problemsSolved: codechefData.problemsSolved,
+              fullySolvedCount: codechefData.fullySolvedCount || 0,
+              partiallySolvedCount: codechefData.partiallySolvedCount || 0,
+              easySolvedCount: codechefData.easySolvedCount || 0,
+              mediumSolvedCount: codechefData.mediumSolvedCount || 0,
+              hardSolvedCount: codechefData.hardSolvedCount || 0,
+              challengeSolvedCount: codechefData.challengeSolvedCount || 0,
+              contestCount: codechefData.contestCount,
+              longChallengeCount: codechefData.longChallengeCount || 0,
+              cookOffCount: codechefData.cookOffCount || 0,
+              lunchtimeCount: codechefData.lunchtimeCount || 0,
+              startersCount: codechefData.startersCount || 0,
+              division: codechefData.division,
+              bestContestRank: codechefData.bestContestRank,
+              averageContestRank: codechefData.averageContestRank,
+              lastActive: codechefData.lastActive,
+              activeDaysCount: codechefData.activeDaysCount || 0,
+              ratingHistory: codechefData.ratingHistory as any,
+              contestHistory: codechefData.contestHistory as any,
+              difficultyDistribution: codechefData.difficultyDistribution as any,
+              activitySummary: codechefData.activitySummary as any,
+              statisticDetails: codechefData.statisticDetails as any,
+              contests: codechefData.contests as any,
+              lastFetchedAt: new Date(),
+            },
+          });
+        }
+
+        // Update or insert LeetCode profile
+        if (leetcodeData) {
+          const metrics = leetcodeData.rawMetrics || {};
+          await tx.leetcodeProfile.upsert({
+            where: { studentId },
+            create: {
+              studentId,
+              username: leetcodeData.username,
+              problemsSolved: leetcodeData.problemsSolved,
+              easySolvedCount: metrics.easySolvedCount || 0,
+              mediumSolvedCount: metrics.mediumSolvedCount || 0,
+              hardSolvedCount: metrics.hardSolvedCount || 0,
+              contestRating: leetcodeData.currentRating,
+              contestRank: leetcodeData.globalRank || 0,
+              acceptanceRate: metrics.acceptanceRate || 0,
+              heatmap: metrics.heatmap as any,
+              weeklyActivity: metrics.weeklyActivity as any,
+              skillRadar: metrics.skillRadar as any,
+              tagDistribution: metrics.tagDistribution as any,
+              consistencyScore: metrics.consistencyScore || 0,
+              ratingHistory: metrics.ratingHistory as any,
+              contestHistory: metrics.contestHistory as any,
+              lastFetchedAt: new Date(),
+            },
+            update: {
+              username: leetcodeData.username,
+              problemsSolved: leetcodeData.problemsSolved,
+              easySolvedCount: metrics.easySolvedCount || 0,
+              mediumSolvedCount: metrics.mediumSolvedCount || 0,
+              hardSolvedCount: metrics.hardSolvedCount || 0,
+              contestRating: leetcodeData.currentRating,
+              contestRank: leetcodeData.globalRank || 0,
+              acceptanceRate: metrics.acceptanceRate || 0,
+              heatmap: metrics.heatmap as any,
+              weeklyActivity: metrics.weeklyActivity as any,
+              skillRadar: metrics.skillRadar as any,
+              tagDistribution: metrics.tagDistribution as any,
+              consistencyScore: metrics.consistencyScore || 0,
+              ratingHistory: metrics.ratingHistory as any,
+              contestHistory: metrics.contestHistory as any,
+              lastFetchedAt: new Date(),
+            },
+          });
+        }
+
+        // Update or insert GitHub profile
+        if (githubData) {
+          const metrics = githubData.rawMetrics || {};
+          await tx.githubProfile.upsert({
+            where: { studentId },
+            create: {
+              studentId,
+              username: githubData.username,
+              totalRepositories: metrics.totalRepositories || 0,
+              totalStars: metrics.totalStars || 0,
+              totalForks: metrics.totalForks || 0,
+              followers: metrics.followers || 0,
+              contributions: metrics.contributions as any,
+              languages: metrics.languages as any,
+              repos: metrics.repos as any,
+              commitTimeline: metrics.commitTimeline as any,
+              openSourceScore: metrics.openSourceScore || 0,
+              repoQualityScore: metrics.repoQualityScore as any,
+              lastFetchedAt: new Date(),
+            },
+            update: {
+              username: githubData.username,
+              totalRepositories: metrics.totalRepositories || 0,
+              totalStars: metrics.totalStars || 0,
+              totalForks: metrics.totalForks || 0,
+              followers: metrics.followers || 0,
+              contributions: metrics.contributions as any,
+              languages: metrics.languages as any,
+              repos: metrics.repos as any,
+              commitTimeline: metrics.commitTimeline as any,
+              openSourceScore: metrics.openSourceScore || 0,
+              repoQualityScore: metrics.repoQualityScore as any,
+              lastFetchedAt: new Date(),
+            },
+          });
+        }
 
         // Update or insert AI Analysis
         await tx.aiAnalysis.upsert({
@@ -185,20 +343,37 @@ export class SyncService {
           },
         });
 
+        // Determine trend direction
+        let trendDirection = "NEUTRAL";
+        if (oldOverall > 0) {
+          if (overallScore > oldOverall) trendDirection = "UP";
+          else if (overallScore < oldOverall) trendDirection = "DOWN";
+        }
+
         // Update or insert Leaderboard cache entry
         await tx.leaderboardEntry.upsert({
           where: { studentId },
           create: {
             studentId,
-            rating: scrapedData.currentRating,
-            stars: scrapedData.stars,
+            rating: codechefData?.currentRating || 0,
+            stars: codechefData?.stars || 1,
             talentScore: analysis.talentScore,
-            rank: 0, // Will be updated during global ranks recalculation
+            overallScore,
+            codechefScore,
+            leetcodeScore,
+            githubScore,
+            trendDirection,
+            rank: 0,
           },
           update: {
-            rating: scrapedData.currentRating,
-            stars: scrapedData.stars,
+            rating: codechefData?.currentRating || 0,
+            stars: codechefData?.stars || 1,
             talentScore: analysis.talentScore,
+            overallScore,
+            codechefScore,
+            leetcodeScore,
+            githubScore,
+            trendDirection,
           },
         });
 
@@ -213,12 +388,12 @@ export class SyncService {
         });
 
         // Save Activity Log
-        if (oldProfile && scrapedData.currentRating > oldRating) {
+        if (oldOverall > 0 && overallScore > oldOverall) {
           await tx.activityLog.create({
             data: {
               eventType: "RATING_INCREASE",
               studentId,
-              message: `${student.name}'s rating increased from ${oldRating} to ${scrapedData.currentRating}!`,
+              message: `${student.name}'s overall score increased from ${oldOverall} to ${overallScore}!`,
             },
           });
         } else {
@@ -226,7 +401,7 @@ export class SyncService {
             data: {
               eventType: "SYNC_SUCCESS",
               studentId,
-              message: `${student.name}'s profile was successfully analyzed and synced.`,
+              message: `${student.name}'s developer intelligence profile was successfully synced.`,
             },
           });
         }
@@ -239,7 +414,6 @@ export class SyncService {
     } catch (err: any) {
       console.error(`Sync failed for student ${studentId}:`, err);
 
-      // Save failure sync log
       try {
         await prisma.syncLog.create({
           data: {
@@ -251,12 +425,11 @@ export class SyncService {
           },
         });
 
-        // Save failure Activity Log
         await prisma.activityLog.create({
           data: {
             eventType: "SYNC_FAILURE",
             studentId,
-            message: `CodeChef sync failed for ${student?.name || "Student"}: ${err.message || "Unknown error"}.`,
+            message: `Profile sync failed for ${student?.name || "Student"}: ${err.message || "Unknown error"}.`,
           },
         });
       } catch (logErr) {
@@ -267,20 +440,11 @@ export class SyncService {
     }
   }
 
-  /**
-   * Recalculates leaderboard rankings based on current Talent Scores (highest first),
-   * updating the `rank` field in `leaderboard_entries` table.
-   */
-  /**
-   * Recalculates leaderboard rankings based on current Talent Scores (highest first),
-   * updating the `rank` field in `leaderboard_entries` table using raw SQL for maximum performance.
-   */
   static async recalculateLeaderboardRanks(): Promise<void> {
     try {
-      // Execute raw SQL CTE update query to update all ranks
       await prisma.$executeRawUnsafe(`
         WITH ranked AS (
-          SELECT id, ROW_NUMBER() OVER (ORDER BY rating DESC, talent_score DESC, stars DESC) as new_rank
+          SELECT id, ROW_NUMBER() OVER (ORDER BY overall_score DESC, rating DESC, talent_score DESC) as new_rank
           FROM leaderboard_entries
         )
         UPDATE leaderboard_entries le
@@ -291,12 +455,11 @@ export class SyncService {
     } catch (err) {
       console.error("Failed to recalculate leaderboard ranks via raw SQL, executing transaction fallback:", err);
       
-      // Graceful transaction fallback for non-PostgreSQL / test environments
       const entries = await prisma.leaderboardEntry.findMany({
         orderBy: [
+          { overallScore: "desc" },
           { rating: "desc" },
           { talentScore: "desc" },
-          { stars: "desc" },
         ],
       });
 

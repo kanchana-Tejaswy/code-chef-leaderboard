@@ -38,6 +38,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 2. Handle Excel Export Request (Bypasses Pagination)
+    // 2. Handle Excel Export Request (Bypasses Pagination)
     if (doExport) {
       const entries = await prisma.leaderboardEntry.findMany({
         where: whereClause,
@@ -49,12 +50,14 @@ export async function GET(request: NextRequest) {
               department: true,
               year: true,
               codechefUsername: true,
+              leetcodeUsername: true,
+              githubUsername: true,
             },
           },
         },
         orderBy: [
           { rank: "asc" },
-          { talentScore: "desc" },
+          { overallScore: "desc" },
         ],
       });
 
@@ -65,9 +68,12 @@ export async function GET(request: NextRequest) {
         Department: e.student.department,
         Year: `${e.student.year} Year`,
         "CodeChef Username": e.student.codechefUsername || "N/A",
-        Rating: e.rating,
-        Stars: `${e.stars}★`,
-        "Talent Score": e.talentScore,
+        "LeetCode Username": e.student.leetcodeUsername || "N/A",
+        "GitHub Username": e.student.githubUsername || "N/A",
+        "Overall Score": e.overallScore,
+        "CodeChef Score": e.codechefScore,
+        "LeetCode Score": e.leetcodeScore,
+        "GitHub Score": e.githubScore,
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -81,10 +87,13 @@ export async function GET(request: NextRequest) {
         { wch: 15 }, // Roll Number
         { wch: 12 }, // Department
         { wch: 8 },  // Year
-        { wch: 20 }, // Username
-        { wch: 8 },  // Rating
-        { wch: 8 },  // Stars
-        { wch: 12 }, // Talent Score
+        { wch: 20 }, // CodeChef
+        { wch: 20 }, // LeetCode
+        { wch: 20 }, // GitHub
+        { wch: 12 }, // Overall Score
+        { wch: 12 }, // CodeChef Score
+        { wch: 12 }, // LeetCode Score
+        { wch: 12 }, // GitHub Score
       ];
       worksheet["!cols"] = wscols;
 
@@ -94,7 +103,7 @@ export async function GET(request: NextRequest) {
         headers: {
           "Content-Type":
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "Content-Disposition": `attachment; filename=ace_codechef_leaderboard_${new Date().toISOString().split("T")[0]}.xlsx`,
+          "Content-Disposition": `attachment; filename=ace_developer_leaderboard_${new Date().toISOString().split("T")[0]}.xlsx`,
         },
       });
     }
@@ -104,11 +113,11 @@ export async function GET(request: NextRequest) {
     const limit = Math.max(1, parseInt(searchParams.get("limit") || "10", 10));
     const skip = (page - 1) * limit;
 
-    const sortBy = searchParams.get("sortBy") || "rank";
-    const sortOrder = (searchParams.get("sortOrder") || "asc").toLowerCase() === "desc" ? "desc" : "asc";
+    const sortBy = searchParams.get("sortBy") || "overallScore";
+    const sortOrder = (searchParams.get("sortOrder") || "desc").toLowerCase() === "asc" ? "asc" : "desc";
 
-    const validSortFields = ["rank", "rating", "stars", "talentScore"];
-    const finalSortBy = validSortFields.includes(sortBy) ? sortBy : "rank";
+    const validSortFields = ["rank", "rating", "stars", "talentScore", "overallScore", "codechefScore", "leetcodeScore", "githubScore"];
+    const finalSortBy = validSortFields.includes(sortBy) ? sortBy : "overallScore";
 
     const [entries, total] = await Promise.all([
       prisma.leaderboardEntry.findMany({
@@ -122,6 +131,8 @@ export async function GET(request: NextRequest) {
               department: true,
               year: true,
               codechefUsername: true,
+              leetcodeUsername: true,
+              githubUsername: true,
               profilePictureUrl: true,
               codechefProfile: {
                 select: {
@@ -129,6 +140,18 @@ export async function GET(request: NextRequest) {
                   highestRating: true,
                   contests: true,
                   contestCount: true,
+                },
+              },
+              leetcodeProfile: {
+                select: {
+                  problemsSolved: true,
+                  contestRating: true,
+                },
+              },
+              githubProfile: {
+                select: {
+                  totalRepositories: true,
+                  totalStars: true,
                 },
               },
             },
