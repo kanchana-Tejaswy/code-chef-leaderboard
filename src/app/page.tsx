@@ -36,6 +36,7 @@ import {
   Trash2,
   UserPlus
 } from "lucide-react";
+import Image from "next/image";
 import {
   AreaChart,
   Area,
@@ -824,34 +825,13 @@ export default function LandingPage() {
         {/* SVG geometric brain logo layout */}
         <div className="flex items-center gap-5 relative z-10">
           <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#EAB308]/10 border border-[#EAB308]/30 text-[#EAB308] shadow-inner">
-            {/* Geometric Brain SVG Icon */}
-            <svg
-              className="h-10 w-10"
-              viewBox="0 0 100 100"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <polygon
-                points="50,10 86,30 86,70 50,90 14,70 14,30"
-                stroke="url(#heroHexGradient)"
-                strokeWidth="3"
-                fill="none"
-              />
-              <path d="M50,25 L50,75" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" />
-              <path d="M50,33 C34,33 30,42 30,52 C30,62 38,67 50,67" stroke="#EAB308" strokeWidth="2" fill="none" />
-              <path d="M50,33 C66,33 70,42 70,52 C70,62 62,67 50,67" stroke="#22C55E" strokeWidth="2" fill="none" />
-              <circle cx="50" cy="33" r="3.5" fill="#F59E0B" />
-              <circle cx="50" cy="52" r="3.5" fill="#F59E0B" />
-              <circle cx="50" cy="67" r="3.5" fill="#F59E0B" />
-              <circle cx="30" cy="52" r="3.5" fill="#EAB308" />
-              <circle cx="70" cy="52" r="3.5" fill="#22C55E" />
-              <defs>
-                <linearGradient id="heroHexGradient" x1="50" y1="10" x2="50" y2="90" gradientUnits="userSpaceOnUse">
-                  <stop offset="0%" stopColor="#F59E0B" />
-                  <stop offset="100%" stopColor="#EAB308" />
-                </linearGradient>
-              </defs>
-            </svg>
+            <Image
+              src="/ace-logo-ldb.jpg"
+              alt="ACE Logo"
+              width={40}
+              height={40}
+              className="rounded-md"
+            />
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-brand-text">
