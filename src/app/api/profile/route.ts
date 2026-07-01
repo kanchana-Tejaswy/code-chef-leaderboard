@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { id, name, rollNumber, department, year, codechefUsername, profilePictureUrl } = body;
+    const { id, name, rollNumber, department, year, codechefUsername, leetcodeUsername, githubUsername, profilePictureUrl } = body;
 
     if (!id || !name) {
       return NextResponse.json({ error: "id and name are required fields" }, { status: 400 });
@@ -75,14 +75,58 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch existing profile to check if CodeChef username changed
+    // Check if LeetCode username is already linked to another profile
+    if (leetcodeUsername) {
+      const existingUsername = await prisma.studentProfile.findFirst({
+        where: {
+          leetcodeUsername: { equals: leetcodeUsername },
+          id: { not: id },
+        },
+      });
+
+      if (existingUsername) {
+        return NextResponse.json(
+          { error: "LeetCode username is already linked to another student." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Check if GitHub username is already linked to another profile
+    if (githubUsername) {
+      const existingUsername = await prisma.studentProfile.findFirst({
+        where: {
+          githubUsername: { equals: githubUsername },
+          id: { not: id },
+        },
+      });
+
+      if (existingUsername) {
+        return NextResponse.json(
+          { error: "GitHub username is already linked to another student." },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Fetch existing profile to check if usernames changed
     const currentProfile = await prisma.studentProfile.findUnique({
       where: { id },
     });
 
-    const isUsernameNew =
+    const isCodechefNew =
       codechefUsername &&
       (!currentProfile || currentProfile.codechefUsername !== codechefUsername);
+
+    const isLeetcodeNew =
+      leetcodeUsername &&
+      (!currentProfile || currentProfile.leetcodeUsername !== leetcodeUsername);
+
+    const isGithubNew =
+      githubUsername &&
+      (!currentProfile || currentProfile.githubUsername !== githubUsername);
+
+    const isUsernameNew = isCodechefNew || isLeetcodeNew || isGithubNew;
 
     // Update Student Profile directly
     const profile = await prisma.studentProfile.upsert({
@@ -94,6 +138,8 @@ export async function POST(request: NextRequest) {
         department,
         year,
         codechefUsername: codechefUsername || null,
+        leetcodeUsername: leetcodeUsername || null,
+        githubUsername: githubUsername || null,
         profilePictureUrl: profilePictureUrl || null,
       },
       update: {
@@ -102,12 +148,14 @@ export async function POST(request: NextRequest) {
         department,
         year,
         codechefUsername: codechefUsername || null,
+        leetcodeUsername: leetcodeUsername || null,
+        githubUsername: githubUsername || null,
         profilePictureUrl: profilePictureUrl || null,
       },
     });
 
-    // If CodeChef username is new/updated, trigger a profile sync asynchronously in the background
-    if (isUsernameNew && codechefUsername) {
+    // If any username is new/updated, trigger a profile sync asynchronously in the background
+    if (isUsernameNew) {
       SyncService.syncStudent(id, "USER_MANUAL")
         .then((syncRes) => {
           if (!syncRes.success) {

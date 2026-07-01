@@ -17,11 +17,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result.error || "Synchronization failed." }, { status: 500 });
     }
 
-    // Fetch the updated CodeChef profile and AI analysis to return to the UI
+    // Fetch the updated profiles and AI analysis to return to the UI
     const updatedProfile = await prisma.studentProfile.findUnique({
       where: { id: studentId },
       include: {
         codechefProfile: true,
+        leetcodeProfile: true,
+        githubProfile: true,
         aiAnalysis: true,
         leaderboardEntry: true,
       },

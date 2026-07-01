@@ -23,6 +23,10 @@ interface LeaderboardEntry {
   rating: number;
   stars: number;
   talentScore: number;
+  overallScore: number;
+  codechefScore: number;
+  leetcodeScore: number;
+  githubScore: number;
   updatedAt: string;
   student: {
     id: string;
@@ -68,7 +72,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
               2nd Place
             </span>
           </div>
-          <Link href={`/?userId=${second.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
+          <Link href={`/student/${second.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
             {second.student.name}
           </Link>
           <span className="text-[9px] text-brand-muted font-bold mb-3">{second.student.rollNumber}</span>
@@ -98,7 +102,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
               1st Place
             </span>
           </div>
-          <Link href={`/?userId=${first.student.id}`} className="text-xs sm:text-sm font-black text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
+          <Link href={`/student/${first.student.id}`} className="text-xs sm:text-sm font-black text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
             {first.student.name}
           </Link>
           <span className="text-[9px] text-brand-muted font-bold mb-3">{first.student.rollNumber}</span>
@@ -128,7 +132,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
               3rd Place
             </span>
           </div>
-          <Link href={`/?userId=${third.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
+          <Link href={`/student/${third.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
             {third.student.name}
           </Link>
           <span className="text-[9px] text-brand-muted font-bold mb-3">{third.student.rollNumber}</span>
@@ -161,8 +165,8 @@ function LeaderboardContent() {
   const [limit] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [sortBy, setSortBy] = useState("rank");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [sortBy, setSortBy] = useState("overallScore");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
 
   const departments = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
   const years = [1, 2, 3, 4];
@@ -299,7 +303,7 @@ function LeaderboardContent() {
   };
 
   // Obtain Top 3 from paginated list if on page 1 of default ranking
-  const podiumEntries = page === 1 && sortBy === "rank" && sortOrder === "asc" && entries.length >= 3 && !search && selectedDepts.length === 0 && selectedYears.length === 0 && selectedStars.length === 0
+  const podiumEntries = page === 1 && sortBy === "overallScore" && sortOrder === "desc" && entries.length >= 3 && !search && selectedDepts.length === 0 && selectedYears.length === 0 && selectedStars.length === 0
     ? entries.slice(0, 3) 
     : [];
 
@@ -314,7 +318,7 @@ function LeaderboardContent() {
           </div>
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white">ACE Leaderboard</h1>
-            <p className="text-sm text-brand-muted mt-1">Real-time student rankings based on verified CodeChef performance</p>
+            <p className="text-sm text-brand-muted mt-1">Real-time student placement readiness rankings across CodeChef, LeetCode, and GitHub</p>
           </div>
         </div>
 
@@ -330,6 +334,34 @@ function LeaderboardContent() {
 
       {/* Podium Component */}
       {podiumEntries.length >= 3 && <Podium top3={podiumEntries} />}
+
+      {/* Segmented Platform Filters */}
+      <div className="flex border border-brand-border bg-[#111111]/45 p-1 rounded-2xl gap-1 w-full max-w-md relative z-10">
+        {[
+          { name: "Overall", value: "overallScore" },
+          { name: "CodeChef", value: "codechefScore" },
+          { name: "LeetCode", value: "leetcodeScore" },
+          { name: "GitHub", value: "githubScore" }
+        ].map((tab) => {
+          const active = sortBy === tab.value;
+          return (
+            <button
+              key={tab.value}
+              onClick={() => {
+                setSortBy(tab.value);
+                setPage(1);
+              }}
+              className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                active
+                  ? "bg-[#EAB308]/20 border border-[#EAB308]/30 text-[#EAB308]"
+                  : "border border-transparent text-brand-muted hover:text-brand-text"
+              }`}
+            >
+              {tab.name}
+            </button>
+          );
+        })}
+      </div>
 
       {/* Main Container */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
@@ -452,33 +484,59 @@ function LeaderboardContent() {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-brand-border bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                    <th 
-                      onClick={() => handleSort("rank")} 
-                      className="py-4.5 px-6 text-center w-16 cursor-pointer select-none hover:text-white transition-colors"
-                    >
-                      Rank {renderSortIcon("rank")}
-                    </th>
+                    <th className="py-4.5 px-4 text-center w-16 select-none font-black">Rank</th>
                     <th className="py-4.5 px-4 select-none">Student</th>
-                    <th className="py-4.5 px-4 select-none">Department & Year</th>
-                    <th 
-                      onClick={() => handleSort("rating")} 
-                      className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors"
-                    >
-                      Rating {renderSortIcon("rating")}
-                    </th>
-                    <th 
-                      onClick={() => handleSort("stars")} 
-                      className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors"
-                    >
-                      Stars {renderSortIcon("stars")}
-                    </th>
-                    <th 
-                      onClick={() => handleSort("talentScore")} 
-                      className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors"
-                    >
-                      Talent Score {renderSortIcon("talentScore")}
-                    </th>
-                    <th className="py-4.5 px-6 text-center w-24 select-none">Dashboard</th>
+                    {sortBy === "overallScore" && (
+                      <>
+                        <th className="py-4.5 px-4 select-none">Department & Year</th>
+                        <th onClick={() => handleSort("overallScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Overall Score {renderSortIcon("overallScore")}
+                        </th>
+                        <th onClick={() => handleSort("codechefScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          CodeChef Score {renderSortIcon("codechefScore")}
+                        </th>
+                        <th onClick={() => handleSort("leetcodeScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          LeetCode Score {renderSortIcon("leetcodeScore")}
+                        </th>
+                        <th onClick={() => handleSort("githubScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          GitHub Score {renderSortIcon("githubScore")}
+                        </th>
+                      </>
+                    )}
+                    {sortBy === "codechefScore" && (
+                      <>
+                        <th className="py-4.5 px-3 text-center select-none">Rating</th>
+                        <th className="py-4.5 px-3 text-center select-none">Stars</th>
+                        <th className="py-4.5 px-3 text-center select-none">Problems</th>
+                        <th className="py-4.5 px-3 text-center select-none">Contests</th>
+                        <th className="py-4.5 px-3 text-center select-none">Consistency</th>
+                        <th className="py-4.5 px-3 text-center select-none">CodeChef Score</th>
+                      </>
+                    )}
+                    {sortBy === "leetcodeScore" && (
+                      <>
+                        <th className="py-4.5 px-3 text-center select-none">Rating</th>
+                        <th className="py-4.5 px-3 text-center select-none">Solved</th>
+                        <th className="py-4.5 px-3 text-center select-none">E / M / H</th>
+                        <th className="py-4.5 px-3 text-center select-none">Acceptance</th>
+                        <th className="py-4.5 px-3 text-center select-none">Contest Rank</th>
+                        <th className="py-4.5 px-3 text-center select-none">Streak</th>
+                        <th className="py-4.5 px-3 text-center select-none">LeetCode Score</th>
+                      </>
+                    )}
+                    {sortBy === "githubScore" && (
+                      <>
+                        <th className="py-4.5 px-3 text-center select-none">Repos</th>
+                        <th className="py-4.5 px-3 text-center select-none">Stars</th>
+                        <th className="py-4.5 px-3 text-center select-none">Followers</th>
+                        <th className="py-4.5 px-3 text-center select-none">Streak</th>
+                        <th className="py-4.5 px-3 text-center select-none">Commits</th>
+                        <th className="py-4.5 px-3 text-center select-none">Languages</th>
+                        <th className="py-4.5 px-3 text-center select-none">OS Score</th>
+                        <th className="py-4.5 px-3 text-center select-none">GitHub Score</th>
+                      </>
+                    )}
+                    <th className="py-4.5 px-6 text-center w-24 select-none">Portfolio</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#262626]/50">
@@ -535,43 +593,132 @@ function LeaderboardContent() {
                           </div>
                         </td>
 
-                        {/* Dept & Year */}
-                        <td className="py-4 px-4">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-semibold text-zinc-300">
-                              {entry.student.department}
-                            </span>
-                            <span className="text-[10px] font-bold text-brand-muted border border-brand-border bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase">
-                              {entry.student.year} Yr
-                            </span>
-                          </div>
-                        </td>
+                        {/* Platform Dynamic Cells */}
+                        {sortBy === "overallScore" && (
+                          <>
+                            {/* Dept & Year */}
+                            <td className="py-4 px-4">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-zinc-300">
+                                  {entry.student.department}
+                                </span>
+                                <span className="text-[10px] font-bold text-brand-muted border border-brand-border bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase">
+                                  {entry.student.year} Yr
+                                </span>
+                              </div>
+                            </td>
 
-                        {/* Rating */}
-                        <td className="py-4 px-4 text-center font-extrabold text-sm text-white">
-                          {entry.rating}
-                        </td>
+                            <td className="py-4 px-4 text-center font-extrabold text-sm text-[#EAB308]">
+                              {entry.overallScore}
+                            </td>
 
-                        {/* Stars */}
-                        <td className="py-4 px-4 text-center">
-                          <span className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full border text-[10px] font-bold ${getStarColorClass(entry.stars)}`}>
-                            <span>{entry.stars}</span>
-                            <Star className="h-3 w-3 fill-current" />
-                          </span>
-                        </td>
+                            <td className="py-4 px-4 text-center font-extrabold text-sm text-zinc-300">
+                              {entry.codechefScore}
+                            </td>
 
-                        {/* Talent Score */}
-                        <td className="py-4 px-4 text-center">
-                          <span className="text-sm font-black text-[#EAB308]">
-                            {Math.round(entry.talentScore)}
-                          </span>
-                        </td>
+                            <td className="py-4 px-4 text-center font-extrabold text-sm text-zinc-300">
+                              {entry.leetcodeScore}
+                            </td>
+
+                            <td className="py-4 px-4 text-center font-extrabold text-sm text-zinc-300">
+                              {entry.githubScore}
+                            </td>
+                          </>
+                        )}
+
+                        {sortBy === "codechefScore" && (() => {
+                          const cc = (entry.student as any).codechefProfile;
+                          return (
+                            <>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {cc ? cc.currentRating : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
+                                {cc ? `${cc.stars}★` : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {cc ? cc.problemsSolved : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {cc ? cc.contestCount : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {cc ? `${cc.activeDaysCount || 0} days` : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
+                                {entry.codechefScore}
+                              </td>
+                            </>
+                          );
+                        })()}
+
+                        {sortBy === "leetcodeScore" && (() => {
+                          const lc = (entry.student as any).leetcodeProfile;
+                          return (
+                            <>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {lc && lc.contestRating > 0 ? Math.round(lc.contestRating) : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {lc ? lc.problemsSolved : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                                {lc ? `${lc.easySolvedCount}/${lc.mediumSolvedCount}/${lc.hardSolvedCount}` : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-emerald-400">
+                                {lc ? `${lc.acceptanceRate}%` : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {lc && lc.contestRank > 0 ? lc.contestRank : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
+                                {lc ? `${lc.consistencyScore}%` : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
+                                {entry.leetcodeScore}
+                              </td>
+                            </>
+                          );
+                        })()}
+
+                        {sortBy === "githubScore" && (() => {
+                          const gh = (entry.student as any).githubProfile;
+                          const repos = gh?.repos as any;
+                          return (
+                            <>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {gh ? gh.totalRepositories : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
+                                {gh ? `⭐ ${gh.totalStars}` : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {gh ? gh.followers : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-emerald-400">
+                                {gh && gh.contributions ? `${Object.keys(gh.contributions).length} days` : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {repos?.commitAnalytics?.total || "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-[10px] font-semibold text-zinc-400 truncate max-w-[100px]" title={Array.isArray(gh?.languages) ? gh.languages.map((l: any) => l.name).join(", ") : ""}>
+                                {Array.isArray(gh?.languages) ? gh.languages.map((l: any) => l.name).slice(0, 2).join(", ") : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {gh ? `${gh.openSourceScore}%` : "Not available from platform."}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
+                                {entry.githubScore}
+                              </td>
+                            </>
+                          );
+                        })()}
 
                         {/* View Action */}
                         <td className="py-4 px-6 text-center">
                           <Link
-                            href={`/?userId=${entry.student.id}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-brand-text hover:border-zinc-700 hover:bg-zinc-900 transition-all"
+                            href={`/student/${entry.student.id}`}
+                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-[#EAB308] hover:border-[#EAB308]/30 hover:bg-zinc-900 transition-all"
                             title="View Student Portfolio"
                           >
                             <Eye className="h-3.5 w-3.5" />

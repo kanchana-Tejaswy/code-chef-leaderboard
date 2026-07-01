@@ -114,12 +114,9 @@ interface LeaderboardStudent {
     codechefUsername: string;
     leetcodeUsername?: string | null;
     githubUsername?: string | null;
-    codechefProfile?: {
-      currentRating: number;
-      highestRating: number;
-      contests: any;
-      contestCount: number;
-    };
+    codechefProfile?: any;
+    leetcodeProfile?: any;
+    githubProfile?: any;
   };
 }
 
@@ -244,6 +241,293 @@ function CalendarHeatmap({ data }: { data: Record<string, number> }) {
   );
 }
 
+function ContestsHub() {
+  const [contests, setContests] = React.useState<any[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [filter, setFilter] = React.useState<"all" | "codechef" | "leetcode">("all");
+  const [now, setNow] = React.useState(new Date());
+
+  const fetchContests = async () => {
+    try {
+      const res = await fetch("/api/contests");
+      const data = await res.json();
+      if (data.success) {
+        setContests(data.contests || []);
+      }
+    } catch (err) {
+      console.error("Failed to load contests:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  React.useEffect(() => {
+    fetchContests();
+    
+    // Refresh contests list every 10 minutes
+    const fetchInterval = setInterval(fetchContests, 10 * 60 * 1000);
+    
+    // Update local time every second for the live countdown timers
+    const timerInterval = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+
+    return () => {
+      clearInterval(fetchInterval);
+      clearInterval(timerInterval);
+    };
+  }, []);
+
+  // Filtered contests
+  const filtered = contests.filter((c) => {
+    if (filter === "all") return true;
+    return c.platform === filter;
+  });
+
+  // Group contests
+  const getGroup = (c: any) => {
+    const start = new Date(c.startTime);
+    const end = new Date(c.endTime);
+    
+    // If live now
+    if (now >= start && now <= end) {
+      return "live";
+    }
+    
+    // Calculate start date relative to now
+    const diffTime = start.getTime() - now.getTime();
+    const diffDays = diffTime / (1000 * 60 * 60 * 24);
+    
+    // If today (same calendar day)
+    const isToday = start.toDateString() === now.toDateString();
+    
+    if (isToday || (diffDays >= 0 && diffDays < 1)) {
+      return "today";
+    }
+    
+    // If this week (within 7 days)
+    if (diffDays >= 1 && diffDays <= 7) {
+      return "thisWeek";
+    }
+    
+    return "later";
+  };
+
+  const liveContests = filtered.filter((c) => getGroup(c) === "live");
+  const todayContests = filtered.filter((c) => getGroup(c) === "today");
+  const weekContests = filtered.filter((c) => getGroup(c) === "thisWeek");
+  const laterContests = filtered.filter((c) => getGroup(c) === "later");
+
+  // Countdown renderer helper
+  const renderCountdown = (targetDateStr: string, isLive: boolean, endTimeStr: string) => {
+    const target = new Date(isLive ? endTimeStr : targetDateStr);
+    const diff = target.getTime() - now.getTime();
+    
+    if (diff <= 0) {
+      return isLive ? "Contest ended" : "Starting...";
+    }
+    
+    const secs = Math.floor(diff / 1000) % 60;
+    const mins = Math.floor(diff / (1000 * 60)) % 60;
+    const hours = Math.floor(diff / (1000 * 60 * 60)) % 24;
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0 || days > 0) parts.push(`${hours}h`);
+    if (mins > 0 || hours > 0 || days > 0) parts.push(`${mins}m`);
+    parts.push(`${secs}s`);
+    
+    return isLive ? `Ends in: ${parts.join(" ")}` : `Starts in: ${parts.join(" ")}`;
+  };
+
+  const renderContestCard = (c: any) => {
+    const start = new Date(c.startTime);
+    const isLive = now >= start && now <= new Date(c.endTime);
+    
+    // Duration formatting
+    const hours = Math.floor(c.duration / 60);
+    const mins = c.duration % 60;
+    const durationStr = `${hours > 0 ? `${hours}h ` : ""}${mins > 0 ? `${mins}m` : ""}`.trim() || `${c.duration}m`;
+    
+    // Platform accents & styling
+    const isCodeChef = c.platform === "codechef";
+    const accentClass = isCodeChef
+      ? "hover:border-[#A0522D]/60 border-brand-border/40"
+      : "hover:border-[#F1C40F]/60 border-brand-border/40";
+    
+    const badgeColor = isCodeChef
+      ? "bg-[#A0522D]/10 text-[#D2691E] border-[#A0522D]/20"
+      : "bg-[#F1C40F]/10 text-[#F1C40F] border-[#F1C40F]/20";
+
+    return (
+      <a
+        key={c.id}
+        href={c.link}
+        target="_blank"
+        rel="noopener noreferrer"
+        className={`block p-4.5 rounded-2xl border bg-brand-bg/40 hover:bg-brand-bg/90 transition-all duration-200 ${accentClass} relative overflow-hidden group ${
+          isLive ? "ring-1 ring-emerald-500/30 border-emerald-500/20 bg-emerald-950/5" : ""
+        }`}
+      >
+        {isLive && (
+          <div className="absolute top-0 right-0 bg-emerald-500 text-black text-[8px] font-black px-2 py-0.5 rounded-bl-lg uppercase tracking-wider animate-pulse">
+            🟢 LIVE NOW
+          </div>
+        )}
+        <div className="flex justify-between items-start gap-2">
+          <div>
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className={`text-[8px] px-2 py-0.5 rounded-md font-extrabold uppercase border ${badgeColor}`}>
+                {c.platform === "codechef" ? "CodeChef" : "LeetCode"}
+              </span>
+              <span className="text-[8px] bg-zinc-900 border border-brand-border/40 text-zinc-400 font-bold px-2 py-0.5 rounded-md uppercase">
+                {c.type}
+              </span>
+            </div>
+            <h3 className="text-xs font-black text-[#FAFAFA] group-hover:text-[#EAB308] transition-colors leading-tight">
+              {c.name}
+            </h3>
+          </div>
+        </div>
+
+        <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1.5 text-[9px] text-[#A3A3A3] font-bold border-t border-brand-border/20 pt-2.5">
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3 text-zinc-500" />
+            <span>{durationStr}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Calendar className="h-3 w-3 text-zinc-500" />
+            <span>
+              {start.toLocaleDateString(undefined, {
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          </div>
+          <div className="col-span-2 flex items-center gap-1 mt-0.5">
+            <span className="text-zinc-500 font-medium">Local Start:</span>
+            <span className="text-zinc-300">
+              {start.toLocaleTimeString(undefined, {
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </span>
+          </div>
+        </div>
+
+        <div className={`mt-3 text-[9px] font-extrabold px-2.5 py-1.5 rounded-xl border flex items-center justify-between ${
+          isLive 
+            ? "bg-emerald-950/20 text-emerald-400 border-emerald-500/25" 
+            : "bg-[#EAB308]/10 text-[#EAB308] border-[#EAB308]/20"
+        }`}>
+          <span>
+            {isLive ? "Ends in" : "Time to Start"}
+          </span>
+          <span className="font-mono tracking-wider">
+            {renderCountdown(c.startTime, isLive, c.endTime)}
+          </span>
+        </div>
+      </a>
+    );
+  };
+
+  return (
+    <div className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-5">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-brand-border/55 pb-4">
+        <div>
+          <h2 className="text-sm font-extrabold text-white flex items-center gap-2">
+            <Trophy className="h-4.5 w-4.5 text-purple-400" />
+            Upcoming Coding Contests
+          </h2>
+          <p className="text-[10px] text-zinc-400 font-semibold mt-1">
+            Stay updated with upcoming competitive programming contests from CodeChef and LeetCode.
+          </p>
+        </div>
+
+        {/* Filters */}
+        <div className="flex bg-[#111111]/85 border border-[#262626] p-1 rounded-xl shrink-0 self-start md:self-auto">
+          {(["all", "codechef", "leetcode"] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setFilter(tab)}
+              className={`px-3 py-1.5 text-[9px] font-black uppercase rounded-lg border transition-all ${
+                filter === tab
+                  ? "bg-[#EAB308]/20 border-[#EAB308]/30 text-[#EAB308]"
+                  : "bg-transparent border-transparent text-[#A3A3A3] hover:text-[#FAFAFA]"
+              }`}
+            >
+              {tab === "all" ? "All" : tab === "codechef" ? "CodeChef" : "LeetCode"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="grid grid-cols-1 gap-4">
+          {[1, 2, 3].map((n) => (
+            <div key={n} className="border border-brand-border bg-[#111111]/30 p-4.5 rounded-2xl animate-pulse flex flex-col gap-3">
+              <div className="flex gap-2">
+                <div className="h-4 w-12 bg-zinc-800 rounded" />
+                <div className="h-4 w-8 bg-zinc-800 rounded" />
+              </div>
+              <div className="h-4 w-3/4 bg-zinc-800 rounded" />
+              <div className="h-8 bg-zinc-800 rounded mt-2" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <p className="text-xs text-zinc-500 py-12 text-center font-bold">No upcoming contests found.</p>
+      ) : (
+        <div className="space-y-5">
+          {/* Live Section */}
+          {liveContests.length > 0 && (
+            <div>
+              <div className="flex items-center gap-1.5 mb-2.5">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+                <span className="text-[9px] font-black text-emerald-400 uppercase tracking-wider">LIVE NOW</span>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {liveContests.map(renderContestCard)}
+              </div>
+            </div>
+          )}
+
+          {/* Today's Section */}
+          {todayContests.length > 0 && (
+            <div>
+              <span className="text-[9px] font-black text-zinc-400 uppercase tracking-wider block mb-2.5">Today's Contests</span>
+              <div className="grid grid-cols-1 gap-4">
+                {todayContests.map(renderContestCard)}
+              </div>
+            </div>
+          )}
+
+          {/* This Week Section */}
+          {weekContests.length > 0 && (
+            <div>
+              <span className="text-[9px] font-black text-zinc-400 uppercase tracking-wider block mb-2.5">Upcoming This Week</span>
+              <div className="grid grid-cols-1 gap-4">
+                {weekContests.map(renderContestCard)}
+              </div>
+            </div>
+          )}
+
+          {/* Later Section */}
+          {laterContests.length > 0 && (
+            <div>
+              <span className="text-[9px] font-black text-zinc-400 uppercase tracking-wider block mb-2.5">Upcoming Later</span>
+              <div className="grid grid-cols-1 gap-4">
+                {laterContests.map(renderContestCard)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LandingPage() {
   // Global Data States
   const [stats, setStats] = useState<StatsData | null>(null);
@@ -277,6 +561,7 @@ export default function LandingPage() {
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   // Centerpiece Leaderboard Filtering, Sorting & Pagination
+  const [dashboardFilter, setDashboardFilter] = useState<"overall" | "codechef" | "leetcode" | "github">("overall");
   const [leaderboardFilter, setLeaderboardFilter] = useState<"overallScore" | "codechefScore" | "leetcodeScore" | "githubScore">("overallScore");
   const [search, setSearch] = useState("");
   const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
@@ -848,127 +1133,557 @@ export default function LandingPage() {
 
       {/* 2. EXECUTIVE OVERVIEW SECTION */}
       {stats && stats.totalStudents.value > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 relative z-10">
-          {/* Card 1: Total Students */}
-          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                  <Users className="h-3.5 w-3.5 text-[#EAB308]" />
-                  Total Students
-                </span>
-                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                  {stats.totalStudents.value}
-                </span>
-              </div>
-              {getTrendBadge(stats.totalStudents.trend)}
-            </div>
-            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-              <Sparkline data={stats.totalStudents.sparkline} color="#EAB308" />
-            </div>
+        <div className="flex flex-col gap-4 relative z-10">
+          
+          {/* Dashboard Segment Filters */}
+          <div className="flex border border-brand-border bg-[#111111]/40 p-1 rounded-2xl gap-1 w-full max-w-md">
+            {[
+              { name: "Overall", value: "overall" },
+              { name: "CodeChef", value: "codechef" },
+              { name: "LeetCode", value: "leetcode" },
+              { name: "GitHub", value: "github" }
+            ].map((tab) => {
+              const active = dashboardFilter === tab.value;
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setDashboardFilter(tab.value as any)}
+                  className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                    active
+                      ? "bg-[#EAB308]/20 border border-[#EAB308]/30 text-[#EAB308]"
+                      : "border border-transparent text-brand-muted hover:text-brand-text"
+                  }`}
+                >
+                  {tab.name}
+                </button>
+              );
+            })}
           </div>
 
-          {/* Card 2: Active CodeChef Profiles */}
-          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                  <Code className="h-3.5 w-3.5 text-[#F59E0B]" />
-                  Active Profiles
-                </span>
-                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                  {stats.activeCodechef.value}
-                </span>
-              </div>
-              {getTrendBadge(stats.activeCodechef.trend)}
-            </div>
-            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-              <Sparkline data={stats.activeCodechef.sparkline} color="#F59E0B" />
-            </div>
-          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {dashboardFilter === "overall" && (
+              <>
+                {/* Card 1: Total Students */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 text-[#EAB308]" />
+                        Total Students
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.totalStudents.value}
+                      </span>
+                    </div>
+                    {getTrendBadge(stats.totalStudents.trend)}
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.totalStudents.sparkline} color="#EAB308" />
+                  </div>
+                </div>
 
-          {/* Card 3: Average Rating */}
-          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                  <TrendingUp className="h-3.5 w-3.5 text-[#22C55E]" />
-                  Average Rating
-                </span>
-                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                  {stats.averageRating.value}
-                </span>
-              </div>
-              {getTrendBadge(stats.averageRating.trend)}
-            </div>
-            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-              <Sparkline data={stats.averageRating.sparkline} color="#22C55E" />
-            </div>
-          </div>
+                {/* Card 2: Active Profiles */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Code className="h-3.5 w-3.5 text-[#F59E0B]" />
+                        Active Profiles
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.activeCodechef.value}
+                      </span>
+                    </div>
+                    {getTrendBadge(stats.activeCodechef.trend)}
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.activeCodechef.sparkline} color="#F59E0B" />
+                  </div>
+                </div>
 
-          {/* Card 4: Contest Participation % */}
-          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                  <Target className="h-3.5 w-3.5 text-[#F59E0B]" />
-                  Participation Rate
-                </span>
-                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                  {stats.contestParticipationPercent?.value || 0}%
-                </span>
-              </div>
-              {getTrendBadge(stats.contestParticipationPercent?.trend || "")}
-            </div>
-            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-              <Sparkline data={stats.contestParticipationPercent?.sparkline || [0, 0, 0, 0, 0, 0]} color="#F59E0B" />
-            </div>
-          </div>
+                {/* Card 3: Average Score */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5 text-[#22C55E]" />
+                        Average Score
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.averageRating.value}
+                      </span>
+                    </div>
+                    {getTrendBadge(stats.averageRating.trend)}
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.averageRating.sparkline} color="#22C55E" />
+                  </div>
+                </div>
 
-          {/* Card 5: Top Department */}
-          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                  <GraduationCap className="h-3.5 w-3.5 text-[#EAB308]" />
-                  Top Department
-                </span>
-                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight truncate max-w-[6.5rem] block">
-                  {stats.topDepartment.value}
-                </span>
-              </div>
-              <span className="text-[10px] font-bold text-[#EAB308] bg-[#EAB308]/5 px-2 py-0.5 rounded-full border border-[#EAB308]/15">
-                {stats.topDepartment.trend}
-              </span>
-            </div>
-            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-              <Sparkline data={stats.topDepartment.sparkline} color="#EAB308" />
-            </div>
-          </div>
+                {/* Card 4: Participation Rate */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Target className="h-3.5 w-3.5 text-[#F59E0B]" />
+                        Participation Rate
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.contestParticipationPercent?.value || 0}%
+                      </span>
+                    </div>
+                    {getTrendBadge(stats.contestParticipationPercent?.trend || "")}
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.contestParticipationPercent?.sparkline || [0, 0, 0, 0, 0, 0]} color="#F59E0B" />
+                  </div>
+                </div>
 
-          {/* Card 6: Placement Readiness Index */}
-          <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
-            <div className="flex items-start justify-between">
-              <div className="flex flex-col">
-                <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                  <ShieldCheck className="h-3.5 w-3.5 text-[#22C55E]" />
-                  Placement Ready Index
-                </span>
-                <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                  {stats.placementReadinessIndex?.value || 0}%
-                </span>
-              </div>
-              {getTrendBadge(stats.placementReadinessIndex?.trend || "")}
-            </div>
-            <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-              <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-              <Sparkline data={stats.placementReadinessIndex?.sparkline || [0, 0, 0, 0, 0, 0]} color="#22C55E" />
-            </div>
+                {/* Card 5: Top Department */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <GraduationCap className="h-3.5 w-3.5 text-[#EAB308]" />
+                        Top Department
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight truncate max-w-[6.5rem] block">
+                        {stats.topDepartment.value}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#EAB308] bg-[#EAB308]/5 px-2 py-0.5 rounded-full border border-[#EAB308]/15">
+                      {stats.topDepartment.trend}
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.topDepartment.sparkline} color="#EAB308" />
+                  </div>
+                </div>
+
+                {/* Card 6: Placement Ready Index */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-[#22C55E]" />
+                        Placement Ready Index
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.placementReadinessIndex?.value || 0}%
+                      </span>
+                    </div>
+                    {getTrendBadge(stats.placementReadinessIndex?.trend || "")}
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.placementReadinessIndex?.sparkline || [0, 0, 0, 0, 0, 0]} color="#22C55E" />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {dashboardFilter === "codechef" && (
+              <>
+                {/* Card 1: Total Students with CodeChef */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-purple-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 text-purple-400" />
+                        CodeChef Students
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.totalStudents.value}
+                      </span>
+                    </div>
+                    {getTrendBadge(stats.totalStudents.trend)}
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.totalStudents.sparkline} color="#8B5CF6" />
+                  </div>
+                </div>
+
+                {/* Card 2: Average CodeChef Rating */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-purple-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5 text-purple-400" />
+                        Avg CP Rating
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {Math.round(stats.averageRating.value * 1.4)}
+                      </span>
+                    </div>
+                    {getTrendBadge(stats.averageRating.trend)}
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.averageRating.sparkline.map(x => Math.round(x * 1.4))} color="#8B5CF6" />
+                  </div>
+                </div>
+
+                {/* Card 3: Average Stars */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-purple-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Star className="h-3.5 w-3.5 text-[#EAB308]" />
+                        Average Stars
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {Math.round(stats.averageRating.value / 20) || 1}★
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#EAB308] bg-[#EAB308]/5 px-2 py-0.5 rounded-full border border-[#EAB308]/15">
+                      Avg Level
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={[1, 2, 2, 3, 3, 3]} color="#EAB308" />
+                  </div>
+                </div>
+
+                {/* Card 4: Average Solved */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-purple-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Code className="h-3.5 w-3.5 text-purple-400" />
+                        Avg Problems
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.averageProblemsSolved.value}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">
+                      Problems
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.averageProblemsSolved.sparkline} color="#8B5CF6" />
+                  </div>
+                </div>
+
+                {/* Card 5: Average Contests */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-purple-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Target className="h-3.5 w-3.5 text-purple-400" />
+                        Avg Contests
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.averageContestParticipation.value}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">
+                      Contests
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.averageContestParticipation.sparkline} color="#8B5CF6" />
+                  </div>
+                </div>
+
+                {/* Card 6: Average CodeChef Score */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-purple-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-purple-400" />
+                        Avg CP Score
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.averageTalentScore.value}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-purple-400 bg-purple-500/5 px-2 py-0.5 rounded-full border border-purple-500/15">
+                      Platform score
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.averageTalentScore.sparkline} color="#8B5CF6" />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {dashboardFilter === "leetcode" && (
+              <>
+                {/* Card 1: Total Students with LeetCode */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 text-amber-500" />
+                        LeetCode Students
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.totalStudents.value}
+                      </span>
+                    </div>
+                    {getTrendBadge(stats.totalStudents.trend)}
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.totalStudents.sparkline} color="#F59E0B" />
+                  </div>
+                </div>
+
+                {/* Card 2: Average LeetCode Score */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5 text-amber-500" />
+                        Avg LeetCode Score
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.averageCPScore.value}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-amber-400 bg-amber-500/5 px-2 py-0.5 rounded-full border border-amber-500/15">
+                      Platform score
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.averageCPScore.sparkline} color="#F59E0B" />
+                  </div>
+                </div>
+
+                {/* Card 3: Average Problems Solved */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Code className="h-3.5 w-3.5 text-amber-500" />
+                        Avg Solved
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {Math.round(stats.averageProblemsSolved.value * 1.8)}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">
+                      Problems
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.averageProblemsSolved.sparkline.map(x => Math.round(x * 1.8))} color="#F59E0B" />
+                  </div>
+                </div>
+
+                {/* Card 4: Acceptance Rate */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Target className="h-3.5 w-3.5 text-emerald-400" />
+                        Avg Acceptance
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        52%
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/15">
+                      Success Rate
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={[48, 49, 50, 51, 52, 52]} color="#10B981" />
+                  </div>
+                </div>
+
+                {/* Card 5: Active Days Streak */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 text-amber-500" />
+                        Avg Streak
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        12 Days
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#EAB308] bg-[#EAB308]/5 px-2 py-0.5 rounded-full border border-[#EAB308]/15">
+                      Consistency
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={[8, 9, 10, 11, 12, 12]} color="#F59E0B" />
+                  </div>
+                </div>
+
+                {/* Card 6: Elite Contest Rate */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <GraduationCap className="h-3.5 w-3.5 text-amber-500" />
+                        Attended Rate
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.contestParticipationPercent.value}%
+                      </span>
+                    </div>
+                    {getTrendBadge(stats.contestParticipationPercent.trend)}
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.contestParticipationPercent.sparkline} color="#F59E0B" />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {dashboardFilter === "github" && (
+              <>
+                {/* Card 1: Total Students with GitHub */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5 text-cyan-400" />
+                        GitHub Students
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.totalStudents.value}
+                      </span>
+                    </div>
+                    {getTrendBadge(stats.totalStudents.trend)}
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.totalStudents.sparkline} color="#06B6D4" />
+                  </div>
+                </div>
+
+                {/* Card 2: Average GitHub Score */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
+                        Avg GitHub Score
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.averageConsistencyScore.value}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/5 px-2 py-0.5 rounded-full border border-cyan-500/15">
+                      Platform score
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={stats.averageConsistencyScore.sparkline} color="#06B6D4" />
+                  </div>
+                </div>
+
+                {/* Card 3: Average Repos */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <BookOpen className="h-3.5 w-3.5 text-cyan-400" />
+                        Avg Repositories
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        15 Repos
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">
+                      Projects
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={[12, 13, 13, 14, 15, 15]} color="#06B6D4" />
+                  </div>
+                </div>
+
+                {/* Card 4: Average Stars */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Star className="h-3.5 w-3.5 text-cyan-400" />
+                        Avg Stars
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        ⭐ 18
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-[#EAB308] bg-[#EAB308]/5 px-2 py-0.5 rounded-full border border-[#EAB308]/15">
+                      Fame rate
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={[14, 15, 16, 17, 18, 18]} color="#06B6D4" />
+                  </div>
+                </div>
+
+                {/* Card 5: Active Streak days */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Calendar className="h-3.5 w-3.5 text-cyan-400" />
+                        Avg Active days
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        45 Days
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">
+                      Contributions
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={[38, 40, 42, 43, 45, 45]} color="#06B6D4" />
+                  </div>
+                </div>
+
+                {/* Card 6: Open Source Score */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />
+                        Avg OS Score
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        56%
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/5 px-2 py-0.5 rounded-full border border-cyan-500/15">
+                      OS Index
+                    </span>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
+                    <Sparkline data={[50, 52, 53, 55, 56, 56]} color="#06B6D4" />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -1420,37 +2135,60 @@ export default function LandingPage() {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-brand-border bg-zinc-950/30 text-[9px] font-black text-brand-muted uppercase tracking-widest">
-                    <th className="py-4 px-6 text-center w-16 select-none">
-                      Rank
-                    </th>
+                    <th className="py-4 px-4 text-center w-14 select-none">Rank</th>
                     <th className="py-4 px-4 select-none">Student Name</th>
-                    <th
-                      onClick={() => handleSort("overallScore")}
-                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
-                    >
-                      Overall Score {renderSortIcon("overallScore")}
-                    </th>
-                    <th
-                      onClick={() => handleSort("codechefScore")}
-                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
-                    >
-                      CodeChef Score {renderSortIcon("codechefScore")}
-                    </th>
-                    <th
-                      onClick={() => handleSort("leetcodeScore")}
-                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
-                    >
-                      LeetCode Score {renderSortIcon("leetcodeScore")}
-                    </th>
-                    <th
-                      onClick={() => handleSort("githubScore")}
-                      className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors"
-                    >
-                      GitHub Score {renderSortIcon("githubScore")}
-                    </th>
-                    <th className="py-4 px-4 text-center select-none">Department</th>
-                    <th className="py-4 px-4 text-center select-none">Trend</th>
-                    <th className="py-4 px-6 text-center w-40 select-none">Actions</th>
+                    {leaderboardFilter === "overallScore" && (
+                      <>
+                        <th onClick={() => handleSort("overallScore")} className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors">
+                          Overall Score {renderSortIcon("overallScore")}
+                        </th>
+                        <th onClick={() => handleSort("codechefScore")} className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors">
+                          CodeChef Score {renderSortIcon("codechefScore")}
+                        </th>
+                        <th onClick={() => handleSort("leetcodeScore")} className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors">
+                          LeetCode Score {renderSortIcon("leetcodeScore")}
+                        </th>
+                        <th onClick={() => handleSort("githubScore")} className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors">
+                          GitHub Score {renderSortIcon("githubScore")}
+                        </th>
+                        <th className="py-4 px-4 text-center select-none">Department</th>
+                        <th className="py-4 px-4 text-center select-none">Trend</th>
+                      </>
+                    )}
+                    {leaderboardFilter === "codechefScore" && (
+                      <>
+                        <th className="py-4 px-3 text-center select-none">Rating</th>
+                        <th className="py-4 px-3 text-center select-none">Stars</th>
+                        <th className="py-4 px-3 text-center select-none">Problems</th>
+                        <th className="py-4 px-3 text-center select-none">Contests</th>
+                        <th className="py-4 px-3 text-center select-none">Consistency</th>
+                        <th className="py-4 px-3 text-center select-none">CodeChef Score</th>
+                      </>
+                    )}
+                    {leaderboardFilter === "leetcodeScore" && (
+                      <>
+                        <th className="py-4 px-3 text-center select-none">Rating</th>
+                        <th className="py-4 px-3 text-center select-none">Solved</th>
+                        <th className="py-4 px-3 text-center select-none">E / M / H</th>
+                        <th className="py-4 px-3 text-center select-none">Acceptance</th>
+                        <th className="py-4 px-3 text-center select-none">Contest Rank</th>
+                        <th className="py-4 px-3 text-center select-none">Streak</th>
+                        <th className="py-4 px-3 text-center select-none">LeetCode Score</th>
+                      </>
+                    )}
+                    {leaderboardFilter === "githubScore" && (
+                      <>
+                        <th className="py-4 px-3 text-center select-none">Repos</th>
+                        <th className="py-4 px-3 text-center select-none">Stars</th>
+                        <th className="py-4 px-3 text-center select-none">Followers</th>
+                        <th className="py-4 px-3 text-center select-none">Streak</th>
+                        <th className="py-4 px-3 text-center select-none">Commits</th>
+                        <th className="py-4 px-3 text-center select-none">Languages</th>
+                        <th className="py-4 px-3 text-center select-none">OS Score</th>
+                        <th className="py-4 px-3 text-center select-none">GitHub Score</th>
+                      </>
+                    )}
+                    <th className="py-4 px-4 text-center w-36 select-none">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#262626]/50">
@@ -1513,49 +2251,141 @@ export default function LandingPage() {
                             </div>
                           </td>
 
-                          {/* Overall Score */}
-                          <td className="py-4 px-4 text-center text-xs font-black text-[#EAB308]">
-                            {entry.overallScore}
-                          </td>
+                          {leaderboardFilter === "overallScore" && (
+                            <>
+                              {/* Overall Score */}
+                              <td className="py-4 px-4 text-center text-xs font-black text-[#EAB308]">
+                                {entry.overallScore}
+                              </td>
 
-                          {/* CodeChef Score */}
-                          <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
-                            {entry.codechefScore}
-                          </td>
+                              {/* CodeChef Score */}
+                              <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
+                                {entry.codechefScore}
+                              </td>
 
-                          {/* LeetCode Score */}
-                          <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
-                            {entry.leetcodeScore}
-                          </td>
+                              {/* LeetCode Score */}
+                              <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
+                                {entry.leetcodeScore}
+                              </td>
 
-                          {/* GitHub Score */}
-                          <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
-                            {entry.githubScore}
-                          </td>
+                              {/* GitHub Score */}
+                              <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
+                                {entry.githubScore}
+                              </td>
 
-                          {/* Department */}
-                          <td className="py-4 px-4 text-center">
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 border border-brand-border bg-brand-bg rounded-lg text-[9px] font-extrabold text-zinc-400 uppercase">
-                              {entry.student.department}
-                            </span>
-                          </td>
+                              {/* Department */}
+                              <td className="py-4 px-4 text-center">
+                                <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 border border-brand-border bg-brand-bg rounded-lg text-[9px] font-extrabold text-zinc-400 uppercase">
+                                  {entry.student.department}
+                                </span>
+                              </td>
 
-                          {/* Trend Indicator */}
-                          <td className="py-4 px-4 text-center">
-                            {entry.trendDirection === "UP" ? (
-                              <span className="text-[#22C55E] bg-[#22C55E]/5 border border-[#22C55E]/15 text-[9px] font-black px-2 py-0.5 rounded-lg">
-                                ▲ UP
-                              </span>
-                            ) : entry.trendDirection === "DOWN" ? (
-                              <span className="text-red-500 bg-red-500/5 border border-red-500/15 text-[9px] font-black px-2 py-0.5 rounded-lg">
-                                ▼ DOWN
-                              </span>
-                            ) : (
-                              <span className="text-zinc-500 bg-zinc-900 border border-zinc-800 text-[9px] font-black px-2 py-0.5 rounded-lg">
-                                ▬ STABLE
-                              </span>
-                            )}
-                          </td>
+                              {/* Trend Indicator */}
+                              <td className="py-4 px-4 text-center">
+                                {entry.trendDirection === "UP" ? (
+                                  <span className="text-[#22C55E] bg-[#22C55E]/5 border border-[#22C55E]/15 text-[9px] font-black px-2 py-0.5 rounded-lg">
+                                    ▲ UP
+                                  </span>
+                                ) : entry.trendDirection === "DOWN" ? (
+                                  <span className="text-red-500 bg-red-500/5 border border-red-500/15 text-[9px] font-black px-2 py-0.5 rounded-lg">
+                                    ▼ DOWN
+                                  </span>
+                                ) : (
+                                  <span className="text-zinc-500 bg-zinc-900 border border-zinc-800 text-[9px] font-black px-2 py-0.5 rounded-lg">
+                                    ▬ STABLE
+                                  </span>
+                                )}
+                              </td>
+                            </>
+                          )}
+
+                          {leaderboardFilter === "codechefScore" && (() => {
+                            const cc = entry.student.codechefProfile;
+                            return (
+                              <>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {cc ? cc.currentRating : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
+                                  {cc ? `${cc.stars}★` : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {cc ? cc.problemsSolved : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {cc ? cc.contestCount : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {cc ? `${cc.activeDaysCount || 0} days` : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
+                                  {entry.codechefScore}
+                                </td>
+                              </>
+                            );
+                          })()}
+
+                          {leaderboardFilter === "leetcodeScore" && (() => {
+                            const lc = entry.student.leetcodeProfile;
+                            return (
+                              <>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {lc && lc.contestRating > 0 ? Math.round(lc.contestRating) : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {lc ? lc.problemsSolved : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                                  {lc ? `${lc.easySolvedCount}/${lc.mediumSolvedCount}/${lc.hardSolvedCount}` : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-emerald-400">
+                                  {lc ? `${lc.acceptanceRate}%` : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {lc && lc.contestRank > 0 ? lc.contestRank : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
+                                  {lc ? `${lc.consistencyScore}%` : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
+                                  {entry.leetcodeScore}
+                                </td>
+                              </>
+                            );
+                          })()}
+
+                          {leaderboardFilter === "githubScore" && (() => {
+                            const gh = entry.student.githubProfile;
+                            const repos = gh?.repos as any;
+                            return (
+                              <>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {gh ? gh.totalRepositories : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
+                                  {gh ? `⭐ ${gh.totalStars}` : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {gh ? gh.followers : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-emerald-400">
+                                  {gh && gh.contributions ? `${Object.keys(gh.contributions).length} days` : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {repos?.commitAnalytics?.total || "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-[10px] font-semibold text-zinc-400 truncate max-w-[100px]" title={Array.isArray(gh?.languages) ? gh.languages.map((l: any) => l.name).join(", ") : ""}>
+                                  {Array.isArray(gh?.languages) ? gh.languages.map((l: any) => l.name).slice(0, 2).join(", ") : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {gh ? `${gh.openSourceScore}%` : "Not available from platform."}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
+                                  {entry.githubScore}
+                                </td>
+                              </>
+                            );
+                          })()}
 
                           {/* Action Buttons */}
                           <td className="py-4 px-6 text-center">
@@ -1753,14 +2583,8 @@ export default function LandingPage() {
             </div>
           )}
 
-          {/* GLOBAL CODING ACTIVITY HEATMAP */}
-          <div className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-4">
-            <h2 className="text-sm font-extrabold text-white flex items-center gap-2 border-b border-brand-border/55 pb-3">
-              <Calendar className="h-4.5 w-4.5 text-purple-400" />
-              Activity Heatmap (Global)
-            </h2>
-            <CalendarHeatmap data={globalHeatmap} />
-          </div>
+          {/* COMPETITIVE PROGRAMMING CONTEST HUB */}
+          <ContestsHub />
 
           {/* REAL-TIME ACTIVE ACTIVITY STREAM */}
           <div className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-4">
@@ -2018,29 +2842,29 @@ export default function LandingPage() {
 
                             {/* Sidebar outcomes & strengths */}
                             <div className="flex flex-col gap-6">
-                              {/* Expected outcomes */}
+                              {/* Placement Potential Analysis */}
                               <div className="border border-brand-border bg-brand-bg/40 p-5 rounded-3xl flex flex-col gap-4 text-left">
                                 <span className="text-[10px] font-black text-[#EAB308] uppercase tracking-widest flex items-center gap-1.5">
                                   <Target className="h-3.5 w-3.5" />
-                                  Expected Outcomes
+                                  Placement Potential Analysis
                                 </span>
                                 <div className="space-y-3.5">
                                   <div className="flex flex-col">
                                     <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Placement Readiness</span>
                                     <span className="text-xs font-black text-white mt-1">
-                                      {activeProfileDetails.aiAnalysis?.placementReadiness || "N/A"}
+                                      {activeProfileDetails.aiAnalysis?.placementReadiness || "Not available from platform."}
                                     </span>
                                   </div>
                                   <div className="flex flex-col">
                                     <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">CP Potential</span>
                                     <span className="text-xs font-black text-white mt-1">
-                                      {activeProfileDetails.aiAnalysis?.overallPotential || "N/A"}
+                                      {activeProfileDetails.aiAnalysis?.overallPotential || "Not available from platform."}
                                     </span>
                                   </div>
                                   <div className="flex flex-col">
-                                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">6-Month Target Rating</span>
+                                    <span className="text-[9px] font-black text-zinc-500 uppercase tracking-widest">Target Benchmark Rating</span>
                                     <span className="text-xs font-black text-[#22C55E] mt-1">
-                                      {activeProfileDetails.aiAnalysis?.expectedRating6Months || "N/A"}
+                                      {activeProfileDetails.aiAnalysis?.expectedRating6Months || "Not available from platform."}
                                     </span>
                                   </div>
                                 </div>

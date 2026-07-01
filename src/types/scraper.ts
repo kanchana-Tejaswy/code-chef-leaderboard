@@ -43,6 +43,7 @@ export interface ScrapedData {
   difficultyDistribution?: any;
   activitySummary?: any;
   statisticDetails?: any;
+  aiAnalysis?: any;
 }
 
 export interface IPlatformScraper {

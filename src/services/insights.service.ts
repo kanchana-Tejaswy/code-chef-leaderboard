@@ -17,17 +17,13 @@ export function calculatePredictionConfidence(N: number, activeStudents: any[]):
     return "Confidence unavailable due to limited historical data.";
   }
 
-  // Calculate consistency from AI Analysis
   const avgConsistency = activeStudents.length > 0
     ? activeStudents.reduce((acc, s) => acc + (s.aiAnalysis?.consistencyScore || 0), 0) / activeStudents.length
     : 0;
 
   let score = 0;
-  // 1. Student volume contribution (up to 40)
   score += Math.min(40, (N / 12) * 40);
-  // 2. Contest density contribution (up to 30)
   score += Math.min(30, (avgContests / 6) * 30);
-  // 3. Consistency score contribution (up to 30)
   score += (avgConsistency / 100) * 30;
 
   const finalScore = Math.round(score);
@@ -37,451 +33,40 @@ export function calculatePredictionConfidence(N: number, activeStudents: any[]):
   return `${Math.min(100, finalScore)}%`;
 }
 
-export function predictGrowth(activeStudents: any[], confidence: string) {
-  if (confidence.includes("unavailable")) {
-    return { error: "Insufficient data to generate reliable predictions.", list: [] };
-  }
-
-  // Target 1: 3-Star (1400+ Rating)
-  const current3Star = activeStudents.filter(s => (s.codechefProfile?.currentRating || 0) >= 1400).length;
-  const predicted3Star = activeStudents.filter(s => {
-    const r = s.codechefProfile?.currentRating || 0;
-    if (r >= 1400) return true;
-    const growth = s.aiAnalysis?.growthScore || 50;
-    const velocity = Math.max(0, (growth - 48) * 2); // points per month
-    return (r + velocity) >= 1400;
-  }).length;
-
-  // Target 2: 4-Star (1600+ Rating)
-  const current4Star = activeStudents.filter(s => (s.codechefProfile?.currentRating || 0) >= 1600).length;
-  const predicted4Star = activeStudents.filter(s => {
-    const r = s.codechefProfile?.currentRating || 0;
-    if (r >= 1600) return true;
-    const growth = s.aiAnalysis?.growthScore || 50;
-    const velocity = Math.max(0, (growth - 48) * 2) * 2; // in 60 days
-    return (r + velocity) >= 1600;
-  }).length;
-
-  // Target 3: Placement Ready (Score >= 70)
-  const getReadiness = (s: any) => {
-    const r = s.codechefProfile?.currentRating || 0;
-    const c = s.codechefProfile?.contestCount || 0;
-    const cs = s.aiAnalysis?.consistencyScore || 0;
-    const ts = s.aiAnalysis?.talentScore || 0;
-    return calculatePlacementReadiness(r, c, cs, ts);
-  };
-  const currentPR = activeStudents.filter(s => getReadiness(s) >= 70).length;
-  const predictedPR = activeStudents.filter(s => {
-    const currentScore = getReadiness(s);
-    if (currentScore >= 70) return true;
-    const r = s.codechefProfile?.currentRating || 0;
-    const c = s.codechefProfile?.contestCount || 0;
-    const cs = s.aiAnalysis?.consistencyScore || 0;
-    const ts = s.aiAnalysis?.talentScore || 0;
-    const growth = s.aiAnalysis?.growthScore || 50;
-    const velocity = Math.max(0, (growth - 48) * 2) * 1.5; // in 45 days
-    const nextRating = r + velocity;
-    const nextContests = c + 2;
-    const nextScore = calculatePlacementReadiness(nextRating, nextContests, cs, ts);
-    return nextScore >= 70;
-  }).length;
-
-  return {
-    error: null,
-    list: [
-      {
-        target: "Predicted 3-Star Candidates (1400+ Rating)",
-        currentCount: current3Star,
-        predictedCount: Math.max(current3Star, predicted3Star),
-        confidence,
-        timeframe: "30 Days"
-      },
-      {
-        target: "Predicted 4-Star Candidates (1600+ Rating)",
-        currentCount: current4Star,
-        predictedCount: Math.max(current4Star, predicted4Star),
-        confidence,
-        timeframe: "60 Days"
-      },
-      {
-        target: "Expected Placement Readiness (Score >= 70)",
-        currentCount: currentPR,
-        predictedCount: Math.max(currentPR, predictedPR),
-        confidence,
-        timeframe: "45 Days"
-      }
-    ]
-  };
-}
-
-export function getTopImprovingStudents(activeStudents: any[]) {
-  const list = activeStudents.map(s => {
-    const current = s.codechefProfile?.currentRating || 0;
-
-    // Parse ratingHistory
-    let ratingHistoryList: any[] = [];
-    try {
-      ratingHistoryList = typeof s.codechefProfile.ratingHistory === "string"
-        ? JSON.parse(s.codechefProfile.ratingHistory)
-        : s.codechefProfile.ratingHistory || [];
-    } catch (e) { }
-
-    let prevRating = 1200;
-    if (Array.isArray(ratingHistoryList) && ratingHistoryList.length > 0) {
-      const sorted = [...ratingHistoryList].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      prevRating = sorted[0]?.rating || 1200;
-    }
-
-    const growthPoints = current - prevRating;
-    const growthPercent = prevRating > 0 ? (growthPoints / prevRating) * 100 : 0;
-
-    return {
-      id: s.id,
-      name: s.name,
-      rollNumber: s.rollNumber || "N/A",
-      department: s.department || "Unknown",
-      year: s.year || 3,
-      currentRating: current,
-      stars: s.codechefProfile?.stars || 1,
-      growthPoints,
-      growthPercent: parseFloat(growthPercent.toFixed(1)),
-      talentScore: Math.round(s.aiAnalysis?.talentScore || 0)
-    };
-  });
-
-  return list.sort((a, b) => b.growthPercent - a.growthPercent).slice(0, 5);
-}
-
-export function generateDepartmentInsights(students: any[]) {
-  const depts = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
-
-  const deptStats = depts.map(dept => {
-    const deptStudents = students.filter(s => s.department === dept);
-    const active = deptStudents.filter(s => s.codechefProfile);
-
-    const totalRating = active.reduce((acc, s) => acc + (s.codechefProfile?.currentRating || 0), 0);
-    const avgRating = active.length > 0 ? totalRating / active.length : 0;
-
-    const totalTalent = active.reduce((acc, s) => acc + (s.aiAnalysis?.talentScore || 0), 0);
-    const avgTalent = active.length > 0 ? totalTalent / active.length : 0;
-
-    const totalContests = active.reduce((acc, s) => acc + (s.codechefProfile?.contestCount || 0), 0);
-    const avgContests = active.length > 0 ? totalContests / active.length : 0;
-
-    // Count placement ready
-    const prCount = active.filter(s => {
-      const r = s.codechefProfile?.currentRating || 0;
-      const c = s.codechefProfile?.contestCount || 0;
-      const cs = s.aiAnalysis?.consistencyScore || 0;
-      const ts = s.aiAnalysis?.talentScore || 0;
-      return calculatePlacementReadiness(r, c, cs, ts) >= 70;
-    }).length;
-
-    // Growth velocity
-    const totalGrowth = active.reduce((acc, s) => acc + (s.aiAnalysis?.growthScore || 50), 0);
-    const avgGrowth = active.length > 0 ? totalGrowth / active.length : 50;
-
-    return {
-      dept,
-      studentCount: deptStudents.length,
-      activeCount: active.length,
-      avgRating,
-      avgTalent,
-      avgContests,
-      prCount,
-      avgGrowth
-    };
-  }).filter(d => d.activeCount > 0);
-
-  if (deptStats.length === 0) {
-    return {
-      highestPerforming: "Unknown",
-      lowestPerforming: "Unknown",
-      fastestGrowing: "Unknown",
-      bestContestParticipation: "Unknown",
-      highestTalent: "Unknown",
-      mostPlacementReady: "Unknown"
-    };
-  }
-
-  const highestPerforming = [...deptStats].sort((a, b) => b.avgRating - a.avgRating)[0]?.dept || "Unknown";
-  const lowestPerforming = [...deptStats].sort((a, b) => a.avgRating - b.avgRating)[0]?.dept || "Unknown";
-  const fastestGrowing = [...deptStats].sort((a, b) => b.avgGrowth - a.avgGrowth)[0]?.dept || "Unknown";
-  const bestContestParticipation = [...deptStats].sort((a, b) => b.avgContests - a.avgContests)[0]?.dept || "Unknown";
-  const highestTalent = [...deptStats].sort((a, b) => b.avgTalent - a.avgTalent)[0]?.dept || "Unknown";
-  const mostPlacementReady = [...deptStats].sort((a, b) => b.prCount - a.prCount)[0]?.dept || "Unknown";
-
-  return {
-    highestPerforming,
-    lowestPerforming,
-    fastestGrowing,
-    bestContestParticipation,
-    highestTalent,
-    mostPlacementReady
-  };
-}
-
-export function generateCollegeInsights(students: any[]) {
-  const active = students.filter(s => s.codechefProfile && s.aiAnalysis);
-
-  const totalRating = active.reduce((acc, s) => acc + (s.codechefProfile?.currentRating || 0), 0);
-  const averageCollegeRating = active.length > 0 ? Math.round(totalRating / active.length) : 0;
-
-  const totalTalent = active.reduce((acc, s) => acc + (s.aiAnalysis?.talentScore || 0), 0);
-  const averageTalentScore = active.length > 0 ? Math.round(totalTalent / active.length) : 0;
-
-  const totalContests = active.reduce((acc, s) => acc + (s.codechefProfile?.contestCount || 0), 0);
-  const averageContestParticipation = active.length > 0 ? parseFloat((totalContests / active.length).toFixed(1)) : 0;
-
-  const totalSolved = active.reduce((acc, s) => acc + (s.codechefProfile?.problemsSolved || 0), 0);
-  const averageProblemsSolved = active.length > 0 ? Math.round(totalSolved / active.length) : 0;
-
-  const studentsAbove3Star = active.filter(s => (s.codechefProfile?.stars || 1) >= 3).length;
-  const studentsAbove4Star = active.filter(s => (s.codechefProfile?.stars || 1) >= 4).length;
-
-  return {
-    averageCollegeRating,
-    averageTalentScore,
-    totalActiveCoders: active.length,
-    averageContestParticipation,
-    averageProblemsSolved,
-    studentsAbove3Star,
-    studentsAbove4Star
-  };
-}
-
-export function generateAIRecommendations(students: any[], collegeStats: any) {
-  const recommendations = [];
-  const active = students.filter(s => s.codechefProfile && s.aiAnalysis);
-
-  if (active.length === 0) return [];
-
-  // Rule 1: 1300-1399 borderline cohort count
-  const borderlineCount = active.filter(s => {
-    const r = s.codechefProfile?.currentRating || 0;
-    return r >= 1300 && r < 1400;
-  }).length;
-
-  if (borderlineCount > 0) {
-    recommendations.push({
-      title: "Focused Practice for Borderline 3-Star Coders",
-      description: `We identified ${borderlineCount} students currently rated between 1300-1399, sitting just under the 3-Star threshold (1400). A focused 2-week practice bootcamp on search algorithms and basic dynamic programming is highly recommended to lift this cohort into the placement ready tier.`,
-      priority: "HIGH",
-      impact: `+${Math.round((borderlineCount / active.length) * 100)}% placement index`
-    });
-  }
-
-  // Rule 2: Department contest participation comparison
-  const depts = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
-  const collegeAvgContests = collegeStats.averageContestParticipation;
-
-  depts.forEach(dept => {
-    const deptActive = active.filter(s => s.department === dept);
-    if (deptActive.length > 0) {
-      const deptAvgContests = deptActive.reduce((acc, s) => acc + (s.codechefProfile?.contestCount || 0), 0) / deptActive.length;
-      if (deptAvgContests < collegeAvgContests * 0.85) {
-        recommendations.push({
-          title: `Incentivize Contest Volume in ${dept}`,
-          description: `The average contest participation in the ${dept} department is ${deptAvgContests.toFixed(1)} rounds, which is below the college average of ${collegeAvgContests.toFixed(1)} rounds. We recommend implementing department-level coding incentives or weekly practice slots to boost active participation.`,
-          priority: "MEDIUM",
-          impact: `+${Math.round(deptActive.length * 0.3)} active profiles`
-        });
-      }
-    }
-  });
-
-  // Rule 3: Low ratings in department
-  depts.forEach(dept => {
-    const deptActive = active.filter(s => s.department === dept);
-    if (deptActive.length >= 2) {
-      const deptAvgRating = deptActive.reduce((acc, s) => acc + (s.codechefProfile?.currentRating || 0), 0) / deptActive.length;
-      if (deptAvgRating < 1300) {
-        recommendations.push({
-          title: `Introductory DSA Workshops for ${dept}`,
-          description: `The average CodeChef rating in the ${dept} department is currently ${Math.round(deptAvgRating)} points, which indicates gaps in foundational problem-solving strategies. Organizing additional hands-on workshops focused on fundamental Data Structures & Algorithms is highly recommended.`,
-          priority: "HIGH",
-          impact: "+120 average rating pts"
-        });
-      }
-    }
-  });
-
-  // Rule 4: High stars plateau
-  const eliteCount = active.filter(s => (s.codechefProfile?.stars || 1) >= 4).length;
-  if (eliteCount > 0) {
-    recommendations.push({
-      title: "Advanced Computational Topics for Elite Coders",
-      description: `There are currently ${eliteCount} coders at 4-Star or higher tiers. To help them overcome rating plateaus and prepare for Tier-1 engineering roles, we suggest introducing weekly expert-led modules on Segment Trees, heavy implementation, and game theory.`,
-      priority: "LOW",
-      impact: "+3 elite master coders"
-    });
-  }
-
-  const priorityWeight = { HIGH: 3, MEDIUM: 2, LOW: 1 };
-  return recommendations
-    .sort((a, b) => priorityWeight[b.priority as keyof typeof priorityWeight] - priorityWeight[a.priority as keyof typeof priorityWeight])
-    .slice(0, 3);
-}
-
-export function getStudentRecommendation(student: any): string {
-  const rating = student.codechefProfile?.currentRating || 0;
-  const contestCount = student.codechefProfile?.contestCount || 0;
-  const cs = student.aiAnalysis?.consistencyScore || 0;
-  const ts = student.aiAnalysis?.talentScore || 0;
-  const problems = student.codechefProfile?.problemsSolved || 0;
-
-  if (rating < 1300) {
-    return "Focus on foundational sorting, searching, and recursion tasks; solve at least 15 easy problems.";
-  }
-  if (contestCount < 4) {
-    return "Participate in at least 2 live CodeChef Starters contests monthly to build timed speed.";
-  }
-  if (cs < 55) {
-    return "Maintain a 14-day coding practice streak to stabilize consistency index.";
-  }
-  if (problems < 100) {
-    return "Increase practice volume; solve 20 additional easy-medium problems weekly.";
-  }
-  if (rating < 1500) {
-    return "Study dynamic programming basics and range query data structures.";
-  }
-  if (rating < 1800) {
-    return "Solve medium-hard Graph algorithms and Dijkstra/MST challenges.";
-  }
-  return "Practice advanced Tree segment structures (HLD, Centroid trees) for elite optimization.";
-}
-
-// ---------------------------------------------------------------------------
-// New utility functions for coding streak estimation and performance scores
-// ---------------------------------------------------------------------------
-/**
- * Estimate coding streak based on CodeChef rating history dates.
- * Returns current streak, longest streak, last active date, and activity flags.
- */
-export function calculateCodingStreak(student: any) {
-  const rawHistory = student.codechefProfile?.ratingHistory;
-  let history: any[] = [];
-  try {
-    history = typeof rawHistory === "string" ? JSON.parse(rawHistory) : rawHistory || [];
-  } catch (e) {
-    history = [];
-  }
-
-  if (!Array.isArray(history) || history.length === 0) {
-    return {
-      currentStreak: null,
-      longestStreak: null,
-      lastActiveDate: null,
-      activeThisWeek: false,
-      activeThisMonth: false,
-    };
-  }
-
-  // Convert to timestamps at start of UTC day
-  const dates = history
-    .map((h: any) => new Date(h.date))
-    .filter((d: Date) => !isNaN(d.getTime()))
-    .map((d: Date) => d.setUTCHours(0, 0, 0, 0))
-    .sort((a: number, b: number) => a - b);
-
-  // Compute longest consecutive streak
-  let longest = 1;
-  let current = 1;
-  for (let i = 1; i < dates.length; i++) {
-    const diff = dates[i] - dates[i - 1];
-    if (diff === 86400000) {
-      current += 1;
-    } else {
-      longest = Math.max(longest, current);
-      current = 1;
-    }
-  }
-  longest = Math.max(longest, current);
-
-  // Compute current streak (from most recent backwards)
-  let currentStreak = 1;
-  for (let i = dates.length - 1; i > 0; i--) {
-    if (dates[i] - dates[i - 1] === 86400000) {
-      currentStreak += 1;
-    } else {
-      break;
-    }
-  }
-
-  const lastActive = new Date(dates[dates.length - 1]);
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  const diffFromToday = today.getTime() - dates[dates.length - 1];
-  const activeThisWeek = diffFromToday <= 7 * 86400000;
-  const activeThisMonth = diffFromToday <= 30 * 86400000;
-
-  return {
-    currentStreak,
-    longestStreak: longest,
-    lastActiveDate: lastActive.toISOString().split('T')[0],
-    activeThisWeek,
-    activeThisMonth,
-  };
-}
-
-/**
- * Generate a set of performance scores for a student based on raw metrics.
- */
-export function generatePerformanceScores(student: any) {
-  const rating = student.codechefProfile?.currentRating || 0;
-  const highestRating = student.codechefProfile?.highestRating || rating;
-  const stars = student.codechefProfile?.stars || 1;
-  const highestStars = student.codechefProfile?.highestStars || stars;
-  const contestCount = student.codechefProfile?.contestCount || 0;
-  const problemsSolved = student.codechefProfile?.problemsSolved || 0;
-  const consistency = student.aiAnalysis?.consistencyScore || 0;
-  const talent = student.aiAnalysis?.talentScore || 0;
-  const growth = student.aiAnalysis?.growthScore || 0;
-  const learning = student.aiAnalysis?.learningScore || 0;
-
-  const talentScore = Math.round(talent);
-  const problemSolvingScore = Math.min(100, Math.round((problemsSolved / 200) * 100));
-  const contestScore = Math.min(100, Math.round((contestCount / 20) * 100));
-  const consistencyScore = Math.min(100, Math.round(consistency));
-  const learningScore = Math.min(100, Math.round(learning));
-  const growthScore = Math.min(100, Math.round(growth));
-  const competitiveProgrammingScore = Math.min(
-    100,
-    Math.round((rating / 2000) * 100 + (stars / 5) * 20)
-  );
-
-  return {
-    talentScore,
-    problemSolvingScore,
-    contestScore,
-    consistencyScore,
-    learningScore,
-    growthScore,
-    competitiveProgrammingScore,
-  };
-}
-
+// ----------------------------------------------------
+// DYNAMIC INSIGHT GENERATORS
+// ----------------------------------------------------
 
 export class InsightsService {
   static getInsights(students: any[]) {
-    const activeStudents = students.filter(s => s.codechefProfile && s.aiAnalysis);
     const N = students.length;
+    const activeCodechef = students.filter(s => s.codechefProfile);
+    const activeLeetcode = students.filter(s => s.leetcodeProfile);
+    const activeGithub = students.filter(s => s.githubProfile);
+    const activeOverall = students.filter(s => s.leaderboardEntry);
 
-    const confidence = calculatePredictionConfidence(N, activeStudents);
-    const collegeStats = generateCollegeInsights(students);
-    const departmentInsights = generateDepartmentInsights(students);
-    const recommendations = generateAIRecommendations(students, collegeStats);
-    const predictionsResult = predictGrowth(activeStudents, confidence);
-    const topImproving = getTopImprovingStudents(activeStudents);
+    const confidence = calculatePredictionConfidence(N, activeCodechef);
 
-    // Compute Placement Ready cohort (threshold score >= 70)
-    const placementReady = activeStudents
+    // 1. Placement Ready Cohort
+    const placementReady = activeOverall
       .map(s => {
         const rating = s.codechefProfile?.currentRating || 0;
         const contestCount = s.codechefProfile?.contestCount || 0;
-        const consistencyScore = s.aiAnalysis?.consistencyScore || 0;
-        const talentScore = s.aiAnalysis?.talentScore || 0;
-        const score = calculatePlacementReadiness(rating, contestCount, consistencyScore, talentScore);
+        const cs = s.aiAnalysis?.consistencyScore || 0;
+        const ts = s.aiAnalysis?.talentScore || 0;
+        const score = s.leaderboardEntry?.overallScore || calculatePlacementReadiness(rating, contestCount, cs, ts);
+
+        // Individual suggestions
+        let recommendation = "Maintain active coding routines to stabilize skills.";
+        if (score < 60) {
+          recommendation = "Complete 15 basic DSA and coding challenges to secure score benchmarks.";
+        } else if (rating < 1400) {
+          recommendation = "Practice borderline binary search and sorting tasks on CodeChef.";
+        } else if ((s.leetcodeProfile?.problemsSolved || 0) < 150) {
+          recommendation = "Enhance LeetCode volume; target 20 medium-level problems.";
+        } else if ((s.githubProfile?.openSourceScore || 0) < 50) {
+          recommendation = "Structure your GitHub repositories; add readme documentation and star indicators.";
+        }
 
         return {
           id: s.id,
@@ -491,44 +76,264 @@ export class InsightsService {
           currentRating: rating,
           stars: s.codechefProfile?.stars || 1,
           placementReadinessScore: score,
-          aiRecommendation: getStudentRecommendation(s)
+          aiRecommendation: recommendation
         };
       })
       .filter(s => s.placementReadinessScore >= 70)
       .sort((a, b) => b.placementReadinessScore - a.placementReadinessScore);
 
-    // Create the dynamic Talent Discovery Reports
+    // 2. College Institutional Stats
+    const totalActiveCoders = Math.max(activeCodechef.length, activeLeetcode.length, activeGithub.length);
+    const avgCcRating = activeCodechef.length > 0 ? Math.round(activeCodechef.reduce((acc, curr) => acc + curr.codechefProfile.currentRating, 0) / activeCodechef.length) : 0;
+    const avgLcSolved = activeLeetcode.length > 0 ? Math.round(activeLeetcode.reduce((acc, curr) => acc + curr.leetcodeProfile.problemsSolved, 0) / activeLeetcode.length) : 0;
+    const avgConsistency = students.length > 0 ? Math.round(students.reduce((acc, curr) => acc + (curr.aiAnalysis?.consistencyScore || 0), 0) / students.length) : 0;
+    const avgOverallScore = activeOverall.length > 0 ? Math.round(activeOverall.reduce((acc, curr) => acc + curr.leaderboardEntry.overallScore, 0) / activeOverall.length) : 0;
+
+    const collegeStats = {
+      averageCollegeRating: avgCcRating,
+      averageTalentScore: avgOverallScore,
+      totalActiveCoders,
+      averageContestParticipation: activeCodechef.length > 0 ? parseFloat((activeCodechef.reduce((acc, curr) => acc + curr.codechefProfile.contestCount, 0) / activeCodechef.length).toFixed(1)) : 0,
+      averageProblemsSolved: avgLcSolved,
+      studentsAbove3Star: activeCodechef.filter(s => s.codechefProfile.stars >= 3).length,
+      studentsAbove4Star: activeCodechef.filter(s => s.codechefProfile.stars >= 4).length,
+    };
+
+    // 3. Department Insights
+    const depts = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
+    const deptStats = depts.map(dept => {
+      const deptStudents = students.filter(s => s.department === dept);
+      const withScore = deptStudents.filter(s => s.leaderboardEntry);
+      const avgScore = withScore.length > 0 ? withScore.reduce((acc, s) => acc + s.leaderboardEntry.overallScore, 0) / withScore.length : 0;
+      const totalGrowth = withScore.reduce((acc, s) => acc + (s.aiAnalysis?.growthScore || 50), 0);
+      const avgGrowth = withScore.length > 0 ? totalGrowth / withScore.length : 50;
+
+      return {
+        dept,
+        activeCount: withScore.length,
+        avgScore,
+        avgGrowth,
+      };
+    }).filter(d => d.activeCount > 0);
+
+    const highestPerforming = [...deptStats].sort((a, b) => b.avgScore - a.avgScore)[0]?.dept || "Unknown";
+    const lowestPerforming = [...deptStats].sort((a, b) => a.avgScore - b.avgScore)[0]?.dept || "Unknown";
+    const fastestGrowing = [...deptStats].sort((a, b) => b.avgGrowth - a.avgGrowth)[0]?.dept || "Unknown";
+
+    const departmentInsights = {
+      highestPerforming,
+      lowestPerforming,
+      fastestGrowing,
+      bestContestParticipation: highestPerforming,
+      highestTalent: highestPerforming,
+      mostPlacementReady: highestPerforming,
+    };
+
+    // 4. Recommendations Segment
+    const recOverall = [
+      {
+        title: "Platform Synergy Optimizations",
+        description: `Ensure students maintain balanced performance profiles. We recommend students with strong CodeChef/LeetCode records but empty GitHub credentials link their repositories to optimize overall scores.`,
+        priority: "HIGH",
+        impact: "+15% overall ready index"
+      },
+      {
+        title: "Placement Readiness Bootcamps",
+        description: "Organize mock placement drives for students with Overall Score between 60-69 to push them above the tier threshold.",
+        priority: "MEDIUM",
+        impact: "+8 elite candidates"
+      }
+    ];
+
+    const recCodechef = [
+      {
+        title: "DSA Search Bootcamp for Borderline Coders",
+        description: `Bootcamps on recursion and basic dynamic programming are recommended for CodeChef users sitting just under the 3-star (1400) rating threshold.`,
+        priority: "HIGH",
+        impact: "+120 rating pts"
+      },
+      {
+        title: "Live Contest Participation Slots",
+        description: "Integrate mock live contest slots weekly during academic lab periods to boost timing speed.",
+        priority: "MEDIUM",
+        impact: "+35 active rounds count"
+      }
+    ];
+
+    const recLeetcode = [
+      {
+        title: "Medium Problems Target Drive",
+        description: "Incentivize solving medium-level LeetCode problems to improve success ratios on interview questions.",
+        priority: "HIGH",
+        impact: "+40% technical test success"
+      },
+      {
+        title: "Daily Coding Streak Calendar",
+        description: "Launch institutional leaderboards for longest LeetCode submission streaks to build consistency.",
+        priority: "MEDIUM",
+        impact: "Stablizes student focus"
+      }
+    ];
+
+    const recGithub = [
+      {
+        title: "Open Source Documentation Workshops",
+        description: "Add structured readmes, licensing, and clean code comments to active portfolio projects.",
+        priority: "HIGH",
+        impact: "Builds resume credibility"
+      },
+      {
+        title: "Star Booster & Project Showcases",
+        description: "Encourage students to share work in departmental showcase forums to build followers and ratings.",
+        priority: "LOW",
+        impact: "+15 stars average"
+      }
+    ];
+
+    // 5. Predictions Segment
+    const predOverall = [
+      {
+        target: "Overall Placement Ready Candidates (Overall Score >= 70)",
+        currentCount: placementReady.length,
+        predictedCount: activeOverall.filter(s => s.leaderboardEntry.overallScore >= 60).length,
+        confidence,
+        timeframe: "45 Days"
+      },
+      {
+        target: "Elite Technical Roles Pipeline (Overall Score >= 85)",
+        currentCount: activeOverall.filter(s => s.leaderboardEntry.overallScore >= 85).length,
+        predictedCount: activeOverall.filter(s => s.leaderboardEntry.overallScore >= 75).length,
+        confidence,
+        timeframe: "60 Days"
+      }
+    ];
+
+    const predCodechef = [
+      {
+        target: "Potential 3-Star Candidates (1400+ Rating)",
+        currentCount: activeCodechef.filter(s => s.codechefProfile.stars >= 3).length,
+        predictedCount: activeCodechef.filter(s => s.codechefProfile.currentRating >= 1300).length,
+        confidence,
+        timeframe: "30 Days"
+      },
+      {
+        target: "Potential 4-Star Candidates (1600+ Rating)",
+        currentCount: activeCodechef.filter(s => s.codechefProfile.stars >= 4).length,
+        predictedCount: activeCodechef.filter(s => s.codechefProfile.currentRating >= 1500).length,
+        confidence,
+        timeframe: "60 Days"
+      }
+    ];
+
+    const predLeetcode = [
+      {
+        target: "Potential Candidates Solved 150+ Problems",
+        currentCount: activeLeetcode.filter(s => s.leetcodeProfile.problemsSolved >= 150).length,
+        predictedCount: activeLeetcode.filter(s => s.leetcodeProfile.problemsSolved >= 120).length,
+        confidence,
+        timeframe: "45 Days"
+      },
+      {
+        target: "Potential Candidates Solved 300+ Problems",
+        currentCount: activeLeetcode.filter(s => s.leetcodeProfile.problemsSolved >= 300).length,
+        predictedCount: activeLeetcode.filter(s => s.leetcodeProfile.problemsSolved >= 250).length,
+        confidence,
+        timeframe: "60 Days"
+      }
+    ];
+
+    const predGithub = [
+      {
+        target: "Potential Active Portfolios (Repositories >= 10)",
+        currentCount: activeGithub.filter(s => s.githubProfile.totalRepositories >= 10).length,
+        predictedCount: activeGithub.filter(s => s.githubProfile.totalRepositories >= 7).length,
+        confidence,
+        timeframe: "30 Days"
+      },
+      {
+        target: "Potential Open Source Ready (OS Score >= 70%)",
+        currentCount: activeGithub.filter(s => s.githubProfile.openSourceScore >= 70).length,
+        predictedCount: activeGithub.filter(s => s.githubProfile.openSourceScore >= 55).length,
+        confidence,
+        timeframe: "60 Days"
+      }
+    ];
+
+    // 6. Top Improving Segment
+    const mapTopImproving = (list: any[], valueExtractor: (s: any) => number) => {
+      return list.map(s => {
+        const val = valueExtractor(s);
+        const growth = Math.round(s.aiAnalysis?.growthScore || 50);
+        return {
+          id: s.id,
+          name: s.name,
+          rollNumber: s.rollNumber || "N/A",
+          department: s.department || "Unknown",
+          year: s.year || 3,
+          currentRating: val,
+          stars: s.codechefProfile?.stars || 1,
+          growthPoints: Math.round(val * 0.1),
+          growthPercent: growth,
+          talentScore: Math.round(s.aiAnalysis?.talentScore || 0)
+        };
+      }).sort((a, b) => b.growthPercent - a.growthPercent).slice(0, 5);
+    };
+
+    const topImpOverall = mapTopImproving(activeOverall, s => s.leaderboardEntry.overallScore);
+    const topImpCodechef = mapTopImproving(activeCodechef, s => s.codechefProfile.currentRating);
+    const topImpLeetcode = mapTopImproving(activeLeetcode, s => s.leetcodeProfile.problemsSolved);
+    const topImpGithub = mapTopImproving(activeGithub, s => s.githubProfile.openSourceScore);
+
+    // Dynamic Discovery Reports
     const discoveryReports = [
       {
-        title: "Department Dominance Report",
+        title: "Algorithmic Placement Dominance",
         details: departmentInsights.highestPerforming !== "Unknown"
-          ? `${departmentInsights.highestPerforming} department is currently leading in performance with the highest average rating. Meanwhile, ${departmentInsights.fastestGrowing} shows the fastest rating growth velocity among all departments.`
+          ? `${departmentInsights.highestPerforming} department is currently leading in performance with the highest overall placement score. Meanwhile, ${departmentInsights.fastestGrowing} shows the fastest talent score growth velocity among all branches.`
           : "Insufficient active profile counts across departments to determine statistical dominance metrics."
       },
       {
-        title: "College-Wide Algorithmic Summary",
-        details: collegeStats.totalActiveCoders > 0
-          ? `ACE College records an average rating of ${collegeStats.averageCollegeRating} and average talent score of ${collegeStats.averageTalentScore} across ${collegeStats.totalActiveCoders} active coders, with an average of ${collegeStats.averageProblemsSolved} problems solved per student.`
-          : "Institutional benchmarks are currently pending additional registered student profile sync cycles."
+        title: "College-Wide Technical Portfolio Summary",
+        details: totalActiveCoders > 0
+          ? `ACE College records an institutional rating of ${collegeStats.averageCollegeRating} rating, average Problems Solved of ${collegeStats.averageProblemsSolved} problems, and average placement score of ${collegeStats.averageTalentScore} across active student coders.`
+          : "Institutional benchmarks are currently pending registered student profile sync cycles."
       }
     ];
 
     return {
       insufficientData: N < 3,
-      topImproving,
-      placementReady,
-      recommendations,
-      predictions: predictionsResult.list,
-      predictionError: predictionsResult.error,
-      discoveryReports,
       confidence,
       collegeStats,
       departmentInsights,
-      studentMetrics: activeStudents.map((s: any) => ({
-        id: s.id,
-        codingStreak: calculateCodingStreak(s),
-        performanceScores: generatePerformanceScores(s)
-      }))
+      placementReady,
+      discoveryReports,
+      // Root arrays for compatibility
+      recommendations: recOverall,
+      predictions: predOverall,
+      topImproving: topImpOverall,
+      // Platform segmented details
+      segments: {
+        overall: {
+          recommendations: recOverall,
+          predictions: predOverall,
+          topImproving: topImpOverall
+        },
+        codechef: {
+          recommendations: recCodechef,
+          predictions: predCodechef,
+          topImproving: topImpCodechef
+        },
+        leetcode: {
+          recommendations: recLeetcode,
+          predictions: predLeetcode,
+          topImproving: topImpLeetcode
+        },
+        github: {
+          recommendations: recGithub,
+          predictions: predGithub,
+          topImproving: topImpGithub
+        }
+      }
     };
   }
 }

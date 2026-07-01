@@ -1,13 +1,12 @@
 import { prisma } from "@/lib/prisma";
-import { ScraperService } from "./scraper.service";
-import { AiEngineService } from "./ai-engine.service";
+import { AnalyticsService } from "./analytics.service";
 
 export type SyncTrigger = "SYSTEM_CRON" | "USER_MANUAL" | "ADMIN_FORCE";
 
 export class SyncService {
   /**
    * Performs sync for a single student.
-   * Scrapes CodeChef, updates profile, performs AI analysis, and updates leaderboard caches.
+   * Invokes parallel scrapes for active platforms, updates DB tables, and adjusts ratings caches.
    */
   static async syncStudent(
     studentId: string,
@@ -29,108 +28,27 @@ export class SyncService {
     }
 
     try {
-      // 2. Perform Scrapes for each active platform
-      let codechefData = null;
-      let leetcodeData = null;
-      let githubData = null;
-
-      if (student.codechefUsername) {
-        try {
-          codechefData = await ScraperService.scrapeCodechef(student.codechefUsername);
-        } catch (err) {
-          console.error(`Failed to scrape CodeChef for student ${studentId}:`, err);
-        }
-      }
-
-      if (student.leetcodeUsername) {
-        try {
-          leetcodeData = await ScraperService.scrapeLeetcode(student.leetcodeUsername);
-        } catch (err) {
-          console.error(`Failed to scrape LeetCode for student ${studentId}:`, err);
-        }
-      }
-
-      if (student.githubUsername) {
-        try {
-          githubData = await ScraperService.scrapeGithub(student.githubUsername);
-        } catch (err) {
-          console.error(`Failed to scrape GitHub for student ${studentId}:`, err);
-        }
-      }
-
-      // Calculate individual scores (0-100)
-      const codechefScore = codechefData
-        ? Math.round(Math.min(100, (codechefData.currentRating / 2200) * 100))
-        : 0;
-
-      const leetcodeScore = leetcodeData
-        ? Math.round(Math.min(100, (leetcodeData.problemsSolved / 350) * 70 + (leetcodeData.currentRating > 0 ? (leetcodeData.currentRating / 2000) * 30 : 0)))
-        : 0;
-
-      const githubScore = githubData
-        ? Math.round(
-            Math.min(
-              100,
-              (((githubData.rawMetrics?.totalStars || 0) * 5 +
-                (githubData.rawMetrics?.totalForks || 0) * 10 +
-                (githubData.rawMetrics?.followers || 0) * 3 +
-                (githubData.rawMetrics?.totalRepositories || 0) * 2) /
-                100) *
-                50 +
-                (Object.keys(githubData.rawMetrics?.contributions || {}).length / 300) * 50
-            )
-          )
-        : 0;
-
-      // Compute weighted overall score based on configured platforms
-      let totalWeight = 0;
-      let weightedSum = 0;
-
-      if (student.codechefUsername && codechefData) {
-        weightedSum += codechefScore * 0.4;
-        totalWeight += 0.4;
-      }
-      if (student.leetcodeUsername && leetcodeData) {
-        weightedSum += leetcodeScore * 0.4;
-        totalWeight += 0.4;
-      }
-      if (student.githubUsername && githubData) {
-        weightedSum += githubScore * 0.2;
-        totalWeight += 0.2;
-      }
-
-      const overallScore = totalWeight > 0 ? Math.round(weightedSum / totalWeight) : 0;
-
-      // 3. Perform AI Analysis & Calculations (CodeChef/LeetCode combined metrics)
-      const analysis = AiEngineService.analyzeProfile({
-        currentRating: codechefData?.currentRating || (leetcodeData ? Math.round(leetcodeData.currentRating) : 1200),
-        highestRating: codechefData?.highestRating || (leetcodeData ? Math.round(leetcodeData.highestRating) : 1200),
-        stars: codechefData?.stars || (leetcodeData ? leetcodeData.stars : 1),
-        problemsSolved: (codechefData?.problemsSolved || 0) + (leetcodeData?.problemsSolved || 0),
-        contestCount: (codechefData?.contestCount || 0) + (leetcodeData?.contestCount || 0),
-        contests: codechefData?.contests || [],
-        fullySolvedCount: codechefData?.fullySolvedCount || (codechefData?.problemsSolved || 0) + (leetcodeData?.problemsSolved || 0),
-        partiallySolvedCount: codechefData?.partiallySolvedCount || 0,
-        bestContestRank: codechefData?.bestContestRank || null,
-        activeDaysCount: (codechefData?.activeDaysCount || 0) + (leetcodeData ? 30 : 0) + (githubData ? 50 : 0),
+      // 2. Call AnalyticsService to scrape and process in parallel
+      const analysisResult = await AnalyticsService.analyzeStudent({
+        codechefUrl: student.codechefUsername,
+        leetcodeUrl: student.leetcodeUsername,
+        githubUrl: student.githubUsername,
       });
 
-      // Override AI consistencyScore with overall consistency calculation if appropriate
-      if (leetcodeData && analysis.consistencyScore) {
-        analysis.consistencyScore = Math.round((analysis.consistencyScore + (leetcodeData.rawMetrics?.consistencyScore || 0)) / 2);
-      }
+      const { codechef, leetcode, github, overall } = analysisResult;
 
-      // 4. Update Database inside a transaction
+      // 3. Update Database inside a transaction
       await prisma.$transaction(async (tx) => {
-        // Fetch old leaderboard entry rating if exists
+        // Fetch old leaderboard entry overall score if exists
         const oldEntry = await tx.leaderboardEntry.findUnique({
           where: { studentId },
           select: { overallScore: true },
         });
         const oldOverall = oldEntry?.overallScore || 0;
 
-        // Update or insert CodeChef profile
-        if (codechefData) {
+        // Upsert CodeChef profile if data returned
+        if (codechef && codechef.data) {
+          const codechefData = codechef.data;
           await tx.codechefProfile.upsert({
             where: { studentId },
             create: {
@@ -211,8 +129,9 @@ export class SyncService {
           });
         }
 
-        // Update or insert LeetCode profile
-        if (leetcodeData) {
+        // Upsert LeetCode profile if data returned
+        if (leetcode && leetcode.data) {
+          const leetcodeData = leetcode.data;
           const metrics = leetcodeData.rawMetrics || {};
           await tx.leetcodeProfile.upsert({
             where: { studentId },
@@ -256,9 +175,20 @@ export class SyncService {
           });
         }
 
-        // Update or insert GitHub profile
-        if (githubData) {
+        // Upsert GitHub profile if data returned
+        if (github && github.data) {
+          const githubData = github.data;
           const metrics = githubData.rawMetrics || {};
+          const reposExtended = {
+            list: metrics.repos,
+            intelligence: metrics.intelligence,
+            commitAnalytics: metrics.commitAnalytics,
+            openSource: metrics.openSource,
+            portfolio: metrics.portfolio,
+            careerInsights: metrics.careerInsights,
+            profileDetails: metrics.profileDetails,
+            developerScore: metrics.developerScore
+          };
           await tx.githubProfile.upsert({
             where: { studentId },
             create: {
@@ -270,7 +200,7 @@ export class SyncService {
               followers: metrics.followers || 0,
               contributions: metrics.contributions as any,
               languages: metrics.languages as any,
-              repos: metrics.repos as any,
+              repos: reposExtended as any,
               commitTimeline: metrics.commitTimeline as any,
               openSourceScore: metrics.openSourceScore || 0,
               repoQualityScore: metrics.repoQualityScore as any,
@@ -284,7 +214,7 @@ export class SyncService {
               followers: metrics.followers || 0,
               contributions: metrics.contributions as any,
               languages: metrics.languages as any,
-              repos: metrics.repos as any,
+              repos: reposExtended as any,
               commitTimeline: metrics.commitTimeline as any,
               openSourceScore: metrics.openSourceScore || 0,
               repoQualityScore: metrics.repoQualityScore as any,
@@ -293,7 +223,8 @@ export class SyncService {
           });
         }
 
-        // Update or insert AI Analysis
+        // Upsert AI analysis using aggregated overall AI insights
+        const analysis = overall.ai;
         await tx.aiAnalysis.upsert({
           where: { studentId },
           create: {
@@ -315,8 +246,8 @@ export class SyncService {
             careerRecommendation: analysis.careerRecommendation,
             suggestedCompanies: analysis.suggestedCompanies as any,
             recommendedLearningPath: analysis.recommendedLearningPath as any,
-            recommendations: analysis.recommendations as any,
-            careerSuggestions: analysis.careerSuggestions as any,
+            recommendations: [] as any,
+            careerSuggestions: [] as any,
             generatedAt: new Date(),
           },
           update: {
@@ -337,8 +268,6 @@ export class SyncService {
             careerRecommendation: analysis.careerRecommendation,
             suggestedCompanies: analysis.suggestedCompanies as any,
             recommendedLearningPath: analysis.recommendedLearningPath as any,
-            recommendations: analysis.recommendations as any,
-            careerSuggestions: analysis.careerSuggestions as any,
             generatedAt: new Date(),
           },
         });
@@ -346,33 +275,33 @@ export class SyncService {
         // Determine trend direction
         let trendDirection = "NEUTRAL";
         if (oldOverall > 0) {
-          if (overallScore > oldOverall) trendDirection = "UP";
-          else if (overallScore < oldOverall) trendDirection = "DOWN";
+          if (overall.score > oldOverall) trendDirection = "UP";
+          else if (overall.score < oldOverall) trendDirection = "DOWN";
         }
 
-        // Update or insert Leaderboard cache entry
+        // Upsert Leaderboard Cache Entry
         await tx.leaderboardEntry.upsert({
           where: { studentId },
           create: {
             studentId,
-            rating: codechefData?.currentRating || 0,
-            stars: codechefData?.stars || 1,
+            rating: codechef?.data?.currentRating || 0,
+            stars: codechef?.data?.stars || 1,
             talentScore: analysis.talentScore,
-            overallScore,
-            codechefScore,
-            leetcodeScore,
-            githubScore,
+            overallScore: overall.score,
+            codechefScore: codechef?.score || 0,
+            leetcodeScore: leetcode?.score || 0,
+            githubScore: github?.score || 0,
             trendDirection,
             rank: 0,
           },
           update: {
-            rating: codechefData?.currentRating || 0,
-            stars: codechefData?.stars || 1,
+            rating: codechef?.data?.currentRating || 0,
+            stars: codechef?.data?.stars || 1,
             talentScore: analysis.talentScore,
-            overallScore,
-            codechefScore,
-            leetcodeScore,
-            githubScore,
+            overallScore: overall.score,
+            codechefScore: codechef?.score || 0,
+            leetcodeScore: leetcode?.score || 0,
+            githubScore: github?.score || 0,
             trendDirection,
           },
         });
@@ -388,12 +317,12 @@ export class SyncService {
         });
 
         // Save Activity Log
-        if (oldOverall > 0 && overallScore > oldOverall) {
+        if (oldOverall > 0 && overall.score > oldOverall) {
           await tx.activityLog.create({
             data: {
               eventType: "RATING_INCREASE",
               studentId,
-              message: `${student.name}'s overall score increased from ${oldOverall} to ${overallScore}!`,
+              message: `${student.name}'s overall score increased from ${oldOverall} to ${overall.score}!`,
             },
           });
         } else {
@@ -401,13 +330,13 @@ export class SyncService {
             data: {
               eventType: "SYNC_SUCCESS",
               studentId,
-              message: `${student.name}'s developer intelligence profile was successfully synced.`,
+              message: `${student.name}'s Unified Talent Profile was successfully synced.`,
             },
           });
         }
       });
 
-      // 5. Recalculate global ranks
+      // 4. Recalculate global ranks
       await this.recalculateLeaderboardRanks();
 
       return { success: true };

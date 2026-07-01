@@ -48,18 +48,31 @@ interface RegistrationGrowth {
   count: number;
 }
 
+interface PlatformDataset {
+  departmentPerformance: { name: string; value: number; activeCount: number }[];
+  distribution: { range: string; count: number }[];
+  growth: { month: string; count: number }[];
+}
+
 interface AnalyticsData {
   departmentPerformance: DeptPerformance[];
   ratingDistribution: DistributionBand[];
   talentScoreDistribution: DistributionBand[];
   contestParticipation: TimelineTrend[];
   monthlyGrowth: RegistrationGrowth[];
+  platforms?: {
+    overall: PlatformDataset;
+    codechef: PlatformDataset;
+    leetcode: PlatformDataset;
+    github: PlatformDataset;
+  };
 }
 
 export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overall" | "codechef" | "leetcode" | "github">("overall");
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -138,10 +151,49 @@ export default function AnalyticsPage() {
     );
   }
 
-  const globalAvgRating = Math.round(
-    data.departmentPerformance.reduce((acc, curr) => acc + curr.averageRating * curr.activeCount, 0) /
-      (totalProfiles || 1)
-  );
+  const activeDataset = data.platforms && data.platforms[activeTab]
+    ? data.platforms[activeTab]
+    : {
+        departmentPerformance: data.departmentPerformance.map((d) => ({ name: d.name, value: d.averageRating, activeCount: d.activeCount })),
+        distribution: data.ratingDistribution,
+        growth: data.monthlyGrowth,
+      };
+
+  const activeProfilesCount = activeDataset.departmentPerformance.reduce((acc, curr) => acc + curr.activeCount, 0);
+
+  const globalAvg = activeProfilesCount > 0
+    ? Math.round(activeDataset.departmentPerformance.reduce((acc, curr) => acc + curr.value * curr.activeCount, 0) / activeProfilesCount)
+    : 0;
+
+  const totalActivityVolume = activeDataset.growth.reduce((acc, curr) => acc + curr.count, 0);
+
+  const tabColor = {
+    overall: "#EAB308",
+    codechef: "#8B5CF6",
+    leetcode: "#F59E0B",
+    github: "#06B6D4",
+  }[activeTab];
+
+  const valueLabel = {
+    overall: "Average Overall Score",
+    codechef: "Global Avg Rating",
+    leetcode: "Avg Problems Solved",
+    github: "Avg OS Score",
+  }[activeTab];
+
+  const bandLabel = {
+    overall: "Overall Readiness Bands",
+    codechef: "Rating Distribution Bands",
+    leetcode: "LeetCode Solved Bands",
+    github: "Open Source Score Bands",
+  }[activeTab];
+
+  const activityLabel = {
+    overall: "System Growth Activity",
+    codechef: "Contest Participation Rounds",
+    leetcode: "Monthly Submissions Activity",
+    github: "OS Contribution Commits",
+  }[activeTab];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-brand-bg min-h-screen">
@@ -152,11 +204,36 @@ export default function AnalyticsPage() {
             <BarChart2 className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white font-sans">Institutional Analytics</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white font-sans font-black">Institutional Analytics</h1>
             <p className="text-sm text-brand-muted mt-1">
               Deeper algorithmic performance trends and skill distribution datasets across ACE College
             </p>
           </div>
+        </div>
+
+        {/* Dynamic Segment Filters */}
+        <div className="flex border border-brand-border bg-[#111111]/45 p-1 rounded-2xl gap-1 w-full max-w-md relative z-10">
+          {[
+            { name: "Overall", value: "overall" },
+            { name: "CodeChef", value: "codechef" },
+            { name: "LeetCode", value: "leetcode" },
+            { name: "GitHub", value: "github" }
+          ].map((tab) => {
+            const active = activeTab === tab.value;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value as any)}
+                className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                  active
+                    ? "bg-[#EAB308]/20 border border-[#EAB308]/30 text-[#EAB308]"
+                    : "border border-transparent text-brand-muted hover:text-brand-text"
+                }`}
+              >
+                {tab.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -168,7 +245,7 @@ export default function AnalyticsPage() {
             Ranked Profiles
           </span>
           <span className="text-3xl font-black text-brand-text mt-4 tracking-tight">
-            {totalProfiles}
+            {activeProfilesCount}
           </span>
           <span className="text-[10px] text-zinc-500 font-medium mt-1">
             Across 8 active departments
@@ -178,26 +255,26 @@ export default function AnalyticsPage() {
         <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300">
           <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
             <TrendingUp className="h-3.5 w-3.5 text-[#22C55E]" />
-            Global Avg Rating
+            {valueLabel}
           </span>
           <span className="text-3xl font-black text-brand-text mt-4 tracking-tight">
-            {globalAvgRating}
+            {globalAvg}
           </span>
           <span className="text-[10px] text-[#22C55E] font-medium mt-1">
-            +3.5% vs previous academic term
+            Institutional performance benchmark
           </span>
         </div>
 
         <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/20 transition-all duration-300">
           <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
             <Activity className="h-3.5 w-3.5 text-[#F59E0B]" />
-            Recent Term Submissions
+            {activityLabel}
           </span>
           <span className="text-3xl font-black text-brand-text mt-4 tracking-tight">
-            {data.contestParticipation.reduce((acc, curr) => acc + curr.count, 0)}
+            {totalActivityVolume}
           </span>
           <span className="text-[10px] text-zinc-500 font-medium mt-1">
-            Across last 6 active rounds
+            Across last 6 active periods
           </span>
         </div>
       </div>
@@ -210,22 +287,22 @@ export default function AnalyticsPage() {
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <Award className="h-4 w-4 text-[#EAB308]" />
-              Department Performance (Average Rating)
+              Department Performance ({valueLabel})
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Average CodeChef rating achieved by active students per department</p>
+            <p className="text-xs text-zinc-400 mt-0.5">Average score achieved by active students per department</p>
           </div>
           <div className="h-72 w-full pt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.departmentPerformance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <BarChart data={activeDataset.departmentPerformance} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
                 <XAxis dataKey="name" stroke="var(--chart-axis)" fontSize={10} fontWeight="bold" tickLine={false} />
                 <YAxis stroke="var(--chart-axis)" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip
                   contentStyle={{ backgroundColor: "var(--brand-card)", border: "1px solid var(--brand-border)", borderRadius: "12px" }}
                   labelClassName="text-white text-xs font-bold"
-                  itemStyle={{ color: "#EAB308", fontSize: "11px", fontWeight: "bold" }}
+                  itemStyle={{ color: tabColor, fontSize: "11px", fontWeight: "bold" }}
                 />
-                <Bar dataKey="averageRating" fill="#EAB308" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                <Bar dataKey="value" fill={tabColor} radius={[4, 4, 0, 0]} maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -236,17 +313,17 @@ export default function AnalyticsPage() {
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <PieChartIcon className="h-4 w-4 text-[#F59E0B]" />
-              Student Rating Distribution Bands
+              {bandLabel}
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Distribution of active coders across official rating levels</p>
+            <p className="text-xs text-zinc-400 mt-0.5">Distribution of active students across levels/bands</p>
           </div>
           <div className="h-72 w-full pt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.ratingDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <AreaChart data={activeDataset.distribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRating" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#F59E0B" stopOpacity={0.2} />
-                    <stop offset="95%" stopColor="#F59E0B" stopOpacity={0} />
+                    <stop offset="5%" stopColor={tabColor} stopOpacity={0.2} />
+                    <stop offset="95%" stopColor={tabColor} stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
@@ -255,9 +332,9 @@ export default function AnalyticsPage() {
                 <Tooltip
                   contentStyle={{ backgroundColor: "var(--brand-card)", border: "1px solid var(--brand-border)", borderRadius: "12px" }}
                   labelClassName="text-white text-xs font-bold"
-                  itemStyle={{ color: "#F59E0B", fontSize: "11px", fontWeight: "bold" }}
+                  itemStyle={{ color: tabColor, fontSize: "11px", fontWeight: "bold" }}
                 />
-                <Area type="monotone" dataKey="count" stroke="#F59E0B" fillOpacity={1} fill="url(#colorRating)" strokeWidth={2} />
+                <Area type="monotone" dataKey="count" stroke={tabColor} fillOpacity={1} fill="url(#colorRating)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -268,15 +345,15 @@ export default function AnalyticsPage() {
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <LineChartIcon className="h-4 w-4 text-[#22C55E]" />
-              Contest Participation Trends (Last 6 Rounds)
+              {activityLabel} Trends (Last 6 Periods)
             </h2>
-            <p className="text-xs text-zinc-400 mt-0.5">Monthly volume of code submissions and active contest participations</p>
+            <p className="text-xs text-zinc-400 mt-0.5">Submissions volume and contribution activity patterns</p>
           </div>
           <div className="h-72 w-full pt-4">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={data.contestParticipation} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <LineChart data={activeDataset.growth} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
-                <XAxis dataKey="date" stroke="var(--chart-axis)" fontSize={10} fontWeight="bold" tickLine={false} />
+                <XAxis dataKey="month" stroke="var(--chart-axis)" fontSize={10} fontWeight="bold" tickLine={false} />
                 <YAxis stroke="var(--chart-axis)" fontSize={10} tickLine={false} axisLine={false} />
                 <Tooltip
                   contentStyle={{ backgroundColor: "var(--brand-card)", border: "1px solid var(--brand-border)", borderRadius: "12px" }}
@@ -294,7 +371,7 @@ export default function AnalyticsPage() {
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <Percent className="h-4 w-4 text-[#EAB308]" />
-              Cumulative Platform Growth Analytics
+              Cumulative Institutional Platform growth
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">Timeline showing cumulative student registrations over time</p>
           </div>
@@ -326,7 +403,7 @@ export default function AnalyticsPage() {
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               <Layers className="h-4 w-4 text-emerald-400" />
-              Talent Score Distribution Analytics
+              Talent score distribution analytics
             </h2>
             <p className="text-xs text-zinc-400 mt-0.5">Count of students categorized by their overall AI-generated Talent Score tiers</p>
           </div>

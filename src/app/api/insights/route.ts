@@ -7,7 +7,10 @@ export async function GET(request: NextRequest) {
     const students = await prisma.studentProfile.findMany({
       include: {
         codechefProfile: true,
+        leetcodeProfile: true,
+        githubProfile: true,
         aiAnalysis: true,
+        leaderboardEntry: true,
       },
     });
 

@@ -35,11 +35,13 @@ export default function DepartmentsPage() {
   const [departments, setDepartments] = useState<DeptStanding[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activePlatform, setActivePlatform] = useState<"overall" | "codechef" | "leetcode" | "github">("overall");
 
   useEffect(() => {
     const fetchDepartments = async () => {
+      setIsLoading(true);
       try {
-        const response = await fetch("/api/departments");
+        const response = await fetch(`/api/departments?platform=${activePlatform}`);
         if (!response.ok) {
           throw new Error("Failed to load department standings.");
         }
@@ -52,7 +54,7 @@ export default function DepartmentsPage() {
       }
     };
     fetchDepartments();
-  }, []);
+  }, [activePlatform]);
 
   const getRankBadge = (pos: number) => {
     if (pos === 1) {
@@ -112,6 +114,20 @@ export default function DepartmentsPage() {
     );
   }
 
+  const platformLabel = {
+    overall: "Avg Overall Score",
+    codechef: "Avg CodeChef Rating",
+    leetcode: "Avg Problems Solved",
+    github: "Avg OS Score",
+  }[activePlatform];
+
+  const columnLabel = {
+    overall: "Average Overall Score",
+    codechef: "Average CodeChef Rating",
+    leetcode: "Average Solved Problems",
+    github: "Average OS Score",
+  }[activePlatform];
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-brand-bg min-h-screen">
       {/* Page Header */}
@@ -121,11 +137,36 @@ export default function DepartmentsPage() {
             <Building className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">Department Standings</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white font-black">Department Standings</h1>
             <p className="text-sm text-brand-muted mt-1">
               Comparative analysis and standings across ACE engineering departments
             </p>
           </div>
+        </div>
+
+        {/* Dynamic Segment Filters */}
+        <div className="flex border border-brand-border bg-[#111111]/45 p-1 rounded-2xl gap-1 w-full max-w-md relative z-10">
+          {[
+            { name: "Overall", value: "overall" },
+            { name: "CodeChef", value: "codechef" },
+            { name: "LeetCode", value: "leetcode" },
+            { name: "GitHub", value: "github" }
+          ].map((tab) => {
+            const active = activePlatform === tab.value;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setActivePlatform(tab.value as any)}
+                className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                  active
+                    ? "bg-[#EAB308]/20 border border-[#EAB308]/30 text-[#EAB308]"
+                    : "border border-transparent text-brand-muted hover:text-brand-text"
+                }`}
+              >
+                {tab.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -147,7 +188,7 @@ export default function DepartmentsPage() {
             {/* Average Rating Centerpiece */}
             <div className="my-6">
               <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest block">
-                Avg CodeChef Rating
+                {platformLabel}
               </span>
               <span className="text-3xl font-black text-white mt-1 block">
                 {d.averageRating}
@@ -168,11 +209,11 @@ export default function DepartmentsPage() {
               {/* Top Performer Tag */}
               {d.topPerformer.name !== "None" && (
                 <Link
-                  href={`/?userId=${d.topPerformer.id}`}
+                  href={`/student/${d.topPerformer.id}`}
                   className="flex items-center justify-between mt-1 p-2 rounded-xl bg-zinc-950 border border-zinc-900 hover:border-[#EAB308]/30 text-xs transition-all"
                 >
                   <div className="flex flex-col">
-                    <span className="text-[9px] text-[#EAB308] font-bold uppercase tracking-wider">Top Performer</span>
+                    <span className="text-[9px] text-[#EAB308] font-bold uppercase tracking-wider font-black">Top Performer</span>
                     <span className="text-white font-bold truncate max-w-[120px]">{d.topPerformer.name}</span>
                   </div>
                   <div className="flex items-center gap-1 text-primary">
@@ -190,7 +231,7 @@ export default function DepartmentsPage() {
       <div className="glass-card rounded-3xl overflow-hidden border border-brand-border shadow-xl mt-4">
         <div className="px-6 py-5 border-b border-brand-border flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-white uppercase tracking-wider">Complete Department Standings</h2>
+            <h2 className="text-base font-bold text-white uppercase tracking-wider font-black">Complete Department Standings</h2>
             <p className="text-xs text-zinc-400 mt-0.5">Ranked standings table of all academic branches</p>
           </div>
         </div>
@@ -202,7 +243,7 @@ export default function DepartmentsPage() {
                 <th className="py-4 px-6">Department</th>
                 <th className="py-4 px-6 text-center">Student Count</th>
                 <th className="py-4 px-6 text-center">Active Profiles</th>
-                <th className="py-4 px-6 text-center">Average Rating</th>
+                <th className="py-4 px-6 text-center">{columnLabel}</th>
                 <th className="py-4 px-6">Top Performer</th>
                 <th className="py-4 px-6 text-center">Branch Growth</th>
               </tr>
@@ -228,7 +269,7 @@ export default function DepartmentsPage() {
                   <td className="py-4 px-6 text-xs">
                     {d.topPerformer.name !== "None" ? (
                       <Link
-                        href={`/?userId=${d.topPerformer.id}`}
+                        href={`/student/${d.topPerformer.id}`}
                         className="inline-flex items-center gap-1.5 font-bold text-primary hover:text-white transition-colors"
                       >
                         <Trophy className="h-3.5 w-3.5" />

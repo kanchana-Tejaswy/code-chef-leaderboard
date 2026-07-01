@@ -1,5 +1,23 @@
-import { queryGitHubGraphQL } from "../lib/github";
-import { GitHubAnalytics, GitHubRepo, GitHubLanguage } from "../types/github";
+import { queryGitHubGraphQL, queryGitHubREST } from "../lib/github";
+import { GithubAnalyticsService } from "./githubAnalytics";
+
+// Helper function to process requests with a concurrency limit
+async function pool<T, R>(items: T[], fn: (item: T) => Promise<R>, maxConcurrency: number = 8): Promise<R[]> {
+  const results: R[] = [];
+  const executing: Promise<any>[] = [];
+  for (const item of items) {
+    const p = Promise.resolve().then(() => fn(item));
+    results.push(p as any);
+    if (maxConcurrency < items.length) {
+      const e: Promise<any> = p.then(() => executing.splice(executing.indexOf(e), 1));
+      executing.push(e);
+      if (executing.length >= maxConcurrency) {
+        await Promise.race(executing);
+      }
+    }
+  }
+  return Promise.all(results);
+}
 
 export class GithubService {
   /**
@@ -22,7 +40,7 @@ export class GithubService {
   }
 
   /**
-   * Queries real-time, authenticated data from GitHub GraphQL API and processes metrics.
+   * Queries real-time, authenticated data from GitHub APIs and processes metrics.
    */
   static async fetchData(input: string): Promise<any> {
     const username = this.extractUsername(input);
@@ -30,14 +48,18 @@ export class GithubService {
       throw new Error("Invalid GitHub username or profile URL.");
     }
 
+    // Comprehensive GraphQL Query to get profile info, contributions, pinned items, and paginated repos
     const query = `
-      query ($username: String!) {
+      query ($username: String!, $cursor: String, $prQuery: String!, $prMergedQuery: String!, $prOpenQuery: String!, $issueQuery: String!, $issueClosedQuery: String!) {
         user(login: $username) {
+          login
           name
           bio
           avatarUrl
           company
           location
+          websiteUrl
+          twitterUsername
           email
           createdAt
           updatedAt
@@ -48,7 +70,40 @@ export class GithubService {
           following {
             totalCount
           }
-          repositories(first: 50, orderBy: {field: STARGAZERS, direction: DESC}) {
+          gists {
+            totalCount
+          }
+          publicRepositories: repositories(privacy: PUBLIC) {
+            totalCount
+          }
+          organizations(first: 10) {
+            totalCount
+            nodes {
+              name
+              login
+            }
+          }
+          pinnedItems(first: 6, types: REPOSITORY) {
+            nodes {
+              ... on Repository {
+                name
+                description
+                url
+                stargazerCount
+                forkCount
+                primaryLanguage {
+                  name
+                  color
+                }
+              }
+            }
+          }
+          repositories(first: 100, after: $cursor, ownerAffiliations: OWNER, orderBy: {field: PUSHED_AT, direction: DESC}) {
+            totalCount
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
             nodes {
               name
               description
@@ -58,6 +113,11 @@ export class GithubService {
               isFork
               isArchived
               diskUsage
+              visibility
+              createdAt
+              updatedAt
+              pushedAt
+              homepageUrl
               watchers {
                 totalCount
               }
@@ -65,14 +125,76 @@ export class GithubService {
                 name
                 color
               }
+              languages(first: 10) {
+                edges {
+                  size
+                  node {
+                    name
+                    color
+                  }
+                }
+              }
+              repositoryTopics(first: 10) {
+                nodes {
+                  topic {
+                    name
+                  }
+                }
+              }
+              licenseInfo {
+                name
+                key
+              }
+              openIssues: issues(states: OPEN) {
+                totalCount
+              }
+              readme: object(expression: "HEAD:README.md") {
+                ... on Blob {
+                  byteSize
+                }
+              }
+              readmeLowercase: object(expression: "HEAD:readme.md") {
+                ... on Blob {
+                  byteSize
+                }
+              }
+              readmeTxt: object(expression: "HEAD:README.txt") {
+                ... on Blob {
+                  byteSize
+                }
+              }
+              readmeUpper: object(expression: "HEAD:README") {
+                ... on Blob {
+                  byteSize
+                }
+              }
               defaultBranchRef {
+                name
                 target {
                   ... on Commit {
-                    history {
+                    history(first: 1) {
                       totalCount
+                      nodes {
+                        oid
+                        message
+                        committedDate
+                        author {
+                          name
+                          email
+                        }
+                      }
                     }
                   }
                 }
+              }
+              branches: refs(first: 0, refPrefix: "refs/heads/") {
+                totalCount
+              }
+              releases(first: 0) {
+                totalCount
+              }
+              tags: refs(first: 0, refPrefix: "refs/tags/") {
+                totalCount
               }
             }
           }
@@ -89,201 +211,262 @@ export class GithubService {
             }
           }
         }
+        pullRequestsCreated: search(query: $prQuery, type: ISSUE, first: 0) {
+          issueCount
+        }
+        pullRequestsMerged: search(query: $prMergedQuery, type: ISSUE, first: 0) {
+          issueCount
+        }
+        pullRequestsOpen: search(query: $prOpenQuery, type: ISSUE, first: 0) {
+          issueCount
+        }
+        issuesCreated: search(query: $issueQuery, type: ISSUE, first: 0) {
+          issueCount
+        }
+        issuesClosed: search(query: $issueClosedQuery, type: ISSUE, first: 0) {
+          issueCount
+        }
       }
     `;
 
-    const data = await queryGitHubGraphQL(query, { username });
+    // Query template for fetching subsequent pages of repositories if hasNextPage is true
+    const nextPageQuery = `
+      query ($username: String!, $cursor: String) {
+        user(login: $username) {
+          repositories(first: 100, after: $cursor, ownerAffiliations: OWNER, orderBy: {field: PUSHED_AT, direction: DESC}) {
+            pageInfo {
+              hasNextPage
+              endCursor
+            }
+            nodes {
+              name
+              description
+              url
+              stargazerCount
+              forkCount
+              isFork
+              isArchived
+              diskUsage
+              visibility
+              createdAt
+              updatedAt
+              pushedAt
+              homepageUrl
+              watchers {
+                totalCount
+              }
+              primaryLanguage {
+                name
+                color
+              }
+              languages(first: 10) {
+                edges {
+                  size
+                  node {
+                    name
+                    color
+                  }
+                }
+              }
+              repositoryTopics(first: 10) {
+                nodes {
+                  topic {
+                    name
+                  }
+                }
+              }
+              licenseInfo {
+                name
+                key
+              }
+              openIssues: issues(states: OPEN) {
+                totalCount
+              }
+              readme: object(expression: "HEAD:README.md") {
+                ... on Blob {
+                  byteSize
+                }
+              }
+              readmeLowercase: object(expression: "HEAD:readme.md") {
+                ... on Blob {
+                  byteSize
+                }
+              }
+              readmeTxt: object(expression: "HEAD:README.txt") {
+                ... on Blob {
+                  byteSize
+                }
+              }
+              readmeUpper: object(expression: "HEAD:README") {
+                ... on Blob {
+                  byteSize
+                }
+              }
+              defaultBranchRef {
+                name
+                target {
+                  ... on Commit {
+                    history(first: 1) {
+                      totalCount
+                      nodes {
+                        oid
+                        message
+                        committedDate
+                        author {
+                          name
+                          email
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+              branches: refs(first: 0, refPrefix: "refs/heads/") {
+                totalCount
+              }
+              releases(first: 0) {
+                totalCount
+              }
+              tags: refs(first: 0, refPrefix: "refs/tags/") {
+                totalCount
+              }
+            }
+          }
+        }
+      }
+    `;
+
+    const variables = {
+      username,
+      cursor: null as string | null,
+      prQuery: `author:${username} type:pr`,
+      prMergedQuery: `author:${username} type:pr is:merged`,
+      prOpenQuery: `author:${username} type:pr is:open`,
+      issueQuery: `author:${username} type:issue`,
+      issueClosedQuery: `author:${username} type:issue is:closed`
+    };
+
+    let data: any = null;
+    try {
+      data = await queryGitHubGraphQL(query, variables);
+    } catch (err: any) {
+      console.error("GraphQL execution failed or user profile is invalid:", err.message);
+      throw new Error(`GitHub profile for user "${username}" does not exist or is invalid.`);
+    }
+
     const user = data?.user;
     if (!user) {
       throw new Error(`GitHub user "${username}" was not found.`);
     }
 
-    const nodes = user.repositories?.nodes || [];
-    const weeks = user.contributionsCollection?.contributionCalendar?.weeks || [];
+    let allReposNodes = user.repositories?.nodes || [];
+    let hasNextPage = user.repositories?.pageInfo?.hasNextPage || false;
+    let endCursor = user.repositories?.pageInfo?.endCursor || null;
 
-    // 1. Repository counts and size
-    let totalRepositories = nodes.length;
-    let originalCount = 0;
-    let forkedCount = 0;
-    let totalStars = 0;
-    let totalForks = 0;
-    let totalCommits = 0;
-
-    nodes.forEach((r: any) => {
-      if (r.isFork) {
-        forkedCount++;
-      } else {
-        originalCount++;
-      }
-      totalStars += r.stargazerCount || 0;
-      totalForks += r.forkCount || 0;
-      totalCommits += r.defaultBranchRef?.target?.history?.totalCount || 0;
-    });
-
-    // 2. Language percentages
-    const langTotals: Record<string, { count: number; color: string }> = {};
-    nodes.forEach((r: any) => {
-      const langName = r.primaryLanguage?.name;
-      const langColor = r.primaryLanguage?.color || "#8B5CF6";
-      if (langName) {
-        if (!langTotals[langName]) {
-          langTotals[langName] = { count: 0, color: langColor };
-        }
-        langTotals[langName].count++;
-      }
-    });
-
-    const languagesList: GitHubLanguage[] = Object.keys(langTotals).map((name) => {
-      return {
-        name,
-        value: langTotals[name].count,
-        color: langTotals[name].color
-      };
-    });
-    // Sort languages and slice top 5, rest to "Others"
-    languagesList.sort((a, b) => b.value - a.value);
-    const totalLangRepos = languagesList.reduce((acc, curr) => acc + curr.value, 0);
-
-    let languages: GitHubLanguage[] = [];
-    if (totalLangRepos > 0) {
-      languages = languagesList.map((l) => ({
-        ...l,
-        value: Math.round((l.value / totalLangRepos) * 100)
-      }));
-    } else {
-      languages = [{ name: "Markdown", value: 100, color: "#8B5CF6" }];
-    }
-
-    // 3. Flatten contribution days & Streaks
-    const contribDays: { date: string; count: number }[] = [];
-    weeks.forEach((w: any) => {
-      w.contributionDays?.forEach((d: any) => {
-        contribDays.push({
-          date: d.date,
-          count: d.contributionCount || 0
+    // Loop to fetch remaining repositories if any (paginating in chunks of 100)
+    while (hasNextPage && endCursor) {
+      try {
+        const nextPageData = await queryGitHubGraphQL(nextPageQuery, {
+          username,
+          cursor: endCursor
         });
-      });
-    });
-    contribDays.sort((a, b) => a.date.localeCompare(b.date));
-
-    // Calculate Streaks
-    let currentStreak = 0;
-    let longestStreak = 0;
-    let runningStreak = 0;
-    const contributionsMap: Record<string, number> = {};
-
-    contribDays.forEach((day) => {
-      contributionsMap[day.date] = day.count;
-      if (day.count > 0) {
-        runningStreak++;
-        if (runningStreak > longestStreak) {
-          longestStreak = runningStreak;
-        }
-      } else {
-        runningStreak = 0;
+        const nextPageUser = nextPageData?.user;
+        const nodes = nextPageUser?.repositories?.nodes || [];
+        allReposNodes = [...allReposNodes, ...nodes];
+        hasNextPage = nextPageUser?.repositories?.pageInfo?.hasNextPage || false;
+        endCursor = nextPageUser?.repositories?.pageInfo?.endCursor || null;
+      } catch (err: any) {
+        console.warn("Failed to fetch next page of repositories, stopping pagination:", err.message);
+        break;
       }
-    });
+    }
 
-    // Current streak (working backwards from the last days)
-    for (let i = contribDays.length - 1; i >= 0; i--) {
-      const day = contribDays[i];
-      const dateObj = new Date(day.date);
-      const daysAgo = (Date.now() - dateObj.getTime()) / (1000 * 60 * 60 * 24);
+    // Parallel fetch contributors list for every repository with concurrency pool of 6
+    const reposList = await pool(allReposNodes, async (r: any) => {
+      let contributors: string[] = [];
+      try {
+        const contribRes = await queryGitHubREST(`/repos/${username}/${r.name}/contributors?per_page=15`, {
+          useCache: true,
+          maxRetries: 2,
+          timeoutMs: 8000
+        });
+        if (Array.isArray(contribRes)) {
+          contributors = contribRes.map((c: any) => c.login);
+        }
+      } catch (err: any) {
+        // Degrade gracefully if contributors fetch fails (e.g. empty repo)
+        console.warn(`Could not fetch contributors for repository ${r.name}:`, err.message);
+      }
+
+      const readmeSize = r.readme?.byteSize || r.readmeLowercase?.byteSize || r.readmeTxt?.byteSize || r.readmeUpper?.byteSize || 0;
       
-      if (day.count > 0) {
-        currentStreak++;
-      } else {
-        if (daysAgo > 1.5) {
-          break;
-        }
-      }
-    }
+      const lastCommitNode = r.defaultBranchRef?.target?.history?.nodes?.[0];
+      const latestCommit = lastCommitNode ? {
+        sha: lastCommitNode.oid ? lastCommitNode.oid.substring(0, 7) : "Not available from platform.",
+        message: lastCommitNode.message || "Not available from platform.",
+        date: lastCommitNode.committedDate ? new Date(lastCommitNode.committedDate).toISOString() : "Not available from platform.",
+        author: lastCommitNode.author?.name || "Not available from platform."
+      } : {
+        sha: "Not available from platform.",
+        message: "Not available from platform.",
+        date: "Not available from platform.",
+        author: "Not available from platform."
+      };
 
-    // 4. Past 6 Months Commit Timeline
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-    const monthSums: Record<string, number> = {};
-    const pastMonths: string[] = [];
-    const now = new Date();
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const name = months[d.getMonth()];
-      pastMonths.push(name);
-      monthSums[name] = 0;
-    }
+      const languagesMap = (r.languages?.edges || []).map((edge: any) => ({
+        name: edge.node.name,
+        bytes: edge.size || 0,
+        color: edge.node.color || "#8B5CF6"
+      }));
 
-    contribDays.forEach((day) => {
-      const dateObj = new Date(day.date);
-      const name = months[dateObj.getMonth()];
-      if (name in monthSums) {
-        monthSums[name] += day.count;
-      }
-    });
+      return {
+        name: r.name,
+        description: r.description || "No description provided.",
+        url: r.url,
+        stars: r.stargazerCount || 0,
+        forks: r.forkCount || 0,
+        language: r.primaryLanguage?.name || "Markdown",
+        languages: languagesMap,
+        commits: r.defaultBranchRef?.target?.history?.totalCount || 0,
+        lastUpdated: r.pushedAt ? new Date(r.pushedAt).toISOString() : new Date(r.updatedAt).toISOString(),
+        watchers: r.watchers?.totalCount || 0,
+        openIssues: r.openIssues?.totalCount || 0,
+        license: r.licenseInfo?.name || "Not available from platform.",
+        topics: (r.repositoryTopics?.nodes || []).map((n: any) => n.topic.name),
+        visibility: r.visibility?.toLowerCase() || "public",
+        size: r.diskUsage || 0,
+        createdDate: r.createdAt ? new Date(r.createdAt).toISOString() : new Date().toISOString(),
+        defaultBranch: r.defaultBranchRef?.name || "main",
+        isArchived: r.isArchived || false,
+        homepage: r.homepageUrl || "Not available from platform.",
+        latestCommit,
+        commitCount: r.defaultBranchRef?.target?.history?.totalCount || 0,
+        contributors,
+        branchesCount: r.branches?.totalCount || 0,
+        releasesCount: r.releases?.totalCount || 0,
+        tagsCount: r.tags?.totalCount || 0,
+        readmeSize
+      };
+    }, 6);
 
-    const commitTimeline = pastMonths.map((name) => ({
-      month: name,
-      commits: monthSums[name] || 0
-    }));
+    const prCreatedCount = data.pullRequestsCreated?.issueCount || 0;
+    const prMergedCount = data.pullRequestsMerged?.issueCount || 0;
+    const prOpenCount = data.pullRequestsOpen?.issueCount || 0;
+    const issuesCreatedCount = data.issuesCreated?.issueCount || 0;
+    const issuesClosedCount = data.issuesClosed?.issueCount || 0;
 
-    // 5. Repos List mapped
-    const reposMapped: GitHubRepo[] = nodes.map((r: any) => ({
-      name: r.name,
-      description: r.description || "No description provided.",
-      url: r.url,
-      stars: r.stargazerCount || 0,
-      forks: r.forkCount || 0,
-      language: r.primaryLanguage?.name || "Markdown",
-      commits: r.defaultBranchRef?.target?.history?.totalCount || 0,
-      lastUpdated: new Date(r.isFork ? user.updatedAt : (contribDays[contribDays.length - 1]?.date || user.updatedAt)).toLocaleDateString(),
-      watchers: r.watchers?.totalCount || 0,
-      openIssues: 0,
-      license: "MIT",
-      topics: [],
-      visibility: "public"
-    }));
+    // Run dynamic application calculations
+    const analytics = GithubAnalyticsService.computeAnalytics(
+      user,
+      reposList,
+      prCreatedCount,
+      prMergedCount,
+      prOpenCount,
+      issuesCreatedCount,
+      issuesClosedCount
+    );
 
-    // 6. Quality Score Matrix
-    // Calculated based on descriptions, commits count, stars, and language structure
-    const docScore = Math.min(100, 60 + Math.round(nodes.filter((r: any) => r.description).length / (totalRepositories || 1) * 40));
-    const coverageScore = Math.min(100, 50 + (totalStars % 35));
-    const lintScore = Math.min(100, 70 + (totalCommits % 25));
-    const cicdScore = Math.min(100, 65 + (originalCount % 20));
-    const commitDensityScore = Math.min(100, 45 + Math.round(totalCommits / (totalRepositories || 1)));
-    const prReviewScore = Math.min(100, 60 + (totalForks % 30));
-
-    const repoQualityScore = [
-      { subject: "Code Coverage", A: coverageScore },
-      { subject: "Linting & Rules", A: lintScore },
-      { subject: "Documentation", A: docScore },
-      { subject: "CI/CD Workflows", A: cicdScore },
-      { subject: "Commit Density", A: commitDensityScore },
-      { subject: "PR Review Rate", A: prReviewScore }
-    ];
-
-    // 7. Calculate 0-100 Scores
-    const consistencyScore = Math.round(Math.min(100, (contribDays.filter(d => d.count > 0).length / 300) * 100));
-    const contributionScore = Math.round(Math.min(100, (user.contributionsCollection?.contributionCalendar?.totalContributions / 400) * 100));
-    const openSourceScore = Math.round(Math.min(100, (forkedCount * 15 + totalStars * 2 + totalForks * 5)));
-    const developerScore = Math.round((consistencyScore * 0.3 + contributionScore * 0.3 + openSourceScore * 0.2 + commitDensityScore * 0.2));
-
-    const rating = developerScore;
-
-    // AI recommendations and insights computed directly from genuine metrics
-    const strengths: string[] = [];
-    const weaknesses: string[] = [];
-    const improvementAreas: string[] = [];
-    const recommendedLearningPath: string[] = [];
-    
-    if (developerScore >= 70) {
-      strengths.push("High active days count and contribution streak.", "Active open source participation.", "Excellent documentation and commit density.");
-      weaknesses.push("Occasional spikes in commit density without active peer reviews.", "Vulnerable to single language dominance.");
-      improvementAreas.push("Contribute to established upstream repositories.", "Integrate formal CI/CD test frameworks.", "Diversify language skills.");
-      recommendedLearningPath.push("Advanced CI/CD workflows and automated coverage testing", "Multi-language project architectures", "Participating in global open-source issues");
-    } else {
-      strengths.push("Capable project repository organization.", "Consistent baseline commits.");
-      weaknesses.push("Relatively low open source contributions count.", "Incomplete documentation on minor repositories.");
-      improvementAreas.push("Resolve open issues in repository directory.", "Maintain a regular coding timeline.", "Add README files to empty repositories.");
-      recommendedLearningPath.push("Algorithmic repository templates & setups", "Drafting complete README markdown directories", "Contests and community pull requests");
-    }
+    const rating = analytics.developerScore.score;
 
     return {
       platform: "GITHUB",
@@ -292,55 +475,47 @@ export class GithubService {
       highestRating: rating,
       globalRank: null,
       countryRank: null,
-      stars: developerScore >= 80 ? 5 : developerScore >= 60 ? 4 : developerScore >= 40 ? 3 : 2,
-      problemsSolved: totalRepositories,
-      contestCount: totalStars,
+      stars: rating >= 80 ? 5 : rating >= 60 ? 4 : rating >= 40 ? 3 : 2,
+      problemsSolved: analytics.totalRepositories,
+      contestCount: analytics.totalStars,
       contests: [],
       rawMetrics: {
-        totalRepositories,
-        totalStars,
-        totalForks,
-        followers: user.followers?.totalCount || 0,
-        openSourceScore,
-        contributions: contributionsMap,
-        languages,
-        repos: reposMapped.slice(0, 4), // Pinned / Top 4 repositories
-        commitTimeline,
-        repoQualityScore,
-        consistencyScore,
-        streaks: {
-          current: currentStreak,
-          longest: longestStreak
-        },
-        profileDetails: {
-          bio: user.bio,
-          avatarUrl: user.avatarUrl,
-          company: user.company,
-          location: user.location,
-          email: user.email,
-          createdAt: user.createdAt,
-          updatedAt: user.updatedAt,
-          isHireable: user.isHireable
-        }
+        totalRepositories: analytics.totalRepositories,
+        totalStars: analytics.totalStars,
+        totalForks: analytics.totalForks,
+        followers: analytics.followers,
+        openSourceScore: analytics.openSourceScore,
+        contributions: analytics.contributions,
+        languages: analytics.languages,
+        repos: analytics.repos,
+        commitTimeline: analytics.commitTimeline,
+        repoQualityScore: analytics.repoQualityScore,
+        streaks: analytics.streaks,
+        commitAnalytics: analytics.commitAnalytics,
+        openSource: analytics.openSource,
+        portfolio: analytics.portfolio,
+        careerInsights: analytics.careerInsights,
+        profileDetails: analytics.profileDetails,
+        developerScore: analytics.developerScore
       },
       aiAnalysis: {
-        talentScore: developerScore,
-        consistencyScore,
-        problemSolvingScore: developerScore,
-        competitiveProgrammingScore: developerScore,
-        contestScore: contributionScore,
-        learningScore: commitDensityScore,
-        growthScore: developerScore,
-        disciplineScore: consistencyScore,
-        overallPotential: developerScore >= 75 ? "Elite Master Coder" : "High Potential Developer",
-        placementReadiness: developerScore >= 60 ? "Immediate Tier-1 / HFT Ready" : "Standard SDE Ready",
-        expectedRating6Months: rating + 50,
-        strengths,
-        weaknesses,
-        improvementAreas,
-        careerRecommendation: developerScore >= 70 ? "Lead SDE Backend Developer" : "Software Development Engineer (SDE)",
-        suggestedCompanies: developerScore >= 70 ? ["Google", "Amazon", "Microsoft"] : ["TCS Digital", "Infosys"],
-        recommendedLearningPath
+        talentScore: rating,
+        consistencyScore: analytics.developerScore.consistency,
+        problemSolvingScore: rating,
+        competitiveProgrammingScore: rating,
+        contestScore: analytics.developerScore.codingActivity,
+        learningScore: analytics.developerScore.documentation,
+        growthScore: rating,
+        disciplineScore: analytics.developerScore.consistency,
+        overallPotential: analytics.careerInsights.hiringReadiness === "Immediate Tier-1 Ready" ? "Elite Developer Portfolio" : "Capable Software Builder",
+        placementReadiness: analytics.careerInsights.hiringReadiness,
+        expectedRating6Months: rating + 10,
+        strengths: analytics.careerInsights.strongestSkills.map((s: string) => `${s} Specialist`),
+        weaknesses: analytics.careerInsights.weaknesses,
+        improvementAreas: analytics.careerInsights.weaknesses,
+        careerRecommendation: analytics.portfolio.ai > 1 ? "Machine Learning Specialist" : analytics.portfolio.mobile > 1 ? "Mobile Developer" : "Full Stack Developer",
+        suggestedCompanies: rating >= 75 ? ["Google", "Atlassian", "GitHub"] : ["TCS Digital", "Cognizant"],
+        recommendedLearningPath: analytics.careerInsights.recommendedLearningPath
       }
     };
   }

@@ -640,7 +640,7 @@ export class LeetcodeScraper implements IPlatformScraper {
 
       const contestRating = userContestRanking?.rating || 0;
       const globalRank = userContestRanking?.globalRanking || null;
-      const countryRank = userContestRanking?.topPercentage ? Math.max(1, Math.round(globalRank ? globalRank * 0.1 : 500)) : null;
+      const countryRank = null;
 
       const consistencyScore = Math.min(100, Math.round((userCalendar.totalActiveDays || 0) * 1.5));
 

@@ -82,6 +82,12 @@ interface DiscoveryReport {
   details: string;
 }
 
+interface PlatformInsightsSegment {
+  recommendations: Recommendation[];
+  predictions: Prediction[];
+  topImproving: StudentGrowth[];
+}
+
 interface InsightsData {
   insufficientData: boolean;
   topImproving: StudentGrowth[];
@@ -93,12 +99,19 @@ interface InsightsData {
   confidence: string;
   collegeStats: CollegeStats;
   departmentInsights: DepartmentInsights;
+  segments?: {
+    overall: PlatformInsightsSegment;
+    codechef: PlatformInsightsSegment;
+    leetcode: PlatformInsightsSegment;
+    github: PlatformInsightsSegment;
+  };
 }
 
 export default function InsightsPage() {
   const [data, setData] = useState<InsightsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activePlatform, setActivePlatform] = useState<"overall" | "codechef" | "leetcode" | "github">("overall");
 
   useEffect(() => {
     const fetchInsights = async () => {
@@ -208,6 +221,18 @@ export default function InsightsPage() {
     );
   }
 
+  const recommendations = data.segments && data.segments[activePlatform]
+    ? data.segments[activePlatform].recommendations
+    : data.recommendations;
+
+  const predictions = data.segments && data.segments[activePlatform]
+    ? data.segments[activePlatform].predictions
+    : data.predictions;
+
+  const topImproving = data.segments && data.segments[activePlatform]
+    ? data.segments[activePlatform].topImproving
+    : data.topImproving;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8 bg-brand-bg min-h-screen">
       {/* Page Header */}
@@ -217,11 +242,36 @@ export default function InsightsPage() {
             <Brain className="h-6 w-6" />
           </div>
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">AI Insights</h1>
+            <h1 className="text-3xl font-extrabold tracking-tight text-white font-black">AI Insights</h1>
             <p className="text-sm text-brand-muted mt-1">
               Neural intelligence scoring, career mapping, and placement projections for ACE
             </p>
           </div>
+        </div>
+
+        {/* Dynamic Segment Filters */}
+        <div className="flex border border-brand-border bg-[#111111]/45 p-1 rounded-2xl gap-1 w-full max-w-md relative z-10">
+          {[
+            { name: "Overall", value: "overall" },
+            { name: "CodeChef", value: "codechef" },
+            { name: "LeetCode", value: "leetcode" },
+            { name: "GitHub", value: "github" }
+          ].map((tab) => {
+            const active = activePlatform === tab.value;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setActivePlatform(tab.value as any)}
+                className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
+                  active
+                    ? "bg-[#EAB308]/20 border border-[#EAB308]/30 text-[#EAB308]"
+                    : "border border-transparent text-brand-muted hover:text-brand-text"
+                }`}
+              >
+                {tab.name}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -284,12 +334,12 @@ export default function InsightsPage() {
               AI Generated Recommendations
             </h2>
             <div className="flex flex-col gap-4">
-              {data.recommendations.length === 0 ? (
+              {recommendations.length === 0 ? (
                 <div className="py-6 text-center text-xs text-zinc-500 font-semibold leading-relaxed border border-dashed border-brand-border rounded-2xl">
                   No automated recommendations generated for this batch yet.
                 </div>
               ) : (
-                data.recommendations.map((rec) => (
+                recommendations.map((rec) => (
                   <div
                     key={rec.title}
                     className="glass-card rounded-2xl p-5 border border-white/5 flex flex-col gap-4 relative overflow-hidden text-left animate-fade-in"
@@ -383,22 +433,27 @@ export default function InsightsPage() {
                   <thead>
                     <tr className="border-b border-brand-border bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                       <th className="py-3 px-5">Student</th>
-                      <th className="py-3 px-4 text-center">Current Rating</th>
-                      <th className="py-3 px-4 text-center">Stars</th>
+                      <th className="py-3 px-4 text-center">
+                        {activePlatform === "overall" && "Overall Score"}
+                        {activePlatform === "codechef" && "CP Rating"}
+                        {activePlatform === "leetcode" && "Solved"}
+                        {activePlatform === "github" && "OS Score"}
+                      </th>
+                      <th className="py-3 px-4 text-center">Tiers/Stars</th>
                       <th className="py-3 px-4 text-center">Talent Score</th>
-                      <th className="py-3 px-5 text-center">Rating Growth</th>
-                      <th className="py-3 px-5 text-center">Dashboard</th>
+                      <th className="py-3 px-5 text-center">Velocity/Growth</th>
+                      <th className="py-3 px-5 text-center">Portfolio</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#262626]/50">
-                    {data.topImproving.length === 0 ? (
+                    {topImproving.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="py-12 text-center text-xs text-zinc-550 font-semibold leading-relaxed">
                           No historical performance data available yet.
                         </td>
                       </tr>
                     ) : (
-                      data.topImproving.map((s) => (
+                      topImproving.map((s) => (
                         <tr key={s.id} className="hover:bg-white/[0.01] transition-all group">
                           <td className="py-3 px-5">
                             <div className="flex flex-col">
@@ -423,11 +478,11 @@ export default function InsightsPage() {
                             {s.talentScore}
                           </td>
                           <td className="py-3 px-5 text-center font-bold text-xs text-emerald-400">
-                            {s.growthPoints >= 0 ? "+" : ""}{s.growthPercent}% <span className="text-zinc-500 font-semibold">({s.growthPoints >= 0 ? "+" : ""}{s.growthPoints} pts)</span>
+                            {s.growthPercent}%
                           </td>
                           <td className="py-3 px-5 text-center">
                             <Link
-                              href={`/?userId=${s.id}`}
+                              href={`/student/${s.id}`}
                               className="inline-flex h-7 w-7 items-center justify-center rounded-lg border border-brand-border hover:border-[#EAB308]/30 text-brand-muted hover:text-white transition-all text-xs"
                             >
                               <ArrowRight className="h-3.5 w-3.5" />
@@ -463,8 +518,14 @@ export default function InsightsPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-5">
-                {data.predictions && data.predictions.map((p) => {
+                {predictions && predictions.map((p) => {
                   const diff = p.predictedCount - p.currentCount;
+                  const barColor = {
+                    overall: "#EAB308",
+                    codechef: "#8B5CF6",
+                    leetcode: "#F59E0B",
+                    github: "#06B6D4",
+                  }[activePlatform];
                   return (
                     <div key={p.target} className="flex flex-col gap-2">
                       <div className="flex justify-between text-xs font-bold">
@@ -476,7 +537,7 @@ export default function InsightsPage() {
                         <span>Predicted: {p.predictedCount}</span>
                       </div>
                       <div className="h-1.5 w-full bg-zinc-900 rounded-full overflow-hidden">
-                        <div className="h-full bg-[#EAB308] rounded-full" style={{ width: `${(p.currentCount / (p.predictedCount || 1)) * 100}%` }} />
+                        <div className="h-full rounded-full" style={{ width: `${(p.currentCount / (p.predictedCount || 1)) * 100}%`, backgroundColor: barColor }} />
                       </div>
                       <div className="flex justify-between text-[9px] text-zinc-550 font-bold mt-1">
                         <span>Confidence index: <strong className="text-zinc-300">{p.confidence}</strong></span>
@@ -514,7 +575,7 @@ export default function InsightsPage() {
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex flex-col">
                         <Link
-                          href={`/?userId=${s.id}`}
+                          href={`/student/${s.id}`}
                           className="text-xs font-bold text-white group-hover:text-[#EAB308] transition-colors"
                         >
                           {s.name}
