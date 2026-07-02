@@ -2,28 +2,63 @@ import { ScrapedData } from "../types/scraper";
 
 export class LeetcodeService {
   /**
+   * Validates LeetCode username or URL.
+   */
+  static validate(input: string): { isValid: boolean; username: string; error?: string } {
+    if (!input) {
+      return { isValid: false, username: "", error: "Input username or URL cannot be empty." };
+    }
+
+    const trimmed = input.trim();
+    
+    // Check if input is a URL and extract the username
+    if (trimmed.includes("leetcode.com/")) {
+      const urlMatch = trimmed.match(/(?:leetcode\.com\/(?:u\/)?)([a-zA-Z0-9_\-]+)/i);
+      if (urlMatch && urlMatch[1]) {
+        return { isValid: true, username: urlMatch[1] };
+      }
+      return { isValid: false, username: "", error: "Invalid LeetCode profile URL format." };
+    }
+
+    // Otherwise, validate as alphanumeric with underscore/hyphen username
+    const usernameRegex = /^[a-zA-Z0-9_\-]{3,30}$/;
+    if (!usernameRegex.test(trimmed)) {
+      return { 
+        isValid: false, 
+        username: "", 
+        error: "LeetCode username must be 3-30 characters long and contain only letters, numbers, underscores, or hyphens." 
+      };
+    }
+
+    return { isValid: true, username: trimmed };
+  }
+
+  /**
    * Extracts the LeetCode username from a URL or raw handle.
    */
   static extractUsername(input: string): string {
-    if (!input) return "";
-    const trimmed = input.trim();
-    const username = trimmed.replace(/.*leetcode\.com\/u\//i, "").split("/")[0].split("?")[0].split("#")[0];
-    return username;
+    const validation = this.validate(input);
+    return validation.isValid ? validation.username : "";
   }
 
   /**
    * Real-time GraphQL client fetching LeetCode profile details.
    */
   static async fetchData(input: string): Promise<ScrapedData> {
-    const username = this.extractUsername(input);
-    if (!username) {
-      throw new Error("Invalid LeetCode username or profile URL.");
+    const validation = this.validate(input);
+    if (!validation.isValid) {
+      console.error(`[LeetCode Scraper] Username validation failed: ${validation.error}`);
+      throw new Error(validation.error || "Invalid LeetCode username or profile URL.");
     }
+    const username = validation.username;
 
     const url = "https://leetcode.com/graphql";
+    console.log(`[LeetCode Scraper] Querying LeetCode GraphQL API at: ${url}`);
+    
     const headers = {
       "Content-Type": "application/json",
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Referer": "https://leetcode.com"
     };
 
     // Define GraphQL Queries
@@ -32,8 +67,19 @@ export class LeetcodeService {
         matchedUser(username: $username) {
           username
           profile {
+            realName
+            userAvatar
+            company
+            school
+            countryName
             reputation
             ranking
+            aboutMe
+          }
+          badges {
+            id
+            displayName
+            icon
           }
           submitStats {
             acSubmissionNum {
@@ -108,35 +154,93 @@ export class LeetcodeService {
       }
     `;
 
-    // Execute queries in parallel
-    const [profileRes, calendarRes, tagsRes, contestRes] = await Promise.all([
-      fetch(url, { method: "POST", headers, body: JSON.stringify({ query: profileQuery, variables: { username } }) }),
-      fetch(url, { method: "POST", headers, body: JSON.stringify({ query: calendarQuery, variables: { username } }) }),
-      fetch(url, { method: "POST", headers, body: JSON.stringify({ query: tagsQuery, variables: { username } }) }),
-      fetch(url, { method: "POST", headers, body: JSON.stringify({ query: contestQuery, variables: { username } }) })
-    ]);
+    const submissionsQuery = `
+      query recentSubmissions($username: String!, $limit: Int) {
+        recentSubmissionList(username: $username, limit: $limit) {
+          title
+          titleSlug
+          timestamp
+          statusDisplay
+          lang
+        }
+      }
+    `;
 
-    if (!profileRes.ok) {
-      throw new Error(`Failed to fetch LeetCode profile: ${profileRes.statusText}`);
+    let attempts = 3;
+    let delayMs = 1000;
+    let profileData: any = null;
+    let calendarData: any = null;
+    let tagsData: any = null;
+    let contestData: any = null;
+    let submissionsData: any = null;
+
+    // Retry Logic with Exponential Backoff
+    while (attempts > 0) {
+      try {
+        console.log(`[LeetCode Scraper] Fetching LeetCode profile for ${username}. Attempt ${4 - attempts}/3`);
+        
+        const [profileRes, calendarRes, tagsRes, contestRes, submissionsRes] = await Promise.all([
+          fetch(url, { method: "POST", headers, body: JSON.stringify({ query: profileQuery, variables: { username } }), next: { revalidate: 0 } }),
+          fetch(url, { method: "POST", headers, body: JSON.stringify({ query: calendarQuery, variables: { username } }), next: { revalidate: 0 } }),
+          fetch(url, { method: "POST", headers, body: JSON.stringify({ query: tagsQuery, variables: { username } }), next: { revalidate: 0 } }),
+          fetch(url, { method: "POST", headers, body: JSON.stringify({ query: contestQuery, variables: { username } }), next: { revalidate: 0 } }),
+          fetch(url, { method: "POST", headers, body: JSON.stringify({ query: submissionsQuery, variables: { username, limit: 15 } }), next: { revalidate: 0 } })
+        ]);
+
+        console.log(`[LeetCode Scraper] Network request response statuses: Profile (${profileRes.status}), Calendar (${calendarRes.status}), Tags (${tagsRes.status}), Contest (${contestRes.status}), Submissions (${submissionsRes.status})`);
+
+        if (!profileRes.ok) {
+          if (profileRes.status === 404) {
+            throw new Error(`User not found (404)`);
+          }
+          throw new Error(`Profile query failed with status: ${profileRes.statusText} (${profileRes.status})`);
+        }
+        if (!calendarRes.ok || !tagsRes.ok || !contestRes.ok || !submissionsRes.ok) {
+          throw new Error("One or more auxiliary GraphQL queries failed.");
+        }
+
+        profileData = await profileRes.json();
+        calendarData = await calendarRes.json();
+        tagsData = await tagsRes.json();
+        contestData = await contestRes.json();
+        submissionsData = await submissionsRes.json();
+
+        // Check if user exists on LeetCode
+        if (!profileData?.data?.matchedUser) {
+          throw new Error(`User not found (null matchedUser)`);
+        }
+        break;
+      } catch (err: any) {
+        if (err.message.includes("User not found")) {
+          console.error(`[LeetCode Scraper] Profile for user '${username}' not found on LeetCode.`);
+          throw new Error(`LeetCode profile for user '${username}' not found.`);
+        }
+        attempts--;
+        console.warn(`[LeetCode Scraper] Attempt failed: ${err.message}. ${attempts} attempts remaining.`);
+        if (attempts === 0) {
+          throw new Error(`LeetCode Scraper failed after 3 attempts. Error: ${err.message}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        delayMs *= 2;
+      }
     }
-    
-    const profileData = await profileRes.json();
-    const calendarData = await calendarRes.json();
-    const calendarJsonPayload = await calendarRes.clone().json().catch(() => ({}));
-    const tagsData = await tagsRes.json();
-    const contestData = await contestRes.json();
 
-    const matchedUser = profileData.data?.matchedUser;
-    if (!matchedUser) {
-      throw new Error(`LeetCode profile for "${username}" not found.`);
-    }
+    console.log(`[LeetCode Scraper] Parsing responses and extracting metrics...`);
 
+    const matchedUser = profileData.data.matchedUser;
     const userCalendar = calendarData.data?.matchedUser?.userCalendar || {};
     const tagProblemCounts = tagsData.data?.matchedUser?.tagProblemCounts || {};
     const userContestRanking = contestData.data?.userContestRanking;
     const contestHistoryRaw = contestData.data?.userContestRankingHistory || [];
+    const recentSubmissions = submissionsData.data?.recentSubmissionList || [];
 
-    // Calculate Problems Solved
+    // Profile Details
+    const fullName = matchedUser.profile?.realName || null;
+    const country = matchedUser.profile?.countryName || null;
+    const institution = matchedUser.profile?.school || null;
+    const city = matchedUser.profile?.company || null;
+
+    // Problems Solved Stats
     const acSubmissionNum = matchedUser.submitStats?.acSubmissionNum || [];
     const totalSubmissionNum = matchedUser.submitStats?.totalSubmissionNum || [];
 
@@ -149,7 +253,7 @@ export class LeetcodeService {
     const allAcSubs = acSubmissionNum.find((q: any) => q.difficulty === "All")?.submissions || 0;
     const acceptanceRate = Math.round((allAcSubs / allTotalSubs) * 100);
 
-    // Parse Heatmap calendar from submissionCalendar
+    // Heatmap Calendar
     const heatmap: Record<string, number> = {};
     if (userCalendar.submissionCalendar) {
       try {
@@ -164,7 +268,7 @@ export class LeetcodeService {
       }
     }
 
-    // Weekly Activity: Mon - Sun count
+    // Mon - Sun weekly counts
     const weeklyActivity = [0, 0, 0, 0, 0, 0, 0];
     const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
     Object.keys(heatmap).forEach((dateStr) => {
@@ -176,7 +280,7 @@ export class LeetcodeService {
       }
     });
 
-    // Skill Radar Proficiency Matrix
+    // Radar / Distribution (Tags solved)
     const advanced = tagProblemCounts.advanced || [];
     const intermediate = tagProblemCounts.intermediate || [];
     const fundamental = tagProblemCounts.fundamental || [];
@@ -190,7 +294,6 @@ export class LeetcodeService {
       { subject: "Sorting & Search", A: Math.min(100, (fundamental.find((t: any) => t.tagSlug === "sorting")?.problemsSolved || 0) * 3) }
     ];
 
-    // Tag distribution values
     const tagDistribution = [
       { name: "Dynamic Programming", value: advanced.find((t: any) => t.tagSlug === "dynamic-programming")?.problemsSolved || 0 },
       { name: "Arrays", value: fundamental.find((t: any) => t.tagSlug === "array")?.problemsSolved || 0 },
@@ -200,14 +303,14 @@ export class LeetcodeService {
       { name: "Greedy", value: intermediate.find((t: any) => t.tagSlug === "greedy")?.problemsSolved || 0 }
     ].filter((t) => t.value > 0);
 
-    // Contest history mappings
+    // Contests History
     const attendedContests = contestHistoryRaw.filter((h: any) => h.attended);
-    const ratingHistory = attendedContests.slice(-10).map((h: any) => ({
+    const ratingHistory = attendedContests.map((h: any) => ({
       contest: h.contest?.title || "Contest",
       rating: Math.round(h.rating)
     }));
 
-    const contestHistory = attendedContests.slice(-8).map((h: any) => ({
+    const contestHistory = attendedContests.map((h: any) => ({
       contest: h.contest?.title || "Contest",
       rank: h.ranking,
       rating: Math.round(h.rating)
@@ -218,8 +321,24 @@ export class LeetcodeService {
     const countryRank = null;
 
     const consistencyScore = Math.min(100, Math.round((userCalendar.totalActiveDays || 0) * 1.5));
+    const activeDaysCount = userCalendar.totalActiveDays || 0;
+    const streak = userCalendar.streak || 0;
 
-    return {
+    // Badges details
+    const badges = (matchedUser.badges || []).map((b: any) => ({
+      id: b.id,
+      name: b.displayName,
+      icon: b.icon
+    }));
+
+    const difficultyDistribution = {
+      easy: easySolved,
+      medium: mediumSolved,
+      hard: hardSolved,
+      challenge: 0
+    };
+
+    const finalResult: ScrapedData = {
       platform: "LEETCODE",
       username,
       currentRating: Math.round(contestRating),
@@ -230,6 +349,34 @@ export class LeetcodeService {
       problemsSolved: allSolved,
       contestCount: userContestRanking?.attendedContestsCount || 0,
       contests: [],
+      fullName,
+      country,
+      institution,
+      city,
+      fullySolvedCount: allSolved,
+      partiallySolvedCount: 0,
+      easySolvedCount: easySolved,
+      mediumSolvedCount: mediumSolved,
+      hardSolvedCount: hardSolved,
+      challengeSolvedCount: 0,
+      activeDaysCount,
+      ratingHistory,
+      contestHistory,
+      difficultyDistribution,
+      activitySummary: heatmap,
+      statisticDetails: {
+        stars: contestRating >= 2200 ? 6 : contestRating >= 2000 ? 5 : contestRating >= 1800 ? 4 : contestRating >= 1600 ? 3 : 2,
+        currentRating: Math.round(contestRating),
+        highestRating: Math.round(Math.max(contestRating, ...ratingHistory.map((r: any) => r.rating))),
+        problemsSolved: allSolved,
+        easySolved,
+        mediumSolved,
+        hardSolved,
+        acceptanceRate,
+        streak,
+        badges,
+        recentSubmissions
+      },
       rawMetrics: {
         easySolvedCount: easySolved,
         mediumSolvedCount: mediumSolved,
@@ -240,9 +387,15 @@ export class LeetcodeService {
         tagDistribution,
         consistencyScore,
         heatmap,
-        ratingHistory,
-        contestHistory
+        ratingHistory: ratingHistory.slice(-10),
+        contestHistory: contestHistory.slice(-8),
+        recentSubmissions,
+        badges,
+        streak
       }
     };
+
+    console.log(`[LeetCode Scraper] Extraction and normalization finished. Returning final object for user ${username}:`, JSON.stringify(finalResult));
+    return finalResult;
   }
 }

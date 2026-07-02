@@ -21,36 +21,60 @@ async function pool<T, R>(items: T[], fn: (item: T) => Promise<R>, maxConcurrenc
 
 export class GithubService {
   /**
+   * Validates GitHub profile username or URL.
+   */
+  static validate(input: string): { isValid: boolean; username: string; error?: string } {
+    if (!input) {
+      return { isValid: false, username: "", error: "Input username or URL cannot be empty." };
+    }
+
+    const trimmed = input.trim();
+    
+    // Check if input is a URL and extract the username
+    if (trimmed.includes("github.com/")) {
+      const urlMatch = trimmed.match(/(?:github\.com\/)([a-zA-Z0-9_\-]+)/i);
+      if (urlMatch && urlMatch[1]) {
+        return { isValid: true, username: urlMatch[1] };
+      }
+      return { isValid: false, username: "", error: "Invalid GitHub profile URL format." };
+    }
+
+    // Otherwise, validate as alphanumeric with hyphens (max 39 chars per GitHub rules)
+    const usernameRegex = /^[a-zA-Z0-9\-]{1,39}$/;
+    if (!usernameRegex.test(trimmed)) {
+      return { 
+        isValid: false, 
+        username: "", 
+        error: "GitHub username must be 1-39 characters long and contain only letters, numbers, or hyphens." 
+      };
+    }
+
+    return { isValid: true, username: trimmed };
+  }
+
+  /**
    * Automatically extracts the GitHub username from a URL or raw string.
    */
   static extractUsername(input: string): string {
-    const trimmed = input.trim();
-    if (!trimmed) return "";
-    
-    // e.g. https://github.com/tejaswy/ -> tejaswy
-    // or github.com/tejaswy -> tejaswy
-    // or just tejaswy -> tejaswy
-    const cleaned = trimmed
-      .replace(/^(https?:\/\/)?(www\.)?github\.com\//i, "")
-      .split("/")[0]
-      .split("?")[0]
-      .split("#")[0];
-      
-    return cleaned;
+    const validation = this.validate(input);
+    return validation.isValid ? validation.username : "";
   }
 
   /**
    * Queries real-time, authenticated data from GitHub APIs and processes metrics.
    */
-  static async fetchData(input: string): Promise<any> {
-    const username = this.extractUsername(input);
-    if (!username) {
-      throw new Error("Invalid GitHub username or profile URL.");
+  static async fetchData(input: string, useCache: boolean = false): Promise<any> {
+    const validation = this.validate(input);
+    if (!validation.isValid) {
+      console.error(`[GitHub Scraper] Username validation failed: ${validation.error}`);
+      throw new Error(validation.error || "Invalid GitHub username or profile URL.");
     }
+    const username = validation.username;
+    console.log(`[GitHub Scraper] Starting fetch for user: ${username}, useCache: ${useCache}`);
 
     // Comprehensive GraphQL Query to get profile info, contributions, pinned items, and paginated repos
     const query = `
-      query ($username: String!, $cursor: String, $prQuery: String!, $prMergedQuery: String!, $prOpenQuery: String!, $issueQuery: String!, $issueClosedQuery: String!) {
+      query ($username: String!, $cursor: String) {
         user(login: $username) {
           login
           name
@@ -98,7 +122,7 @@ export class GithubService {
               }
             }
           }
-          repositories(first: 100, after: $cursor, ownerAffiliations: OWNER, orderBy: {field: PUSHED_AT, direction: DESC}) {
+          repositories(first: 30, after: $cursor, ownerAffiliations: OWNER, orderBy: {field: PUSHED_AT, direction: DESC}) {
             totalCount
             pageInfo {
               hasNextPage
@@ -168,25 +192,6 @@ export class GithubService {
                   byteSize
                 }
               }
-              defaultBranchRef {
-                name
-                target {
-                  ... on Commit {
-                    history(first: 1) {
-                      totalCount
-                      nodes {
-                        oid
-                        message
-                        committedDate
-                        author {
-                          name
-                          email
-                        }
-                      }
-                    }
-                  }
-                }
-              }
               branches: refs(first: 0, refPrefix: "refs/heads/") {
                 totalCount
               }
@@ -210,21 +215,21 @@ export class GithubService {
               }
             }
           }
-        }
-        pullRequestsCreated: search(query: $prQuery, type: ISSUE, first: 0) {
-          issueCount
-        }
-        pullRequestsMerged: search(query: $prMergedQuery, type: ISSUE, first: 0) {
-          issueCount
-        }
-        pullRequestsOpen: search(query: $prOpenQuery, type: ISSUE, first: 0) {
-          issueCount
-        }
-        issuesCreated: search(query: $issueQuery, type: ISSUE, first: 0) {
-          issueCount
-        }
-        issuesClosed: search(query: $issueClosedQuery, type: ISSUE, first: 0) {
-          issueCount
+          pullRequests(states: [MERGED]) {
+            totalCount
+          }
+          pullRequestsOpen: pullRequests(states: [OPEN]) {
+            totalCount
+          }
+          pullRequestsAll: pullRequests {
+            totalCount
+          }
+          issuesClosed: issues(states: [CLOSED]) {
+            totalCount
+          }
+          issuesAll: issues {
+            totalCount
+          }
         }
       }
     `;
@@ -233,7 +238,7 @@ export class GithubService {
     const nextPageQuery = `
       query ($username: String!, $cursor: String) {
         user(login: $username) {
-          repositories(first: 100, after: $cursor, ownerAffiliations: OWNER, orderBy: {field: PUSHED_AT, direction: DESC}) {
+          repositories(first: 30, after: $cursor, ownerAffiliations: OWNER, orderBy: {field: PUSHED_AT, direction: DESC}) {
             pageInfo {
               hasNextPage
               endCursor
@@ -302,25 +307,6 @@ export class GithubService {
                   byteSize
                 }
               }
-              defaultBranchRef {
-                name
-                target {
-                  ... on Commit {
-                    history(first: 1) {
-                      totalCount
-                      nodes {
-                        oid
-                        message
-                        committedDate
-                        author {
-                          name
-                          email
-                        }
-                      }
-                    }
-                  }
-                }
-              }
               branches: refs(first: 0, refPrefix: "refs/heads/") {
                 totalCount
               }
@@ -338,19 +324,18 @@ export class GithubService {
 
     const variables = {
       username,
-      cursor: null as string | null,
-      prQuery: `author:${username} type:pr`,
-      prMergedQuery: `author:${username} type:pr is:merged`,
-      prOpenQuery: `author:${username} type:pr is:open`,
-      issueQuery: `author:${username} type:issue`,
-      issueClosedQuery: `author:${username} type:issue is:closed`
+      cursor: null as string | null
     };
 
     let data: any = null;
     try {
-      data = await queryGitHubGraphQL(query, variables);
+      console.log(`[GitHub Scraper] Fetching main profile info from GraphQL...`);
+      data = await queryGitHubGraphQL(query, variables, { useCache });
     } catch (err: any) {
-      console.error("GraphQL execution failed or user profile is invalid:", err.message);
+      console.error(`[GitHub Scraper] GraphQL execution failed for user "${username}":`, err.message);
+      if (err.message?.includes("was not found")) {
+        throw new Error(`GitHub profile for user '${username}' not found.`);
+      }
       throw new Error(`GitHub profile for user "${username}" does not exist or is invalid.`);
     }
 
@@ -366,10 +351,11 @@ export class GithubService {
     // Loop to fetch remaining repositories if any (paginating in chunks of 100)
     while (hasNextPage && endCursor) {
       try {
+        console.log(`[GitHub Scraper] Fetching subsequent repository page...`);
         const nextPageData = await queryGitHubGraphQL(nextPageQuery, {
           username,
           cursor: endCursor
-        });
+        }, { useCache });
         const nextPageUser = nextPageData?.user;
         const nodes = nextPageUser?.repositories?.nodes || [];
         allReposNodes = [...allReposNodes, ...nodes];
@@ -386,7 +372,7 @@ export class GithubService {
       let contributors: string[] = [];
       try {
         const contribRes = await queryGitHubREST(`/repos/${username}/${r.name}/contributors?per_page=15`, {
-          useCache: true,
+          useCache,
           maxRetries: 2,
           timeoutMs: 8000
         });
@@ -449,11 +435,11 @@ export class GithubService {
       };
     }, 6);
 
-    const prCreatedCount = data.pullRequestsCreated?.issueCount || 0;
-    const prMergedCount = data.pullRequestsMerged?.issueCount || 0;
-    const prOpenCount = data.pullRequestsOpen?.issueCount || 0;
-    const issuesCreatedCount = data.issuesCreated?.issueCount || 0;
-    const issuesClosedCount = data.issuesClosed?.issueCount || 0;
+    const prCreatedCount = user.pullRequestsAll?.totalCount || 0;
+    const prMergedCount = user.pullRequests?.totalCount || 0;
+    const prOpenCount = user.pullRequestsOpen?.totalCount || 0;
+    const issuesCreatedCount = user.issuesAll?.totalCount || 0;
+    const issuesClosedCount = user.issuesClosed?.totalCount || 0;
 
     // Run dynamic application calculations
     const analytics = GithubAnalyticsService.computeAnalytics(
@@ -468,7 +454,7 @@ export class GithubService {
 
     const rating = analytics.developerScore.score;
 
-    return {
+    const finalResult = {
       platform: "GITHUB",
       username,
       currentRating: rating,
@@ -479,6 +465,38 @@ export class GithubService {
       problemsSolved: analytics.totalRepositories,
       contestCount: analytics.totalStars,
       contests: [],
+      fullName: user.name || null,
+      country: user.location || null,
+      institution: user.company || null,
+      city: user.location || null,
+      fullySolvedCount: analytics.totalRepositories,
+      partiallySolvedCount: 0,
+      easySolvedCount: analytics.portfolio?.web || 0,
+      mediumSolvedCount: analytics.portfolio?.fullStack || 0,
+      hardSolvedCount: analytics.portfolio?.ai || 0,
+      challengeSolvedCount: analytics.portfolio?.mobile || 0,
+      activeDaysCount: analytics.streaks?.activeDays || 0,
+      ratingHistory: analytics.commitTimeline || [],
+      contestHistory: [],
+      difficultyDistribution: {
+        easy: analytics.portfolio?.web || 0,
+        medium: analytics.portfolio?.fullStack || 0,
+        hard: analytics.portfolio?.ai || 0,
+        challenge: analytics.portfolio?.mobile || 0
+      },
+      activitySummary: analytics.contributions || {},
+      statisticDetails: {
+        stars: rating >= 80 ? 5 : rating >= 60 ? 4 : rating >= 40 ? 3 : 2,
+        currentRating: rating,
+        highestRating: rating,
+        problemsSolved: analytics.totalRepositories,
+        totalStars: analytics.totalStars,
+        totalForks: analytics.totalForks,
+        followers: analytics.followers,
+        pullRequests: analytics.openSource?.pullRequests || 0,
+        issuesCreated: analytics.openSource?.issuesCreated || 0,
+        contributionsCount: analytics.streaks?.activeDays || 0
+      },
       rawMetrics: {
         totalRepositories: analytics.totalRepositories,
         totalStars: analytics.totalStars,
@@ -518,5 +536,8 @@ export class GithubService {
         recommendedLearningPath: analytics.careerInsights.recommendedLearningPath
       }
     };
+
+    console.log(`[GitHub Scraper] Extraction and normalization finished. Returning final object for user ${username}:`, JSON.stringify(finalResult));
+    return finalResult;
   }
 }

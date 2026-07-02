@@ -12,30 +12,58 @@ function hashString(str: string): number {
 
 export class CodechefService {
   /**
-   * Extracts the CodeChef username from a URL or raw handle.
+   * Validates CodeChef profile username or URL.
    */
-  static extractUsername(input: string): string {
-    if (!input) return "";
+  static validate(input: string): { isValid: boolean; username: string; error?: string } {
+    if (!input) {
+      return { isValid: false, username: "", error: "Input username or URL cannot be empty." };
+    }
+
     const trimmed = input.trim();
+    
+    // Check if input is a URL and extract the username
     if (trimmed.includes("codechef.com/")) {
       const urlMatch = trimmed.match(/(?:codechef\.com\/users\/)([a-zA-Z0-9_]+)/i);
       if (urlMatch && urlMatch[1]) {
-        return urlMatch[1];
+        return { isValid: true, username: urlMatch[1] };
       }
+      return { isValid: false, username: "", error: "Invalid CodeChef profile URL format." };
     }
-    return trimmed.split("/")[0].split("?")[0].split("#")[0];
+
+    // Otherwise, validate as alphanumeric username
+    const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
+    if (!usernameRegex.test(trimmed)) {
+      return { 
+        isValid: false, 
+        username: "", 
+        error: "CodeChef username must be 3-30 characters long and contain only letters, numbers, or underscores." 
+      };
+    }
+
+    return { isValid: true, username: trimmed };
+  }
+
+  /**
+   * Extracts the CodeChef username from a URL or raw handle.
+   */
+  static extractUsername(input: string): string {
+    const validation = this.validate(input);
+    return validation.isValid ? validation.username : "";
   }
 
   /**
    * Real-time scraper fetching CodeChef profile details.
    */
   static async fetchData(input: string): Promise<ScrapedData> {
-    const username = this.extractUsername(input);
-    if (!username) {
-      throw new Error("Invalid CodeChef username or profile URL.");
+    const validation = this.validate(input);
+    if (!validation.isValid) {
+      console.error(`[CodeChef Scraper] Username validation failed: ${validation.error}`);
+      throw new Error(validation.error || "Invalid CodeChef username or profile URL.");
     }
+    const username = validation.username;
 
     const url = `https://www.codechef.com/users/${username}`;
+    console.log(`[CodeChef Scraper] Requesting URL: ${url}`);
     const headers = {
       "User-Agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -51,7 +79,9 @@ export class CodechefService {
     // Retry Logic with Exponential Backoff
     while (attempts > 0) {
       try {
+        console.log(`[CodeChef Scraper] Fetching CodeChef page, attempt ${4 - attempts}/3`);
         const response = await fetch(url, { headers, next: { revalidate: 0 } });
+        console.log(`[CodeChef Scraper] Response status: ${response.status} ${response.statusText}`);
         if (!response.ok) {
           if (response.status === 404) {
             throw new Error(`CodeChef profile for user '${username}' not found (404).`);
@@ -62,6 +92,7 @@ export class CodechefService {
         break;
       } catch (err: any) {
         attempts--;
+        console.warn(`[CodeChef Scraper] Attempt failed: ${err.message}. ${attempts} attempts remaining.`);
         if (attempts === 0) {
           throw new Error(`CodeChef Scraper failed after 3 attempts. Error: ${err.message}`);
         }
@@ -71,9 +102,11 @@ export class CodechefService {
     }
 
     if (!responseText || responseText.includes("Access Denied") || responseText.includes("Attention Required!")) {
+      console.error(`[CodeChef Scraper] Cloudflare check or access denied encountered.`);
       throw new Error("Access denied or Cloudflare challenge encountered while scraping CodeChef.");
     }
 
+    console.log(`[CodeChef Scraper] Page fetched successfully. Parsing HTML...`);
     const $ = cheerio.load(responseText);
 
     // 1. Current Rating
@@ -285,19 +318,10 @@ export class CodechefService {
       }
     }
 
-    // Backup fake heat map if empty to guarantee calendar visibility
-    if (Object.keys(activitySummary).length === 0) {
-      const nowTs = Date.now();
-      for (let i = 0; i < 30; i++) {
-        const date = new Date(nowTs - i * 24 * 60 * 60 * 1000);
-        const dateStr = date.toISOString().split("T")[0];
-        activitySummary[dateStr] = (hashString(dateStr) % 5 === 0) ? (hashString(dateStr) % 4) + 1 : 0;
-      }
-    }
-
+    // Removed fake heatmap generation. If activitySummary is empty, it remains empty.
     const activeDaysCount = Object.values(activitySummary).filter((v) => v > 0).length;
 
-    return {
+    const parsedResult: ScrapedData = {
       platform: "CODECHEF",
       username,
       currentRating,
@@ -330,5 +354,8 @@ export class CodechefService {
         problemsSolved,
       },
     };
+
+    console.log(`[CodeChef Scraper] Validation and extraction completed. Returning parsed object for user ${username}:`, JSON.stringify(parsedResult));
+    return parsedResult;
   }
 }

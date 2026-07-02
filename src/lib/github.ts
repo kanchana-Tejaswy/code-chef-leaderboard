@@ -97,11 +97,18 @@ export async function queryGitHubGraphQL(
 
       const payload = await handleResponse(response);
       if (payload.errors) {
+        const isNotFound = payload.errors.some((e: any) => 
+          e.type === "NOT_FOUND" || 
+          e.message?.includes("Could not resolve to a User")
+        );
+        if (isNotFound) {
+          throw new Error(`GitHub user "${variables.username}" was not found.`);
+        }
         throw new Error(`GitHub GraphQL errors: ${JSON.stringify(payload.errors)}`);
       }
 
       const data = payload.data;
-      if (useCache && data) {
+      if (data) {
         githubCache.set(cacheKey, data);
       }
 
@@ -110,7 +117,7 @@ export async function queryGitHubGraphQL(
       clearTimeout(timeoutId);
       console.warn(`GitHub GraphQL attempt ${attempt}/${maxRetries} failed:`, err.message || err);
 
-      if (attempt === maxRetries || err.message?.includes("rate limit exceeded")) {
+      if (attempt === maxRetries || err.message?.includes("rate limit exceeded") || err.message?.includes("was not found")) {
         throw err;
       }
 
@@ -162,7 +169,7 @@ export async function queryGitHubREST(
       clearTimeout(timeoutId);
 
       const data = await handleResponse(response);
-      if (useCache && data) {
+      if (data) {
         githubCache.set(cacheKey, data);
       }
 

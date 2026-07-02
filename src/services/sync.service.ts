@@ -180,14 +180,14 @@ export class SyncService {
           const githubData = github.data;
           const metrics = githubData.rawMetrics || {};
           const reposExtended = {
-            list: metrics.repos,
-            intelligence: metrics.intelligence,
-            commitAnalytics: metrics.commitAnalytics,
-            openSource: metrics.openSource,
-            portfolio: metrics.portfolio,
-            careerInsights: metrics.careerInsights,
-            profileDetails: metrics.profileDetails,
-            developerScore: metrics.developerScore
+            list: metrics.repos?.list || [],
+            intelligence: metrics.repos?.intelligence || {},
+            commitAnalytics: metrics.repos?.commitAnalytics || {},
+            openSource: metrics.repos?.openSource || {},
+            portfolio: metrics.repos?.portfolio || {},
+            careerInsights: metrics.repos?.careerInsights || {},
+            profileDetails: metrics.repos?.profileDetails || {},
+            developerScore: metrics.repos?.developerScore || {}
           };
           await tx.githubProfile.upsert({
             where: { studentId },
