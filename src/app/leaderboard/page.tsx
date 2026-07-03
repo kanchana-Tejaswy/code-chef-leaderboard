@@ -16,6 +16,7 @@ import {
   ChevronLeft, 
   ChevronRight 
 } from "lucide-react";
+import ContestPlatformCard from "../../components/leaderboard/ContestPlatformCard";
 
 interface LeaderboardEntry {
   id: string;
@@ -312,25 +313,45 @@ function LeaderboardContent() {
       
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-6">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-[#EAB308]/10 border border-[#EAB308]/20 text-[#EAB308] rounded-xl">
-            <Trophy className="h-6 w-6" />
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-[#EAB308]/10 border border-[#EAB308]/20 text-[#EAB308] rounded-xl">
+              <Trophy className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight text-white">ACE Leaderboard</h1>
+              <p className="text-sm text-brand-muted mt-1">Real-time student placement readiness rankings across CodeChef, LeetCode, and GitHub</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white">ACE Leaderboard</h1>
-            <p className="text-sm text-brand-muted mt-1">Real-time student placement readiness rankings across CodeChef, LeetCode, and GitHub</p>
-          </div>
-        </div>
 
-        <a
-          href={getExportUrl()}
-          download
-          className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 border border-brand-border hover:border-[#EAB308]/30 text-sm font-bold text-zinc-300 hover:text-white transition-all shadow-[0_1px_10px_rgba(0,0,0,0.4)]"
-        >
-          <Download className="h-4 w-4" />
-          Export Standings
-        </a>
-      </div>
+          {/* Contest Center */}
+          <div className="flex gap-4 mt-4 md:mt-0">
+            <ContestPlatformCard
+              title="CodeChef Contests"
+              icon={<Trophy className="h-6 w-6" />}
+              description="Recent • Upcoming"
+              href="/codechef-contests"
+              gradientFrom="#6B46C1"
+              gradientTo="#9F7AEA"
+            />
+            <ContestPlatformCard
+              title="LeetCode Contests"
+              icon={<Star className="h-6 w-6" />}
+              description="Weekly • Biweekly"
+              href="/leetcode-contests"
+              gradientFrom="#F59E0B"
+              gradientTo="#EF4444"
+            />
+          </div>
+
+          <a
+            href={getExportUrl()}
+            download
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 border border-brand-border hover:border-[#EAB308]/30 text-sm font-bold text-zinc-300 hover:text-white transition-all shadow-[0_1px_10px_rgba(0,0,0,0.4)]"
+          >
+            <Download className="h-4 w-4" />
+            Export Standings
+          </a>
+        </div>
 
       {/* Podium Component */}
       {podiumEntries.length >= 3 && <Podium top3={podiumEntries} />}
