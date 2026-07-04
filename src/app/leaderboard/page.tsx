@@ -14,7 +14,10 @@ import {
   ChevronUp, 
   ChevronDown, 
   ChevronLeft, 
-  ChevronRight 
+  ChevronRight,
+  Edit2,
+  Check,
+  X
 } from "lucide-react";
 import ContestPlatformCard from "../../components/leaderboard/ContestPlatformCard";
 
@@ -37,6 +40,7 @@ interface LeaderboardEntry {
     year: number;
     codechefUsername: string;
     profilePictureUrl: string | null;
+    verificationStatus?: string;
   };
 }
 
@@ -156,10 +160,64 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
 function LeaderboardContent() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"overall" | "codechef" | "leetcode" | "github">("overall");
+
+  // Editing Student Name State
+  const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState("");
+  const [isSavingName, setIsSavingName] = useState(false);
+
+  const handleSaveName = async (id: string) => {
+    if (!editingName.trim()) return;
+    setIsSavingName(true);
+    try {
+      const response = await fetch("/api/admin/students", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, name: editingName }),
+      });
+      if (response.ok) {
+        setEntries((prev) =>
+          prev.map((e) =>
+            e.student.id === id
+              ? { ...e, student: { ...e.student, name: editingName.trim() } }
+              : e
+          )
+        );
+        setEditingStudentId(null);
+      } else {
+        alert("Failed to update student name.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error updating student name.");
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  // Basic Filter States
   const [search, setSearch] = useState("");
   const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [selectedStars, setSelectedStars] = useState<number[]>([]);
+
+  // CodeChef Ranges
+  const [ccRatingMin, setCcRatingMin] = useState("");
+  const [ccRatingMax, setCcRatingMax] = useState("");
+  const [ccContestsMin, setCcContestsMin] = useState("");
+
+  // LeetCode Ranges
+  const [lcRatingMin, setLcRatingMin] = useState("");
+  const [lcRatingMax, setLcRatingMax] = useState("");
+  const [lcEasyMin, setLcEasyMin] = useState("");
+  const [lcMediumMin, setLcMediumMin] = useState("");
+  const [lcHardMin, setLcHardMin] = useState("");
+
+  // GitHub Ranges
+  const [ghFollowersMin, setGhFollowersMin] = useState("");
+  const [ghStarsMin, setGhStarsMin] = useState("");
+  const [ghReposMin, setGhReposMin] = useState("");
 
   // Pagination & Sorting State
   const [page, setPage] = useState(1);
@@ -182,12 +240,26 @@ function LeaderboardContent() {
       if (selectedYears.length > 0) params.set("years", selectedYears.join(","));
       if (selectedStars.length > 0) params.set("stars", selectedStars.join(","));
 
+      if (ccRatingMin) params.set("ccRatingMin", ccRatingMin);
+      if (ccRatingMax) params.set("ccRatingMax", ccRatingMax);
+      if (ccContestsMin) params.set("ccContestsMin", ccContestsMin);
+
+      if (lcRatingMin) params.set("lcRatingMin", lcRatingMin);
+      if (lcRatingMax) params.set("lcRatingMax", lcRatingMax);
+      if (lcEasyMin) params.set("lcEasyMin", lcEasyMin);
+      if (lcMediumMin) params.set("lcMediumMin", lcMediumMin);
+      if (lcHardMin) params.set("lcHardMin", lcHardMin);
+
+      if (ghFollowersMin) params.set("ghFollowersMin", ghFollowersMin);
+      if (ghStarsMin) params.set("ghStarsMin", ghStarsMin);
+      if (ghReposMin) params.set("ghReposMin", ghReposMin);
+
       params.set("page", page.toString());
       params.set("limit", limit.toString());
       params.set("sortBy", sortBy);
       params.set("sortOrder", sortOrder);
 
-      const response = await fetch(`/api/leaderboard?${params.toString()}`, { cache: "no-store" });
+      const response = await fetch(`/api/dashboard/leaderboard-cache?${params.toString()}`, { cache: "no-store" });
       if (response.ok) {
         const data = await response.json();
         setEntries(data.entries || []);
@@ -207,7 +279,12 @@ function LeaderboardContent() {
     }, 300);
 
     return () => clearTimeout(delayDebounce);
-  }, [search, selectedDepts, selectedYears, selectedStars, page, sortBy, sortOrder]);
+  }, [
+    search, selectedDepts, selectedYears, selectedStars, page, sortBy, sortOrder,
+    ccRatingMin, ccRatingMax, ccContestsMin,
+    lcRatingMin, lcRatingMax, lcEasyMin, lcMediumMin, lcHardMin,
+    ghFollowersMin, ghStarsMin, ghReposMin
+  ]);
 
   const toggleDept = (dept: string) => {
     setSelectedDepts((prev) =>
@@ -235,6 +312,17 @@ function LeaderboardContent() {
     setSelectedYears([]);
     setSelectedStars([]);
     setSearch("");
+    setCcRatingMin("");
+    setCcRatingMax("");
+    setCcContestsMin("");
+    setLcRatingMin("");
+    setLcRatingMax("");
+    setLcEasyMin("");
+    setLcMediumMin("");
+    setLcHardMin("");
+    setGhFollowersMin("");
+    setGhStarsMin("");
+    setGhReposMin("");
     setPage(1);
   };
 
@@ -243,7 +331,7 @@ function LeaderboardContent() {
       setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
     } else {
       setSortBy(field);
-      setSortOrder(field === "rank" ? "asc" : "desc");
+      setSortOrder("desc");
     }
     setPage(1);
   };
@@ -264,21 +352,30 @@ function LeaderboardContent() {
     if (selectedDepts.length > 0) params.set("departments", selectedDepts.join(","));
     if (selectedYears.length > 0) params.set("years", selectedYears.join(","));
     if (selectedStars.length > 0) params.set("stars", selectedStars.join(","));
-    return `/api/leaderboard?${params.toString()}`;
+    if (ccRatingMin) params.set("ccRatingMin", ccRatingMin);
+    if (ccRatingMax) params.set("ccRatingMax", ccRatingMax);
+    if (ccContestsMin) params.set("ccContestsMin", ccContestsMin);
+    if (lcRatingMin) params.set("lcRatingMin", lcRatingMin);
+    if (lcRatingMax) params.set("lcRatingMax", lcRatingMax);
+    if (lcEasyMin) params.set("lcEasyMin", lcEasyMin);
+    if (lcMediumMin) params.set("lcMediumMin", lcMediumMin);
+    if (lcHardMin) params.set("lcHardMin", lcHardMin);
+    if (ghFollowersMin) params.set("ghFollowersMin", ghFollowersMin);
+    if (ghStarsMin) params.set("ghStarsMin", ghStarsMin);
+    if (ghReposMin) params.set("ghReposMin", ghReposMin);
+    params.set("sortBy", sortBy);
+    params.set("sortOrder", sortOrder);
+    return `/api/dashboard/leaderboard-cache?${params.toString()}`;
   };
 
-  const getStarColorClass = (starCount: number) => {
-    if (starCount >= 7) return "text-red-500 border-red-500/20 bg-red-500/5";
-    if (starCount >= 6) return "text-orange-500 border-orange-500/20 bg-orange-500/5";
-    if (starCount >= 5) return "text-amber-500 border-amber-500/20 bg-amber-500/5";
-    if (starCount >= 4) return "text-primary border-primary/20 bg-primary/5";
-    if (starCount >= 3) return "text-secondary border-secondary/20 bg-secondary/5";
-    if (starCount >= 2) return "text-emerald-500 border-emerald-500/20 bg-emerald-500/5";
-    return "text-zinc-500 border-zinc-500/20 bg-zinc-500/5";
-  };
-
-  // Custom Rank Badge Renderer
-  const getRankBadge = (pos: number) => {
+  const getRankBadge = (pos: number, verificationStatus?: string) => {
+    if (verificationStatus === "UNABLE_TO_VERIFY") {
+      return (
+        <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[8px] font-black bg-red-500/10 border border-red-500/20 text-red-400 uppercase">
+          Pending
+        </span>
+      );
+    }
     if (pos === 1) {
       return (
         <span className="inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-black bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/30 shadow-[0_0_10px_rgba(255,215,0,0.15)]">
@@ -303,10 +400,17 @@ function LeaderboardContent() {
     return <span className="text-xs font-bold text-brand-muted">#{pos}</span>;
   };
 
-  // Obtain Top 3 from paginated list if on page 1 of default ranking
   const podiumEntries = page === 1 && sortBy === "overallScore" && sortOrder === "desc" && entries.length >= 3 && !search && selectedDepts.length === 0 && selectedYears.length === 0 && selectedStars.length === 0
     ? entries.slice(0, 3) 
     : [];
+
+  const getColSpan = () => {
+    if (activeTab === "overall") return 6;
+    if (activeTab === "codechef") return 7;
+    if (activeTab === "leetcode") return 7;
+    if (activeTab === "github") return 5;
+    return 7;
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8">
@@ -359,17 +463,19 @@ function LeaderboardContent() {
       {/* Segmented Platform Filters */}
       <div className="flex border border-brand-border bg-[#111111]/45 p-1 rounded-2xl gap-1 w-full max-w-md relative z-10">
         {[
-          { name: "Overall", value: "overallScore" },
-          { name: "CodeChef", value: "codechefScore" },
-          { name: "LeetCode", value: "leetcodeScore" },
-          { name: "GitHub", value: "githubScore" }
+          { name: "Overall", value: "overall", defaultSort: "overallScore" },
+          { name: "CodeChef", value: "codechef", defaultSort: "ccRating" },
+          { name: "LeetCode", value: "leetcode", defaultSort: "lcRating" },
+          { name: "GitHub", value: "github", defaultSort: "ghActivity" }
         ].map((tab) => {
-          const active = sortBy === tab.value;
+          const active = activeTab === tab.value;
           return (
             <button
               key={tab.value}
               onClick={() => {
-                setSortBy(tab.value);
+                setActiveTab(tab.value as any);
+                setSortBy(tab.defaultSort);
+                setSortOrder("desc");
                 setPage(1);
               }}
               className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
@@ -402,7 +508,7 @@ function LeaderboardContent() {
             </button>
           </div>
 
-          {/* Department Filter */}
+          {/* Department Filter (Always shown) */}
           <div>
             <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
               Department
@@ -427,7 +533,7 @@ function LeaderboardContent() {
             </div>
           </div>
 
-          {/* Year Filter */}
+          {/* Year Filter (Always shown) */}
           <div>
             <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
               Academic Year
@@ -452,31 +558,189 @@ function LeaderboardContent() {
             </div>
           </div>
 
-          {/* Stars Filter */}
-          <div>
-            <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
-              CodeChef Stars
-            </span>
-            <div className="flex flex-wrap gap-1.5">
-              {starsList.map((star) => {
-                const active = selectedStars.includes(star);
-                return (
-                  <button
-                    key={star}
-                    onClick={() => toggleStars(star)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1 transition-all ${
-                      active
-                        ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
-                        : "bg-zinc-950/40 border-zinc-900 text-brand-muted hover:text-zinc-200"
-                    }`}
-                  >
-                    <span>{star}</span>
-                    <Star className="h-3 w-3 fill-current text-amber-500" />
-                  </button>
-                );
-              })}
+          {/* CodeChef Specific Filters */}
+          {activeTab === "codechef" && (
+            <div className="flex flex-col gap-5 border-t border-brand-border/40 pt-5 animate-fade-in">
+              {/* Stars Filter */}
+              <div>
+                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
+                  CodeChef Stars
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {starsList.map((star) => {
+                    const active = selectedStars.includes(star);
+                    return (
+                      <button
+                        key={star}
+                        onClick={() => toggleStars(star)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1 transition-all ${
+                          active
+                            ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
+                            : "bg-zinc-950/40 border-zinc-900 text-brand-muted hover:text-zinc-200"
+                        }`}
+                      >
+                        <span>{star}</span>
+                        <Star className="h-3 w-3 fill-current text-amber-500" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Rating Range Filter */}
+              <div>
+                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
+                  Rating Range
+                </span>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    value={ccRatingMin}
+                    onChange={(e) => { setCcRatingMin(e.target.value); setPage(1); }}
+                    placeholder="Min"
+                    className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                  />
+                  <span className="text-zinc-600 text-xs">-</span>
+                  <input
+                    type="number"
+                    value={ccRatingMax}
+                    onChange={(e) => { setCcRatingMax(e.target.value); setPage(1); }}
+                    placeholder="Max"
+                    className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                  />
+                </div>
+              </div>
+
+              {/* Contests Min Filter */}
+              <div>
+                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
+                  Min Contests
+                </span>
+                <input
+                  type="number"
+                  value={ccContestsMin}
+                  onChange={(e) => { setCcContestsMin(e.target.value); setPage(1); }}
+                  placeholder="Min contests"
+                  className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                />
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* LeetCode Specific Filters */}
+          {activeTab === "leetcode" && (
+            <div className="flex flex-col gap-5 border-t border-brand-border/40 pt-5 animate-fade-in">
+              {/* Rating Range Filter */}
+              <div>
+                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
+                  LeetCode Rating
+                </span>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="number"
+                    value={lcRatingMin}
+                    onChange={(e) => { setLcRatingMin(e.target.value); setPage(1); }}
+                    placeholder="Min"
+                    className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                  />
+                  <span className="text-zinc-650 text-xs">-</span>
+                  <input
+                    type="number"
+                    value={lcRatingMax}
+                    onChange={(e) => { setLcRatingMax(e.target.value); setPage(1); }}
+                    placeholder="Max"
+                    className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                  />
+                </div>
+              </div>
+
+              {/* Difficulty Breakdown (Min Solved) */}
+              <div>
+                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
+                  Min Problems Solved
+                </span>
+                <div className="flex flex-col gap-2.5">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[10px] text-emerald-400 font-extrabold uppercase">Easy</span>
+                    <input
+                      type="number"
+                      value={lcEasyMin}
+                      onChange={(e) => { setLcEasyMin(e.target.value); setPage(1); }}
+                      placeholder="0"
+                      className="w-20 px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white text-right focus:outline-none focus:border-emerald-400/50"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[10px] text-amber-500 font-extrabold uppercase">Medium</span>
+                    <input
+                      type="number"
+                      value={lcMediumMin}
+                      onChange={(e) => { setLcMediumMin(e.target.value); setPage(1); }}
+                      placeholder="0"
+                      className="w-20 px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white text-right focus:outline-none focus:border-amber-500/50"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-[10px] text-red-500 font-extrabold uppercase">Hard</span>
+                    <input
+                      type="number"
+                      value={lcHardMin}
+                      onChange={(e) => { setLcHardMin(e.target.value); setPage(1); }}
+                      placeholder="0"
+                      className="w-20 px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white text-right focus:outline-none focus:border-red-500/50"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* GitHub Specific Filters */}
+          {activeTab === "github" && (
+            <div className="flex flex-col gap-5 border-t border-brand-border/40 pt-5 animate-fade-in">
+              {/* Followers Min */}
+              <div>
+                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
+                  Min Followers
+                </span>
+                <input
+                  type="number"
+                  value={ghFollowersMin}
+                  onChange={(e) => { setGhFollowersMin(e.target.value); setPage(1); }}
+                  placeholder="Min followers"
+                  className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                />
+              </div>
+
+              {/* Stars Min */}
+              <div>
+                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
+                  Min Total Stars
+                </span>
+                <input
+                  type="number"
+                  value={ghStarsMin}
+                  onChange={(e) => { setGhStarsMin(e.target.value); setPage(1); }}
+                  placeholder="Min stars"
+                  className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                />
+              </div>
+
+              {/* Repository Count Min */}
+              <div>
+                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
+                  Min Repositories
+                </span>
+                <input
+                  type="number"
+                  value={ghReposMin}
+                  onChange={(e) => { setGhReposMin(e.target.value); setPage(1); }}
+                  placeholder="Min repos"
+                  className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Standings Grid Column */}
@@ -507,54 +771,65 @@ function LeaderboardContent() {
                   <tr className="border-b border-brand-border bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                     <th className="py-4.5 px-4 text-center w-16 select-none font-black">Rank</th>
                     <th className="py-4.5 px-4 select-none">Student</th>
-                    {sortBy === "overallScore" && (
+                    {activeTab === "overall" && (
                       <>
                         <th className="py-4.5 px-4 select-none">Department & Year</th>
                         <th onClick={() => handleSort("overallScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
                           Overall Score {renderSortIcon("overallScore")}
                         </th>
-                        <th onClick={() => handleSort("codechefScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("talentScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          AI Unified Score {renderSortIcon("talentScore")}
+                        </th>
+                        <th onClick={() => handleSort("consistency")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Consistency {renderSortIcon("consistency")}
+                        </th>
+                      </>
+                    )}
+                    {activeTab === "codechef" && (
+                      <>
+                        <th onClick={() => handleSort("ccRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Rating {renderSortIcon("ccRating")}
+                        </th>
+                        <th className="py-4.5 px-3 text-center select-none">Stars</th>
+                        <th onClick={() => handleSort("ccHighestRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Highest Rating {renderSortIcon("ccHighestRating")}
+                        </th>
+                        <th onClick={() => handleSort("codechefScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
                           CodeChef Score {renderSortIcon("codechefScore")}
                         </th>
-                        <th onClick={() => handleSort("leetcodeScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("ccContests")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Contests {renderSortIcon("ccContests")}
+                        </th>
+                      </>
+                    )}
+                    {activeTab === "leetcode" && (
+                      <>
+                        <th onClick={() => handleSort("lcRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Rating {renderSortIcon("lcRating")}
+                        </th>
+                        <th onClick={() => handleSort("lcSolved")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Solved {renderSortIcon("lcSolved")}
+                        </th>
+                        <th className="py-4.5 px-3 text-center select-none">E / M / H</th>
+                        <th onClick={() => handleSort("lcConsistency")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Consistency {renderSortIcon("lcConsistency")}
+                        </th>
+                        <th onClick={() => handleSort("leetcodeScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
                           LeetCode Score {renderSortIcon("leetcodeScore")}
                         </th>
-                        <th onClick={() => handleSort("githubScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                      </>
+                    )}
+                    {activeTab === "github" && (
+                      <>
+                        <th onClick={() => handleSort("ghRepos")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Repos {renderSortIcon("ghRepos")}
+                        </th>
+                        <th onClick={() => handleSort("ghActivity")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Activity Score {renderSortIcon("ghActivity")}
+                        </th>
+                        <th onClick={() => handleSort("githubScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
                           GitHub Score {renderSortIcon("githubScore")}
                         </th>
-                      </>
-                    )}
-                    {sortBy === "codechefScore" && (
-                      <>
-                        <th className="py-4.5 px-3 text-center select-none">Rating</th>
-                        <th className="py-4.5 px-3 text-center select-none">Stars</th>
-                        <th className="py-4.5 px-3 text-center select-none">Problems</th>
-                        <th className="py-4.5 px-3 text-center select-none">Contests</th>
-                        <th className="py-4.5 px-3 text-center select-none">Consistency</th>
-                        <th className="py-4.5 px-3 text-center select-none">CodeChef Score</th>
-                      </>
-                    )}
-                    {sortBy === "leetcodeScore" && (
-                      <>
-                        <th className="py-4.5 px-3 text-center select-none">Rating</th>
-                        <th className="py-4.5 px-3 text-center select-none">Solved</th>
-                        <th className="py-4.5 px-3 text-center select-none">E / M / H</th>
-                        <th className="py-4.5 px-3 text-center select-none">Acceptance</th>
-                        <th className="py-4.5 px-3 text-center select-none">Contest Rank</th>
-                        <th className="py-4.5 px-3 text-center select-none">Streak</th>
-                        <th className="py-4.5 px-3 text-center select-none">LeetCode Score</th>
-                      </>
-                    )}
-                    {sortBy === "githubScore" && (
-                      <>
-                        <th className="py-4.5 px-3 text-center select-none">Repos</th>
-                        <th className="py-4.5 px-3 text-center select-none">Stars</th>
-                        <th className="py-4.5 px-3 text-center select-none">Followers</th>
-                        <th className="py-4.5 px-3 text-center select-none">Streak</th>
-                        <th className="py-4.5 px-3 text-center select-none">Commits</th>
-                        <th className="py-4.5 px-3 text-center select-none">Languages</th>
-                        <th className="py-4.5 px-3 text-center select-none">OS Score</th>
-                        <th className="py-4.5 px-3 text-center select-none">GitHub Score</th>
                       </>
                     )}
                     <th className="py-4.5 px-6 text-center w-24 select-none">Portfolio</th>
@@ -563,7 +838,7 @@ function LeaderboardContent() {
                 <tbody className="divide-y divide-[#262626]/50">
                   {isLoading ? (
                     <tr>
-                      <td colSpan={7} className="py-24 text-center">
+                      <td colSpan={getColSpan()} className="py-24 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <Loader2 className="h-8 w-8 animate-spin text-[#EAB308]" />
                           <span className="text-xs text-brand-muted font-semibold">Loading standings...</span>
@@ -572,7 +847,7 @@ function LeaderboardContent() {
                     </tr>
                   ) : entries.length === 0 ? (
                     <tr>
-                      <td colSpan={7} className="py-24 text-center">
+                      <td colSpan={getColSpan()} className="py-24 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <Trophy className="h-8 w-8 text-zinc-650" />
                           <span className="text-sm text-brand-muted font-bold">No students found.</span>
@@ -588,7 +863,7 @@ function LeaderboardContent() {
                       >
                         {/* Rank */}
                         <td className="py-4 px-6 text-center font-extrabold text-sm text-brand-muted">
-                          {getRankBadge(entry.rank)}
+                          {getRankBadge(entry.rank, entry.student.verificationStatus)}
                         </td>
 
                         {/* Student Info */}
@@ -604,18 +879,79 @@ function LeaderboardContent() {
                               )}
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-sm font-bold text-white group-hover:text-[#EAB308] transition-colors">
-                                {entry.student.name}
-                              </span>
-                              <span className="text-[10px] text-brand-muted font-semibold tracking-wider mt-0.5">
-                                {entry.student.rollNumber}
-                              </span>
+                              {editingStudentId === entry.student.id ? (
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <input
+                                    type="text"
+                                    value={editingName}
+                                    onChange={(e) => setEditingName(e.target.value)}
+                                    className="px-2 py-0.5 rounded border border-brand-border bg-zinc-950 text-xs font-bold text-white focus:outline-none focus:border-[#EAB308]/50 w-36"
+                                    autoFocus
+                                    disabled={isSavingName}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") handleSaveName(entry.student.id);
+                                      if (e.key === "Escape") setEditingStudentId(null);
+                                    }}
+                                  />
+                                  <button
+                                    onClick={() => handleSaveName(entry.student.id)}
+                                    disabled={isSavingName}
+                                    className="p-1 text-emerald-400 hover:text-emerald-300 disabled:opacity-40"
+                                    title="Save"
+                                  >
+                                    {isSavingName ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Check className="h-3.5 w-3.5" />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingStudentId(null)}
+                                    disabled={isSavingName}
+                                    className="p-1 text-red-400 hover:text-red-300 disabled:opacity-40"
+                                    title="Cancel"
+                                  >
+                                    <X className="h-3.5 w-3.5" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-1.5 group/name">
+                                  <span className="text-sm font-bold text-white group-hover:text-[#EAB308] transition-colors">
+                                    {entry.student.name}
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      setEditingStudentId(entry.student.id);
+                                      setEditingName(entry.student.name);
+                                    }}
+                                    className="opacity-0 group-hover/name:opacity-100 p-0.5 text-zinc-500 hover:text-[#EAB308] transition-all"
+                                    title="Edit student name"
+                                  >
+                                    <Edit2 className="h-3 w-3" />
+                                  </button>
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5 mt-0.5">
+                                <span className="text-[10px] text-brand-muted font-semibold tracking-wider">
+                                  {entry.student.rollNumber}
+                                </span>
+                                {entry.student.verificationStatus === "PARTIAL" && (
+                                  <span className="text-[8px] bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 font-bold px-1 rounded">
+                                    Partial
+                                  </span>
+                                )}
+                                {entry.student.verificationStatus === "UNABLE_TO_VERIFY" && (
+                                  <span className="text-[8px] bg-red-500/10 border border-red-500/20 text-red-400 font-bold px-1 rounded animate-pulse">
+                                    Pending
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
 
                         {/* Platform Dynamic Cells */}
-                        {sortBy === "overallScore" && (
+                        {activeTab === "overall" && (
                           <>
                             {/* Dept & Year */}
                             <td className="py-4 px-4">
@@ -634,66 +970,53 @@ function LeaderboardContent() {
                             </td>
 
                             <td className="py-4 px-4 text-center font-extrabold text-sm text-zinc-300">
-                              {entry.codechefScore}
+                              {entry.talentScore}
                             </td>
 
                             <td className="py-4 px-4 text-center font-extrabold text-sm text-zinc-300">
-                              {entry.leetcodeScore}
-                            </td>
-
-                            <td className="py-4 px-4 text-center font-extrabold text-sm text-zinc-300">
-                              {entry.githubScore}
+                              {(entry.student as any).normalizedProfile?.consistencyScore || entry.leetcodeScore || 0}%
                             </td>
                           </>
                         )}
 
-                        {sortBy === "codechefScore" && (() => {
+                        {activeTab === "codechef" && (() => {
                           const cc = (entry.student as any).codechefProfile;
                           return (
                             <>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {cc ? cc.currentRating : "Not available from platform."}
+                                {cc ? cc.currentRating : "N/A"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
-                                {cc ? `${cc.stars}★` : "Not available from platform."}
+                                {cc ? `${cc.stars}★` : "N/A"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {cc ? cc.problemsSolved : "Not available from platform."}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {cc ? cc.contestCount : "Not available from platform."}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {cc ? `${cc.activeDaysCount || 0} days` : "Not available from platform."}
+                                {cc ? cc.highestRating : "N/A"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
                                 {entry.codechefScore}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {cc ? cc.contestCount : "N/A"}
                               </td>
                             </>
                           );
                         })()}
 
-                        {sortBy === "leetcodeScore" && (() => {
+                        {activeTab === "leetcode" && (() => {
                           const lc = (entry.student as any).leetcodeProfile;
                           return (
                             <>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc && lc.contestRating > 0 ? Math.round(lc.contestRating) : "Not available from platform."}
+                                {lc && lc.contestRating > 0 ? Math.round(lc.contestRating) : "N/A"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc ? lc.problemsSolved : "Not available from platform."}
+                                {lc ? lc.problemsSolved : "N/A"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
-                                {lc ? `${lc.easySolvedCount}/${lc.mediumSolvedCount}/${lc.hardSolvedCount}` : "Not available from platform."}
+                                {lc ? `${lc.easySolvedCount}/${lc.mediumSolvedCount}/${lc.hardSolvedCount}` : "N/A"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-bold text-emerald-400">
-                                {lc ? `${lc.acceptanceRate}%` : "Not available from platform."}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc && lc.contestRank > 0 ? lc.contestRank : "Not available from platform."}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
-                                {lc ? `${lc.consistencyScore}%` : "Not available from platform."}
+                                {lc ? `${lc.consistencyScore}%` : "N/A"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
                                 {entry.leetcodeScore}
@@ -702,31 +1025,15 @@ function LeaderboardContent() {
                           );
                         })()}
 
-                        {sortBy === "githubScore" && (() => {
+                        {activeTab === "github" && (() => {
                           const gh = (entry.student as any).githubProfile;
-                          const repos = gh?.repos as any;
                           return (
                             <>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {gh ? gh.totalRepositories : "Not available from platform."}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
-                                {gh ? `⭐ ${gh.totalStars}` : "Not available from platform."}
+                                {gh ? gh.totalRepositories : "N/A"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {gh ? gh.followers : "Not available from platform."}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-emerald-400">
-                                {gh && gh.contributions ? `${Object.keys(gh.contributions).length} days` : "Not available from platform."}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {repos?.commitAnalytics?.total || "Not available from platform."}
-                              </td>
-                              <td className="py-4 px-3 text-center text-[10px] font-semibold text-zinc-400 truncate max-w-[100px]" title={Array.isArray(gh?.languages) ? gh.languages.map((l: any) => l.name).join(", ") : ""}>
-                                {Array.isArray(gh?.languages) ? gh.languages.map((l: any) => l.name).slice(0, 2).join(", ") : "Not available from platform."}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {gh ? `${gh.openSourceScore}%` : "Not available from platform."}
+                                {gh ? `${gh.openSourceScore}%` : "N/A"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
                                 {entry.githubScore}

@@ -53,7 +53,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "At least one platform profile URL is required (CodeChef, LeetCode, or GitHub)" }, { status: 400 });
     }
 
-    let targetRollNumber = rollNumber ? rollNumber.trim().toUpperCase() : null;
+    if (!rollNumber || !rollNumber.trim()) {
+      return NextResponse.json({ error: "Roll number is required." }, { status: 400 });
+    }
+
+    let targetRollNumber = rollNumber.trim().toUpperCase();
 
     // Check if student already exists by roll number or usernames
     let student = null;
@@ -82,25 +86,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (!student) {
-      // Generate a mock unique roll number if not provided
-      if (!targetRollNumber) {
-        const randomSuffix = Math.floor(10 + Math.random() * 90);
-        const baseRoll = `23AG1A05${randomSuffix}`;
-        let roll = baseRoll;
-        let checkDb = await prisma.studentProfile.findUnique({ where: { rollNumber: roll } });
-        let attempts = 0;
-        while (checkDb && attempts < 10) {
-          const nextSuffix = Math.floor(10 + Math.random() * 90);
-          roll = `23AG1A05${nextSuffix}`;
-          checkDb = await prisma.studentProfile.findUnique({ where: { rollNumber: roll } });
-          attempts++;
-        }
-        targetRollNumber = roll;
-      } else {
-        const checkRoll = await prisma.studentProfile.findUnique({ where: { rollNumber: targetRollNumber } });
-        if (checkRoll) {
-          return NextResponse.json({ error: "Roll number is already registered by another student." }, { status: 400 });
-        }
+      const checkRoll = await prisma.studentProfile.findUnique({ where: { rollNumber: targetRollNumber } });
+      if (checkRoll) {
+        return NextResponse.json({ error: "Roll number is already registered by another student." }, { status: 400 });
       }
 
       // Create new student profile
@@ -147,12 +135,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Trigger scraping and AI analysis using SyncService
-    const syncResult = await SyncService.syncStudent(student.id, "USER_MANUAL");
-
-    if (!syncResult.success) {
-      return NextResponse.json({ error: syncResult.error || "Failed to analyze student profiles" }, { status: 500 });
-    }
+    // Trigger scraping and AI analysis in the background asynchronously
+    SyncService.syncStudent(student.id, "USER_MANUAL")
+      .then((syncRes) => {
+        if (!syncRes.success) {
+          console.error(`Background initial sync failed: ${syncRes.error}`);
+        } else {
+          console.log(`Background initial sync succeeded for student ${student.id}`);
+        }
+      })
+      .catch((e) => console.error("Sync error:", e));
 
     const finalStudent = await prisma.studentProfile.findUnique({
       where: { id: student.id },
@@ -167,7 +159,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Student successfully analyzed.",
+      message: "Student profile registered successfully. Data sync has been queued in the background.",
       student: finalStudent,
     });
   } catch (err: any) {

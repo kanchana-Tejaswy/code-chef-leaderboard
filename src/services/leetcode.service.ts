@@ -1,4 +1,5 @@
 import { ScrapedData } from "../types/scraper";
+import { prisma } from "../lib/prisma";
 
 export class LeetcodeService {
   /**
@@ -174,10 +175,12 @@ export class LeetcodeService {
     let contestData: any = null;
     let submissionsData: any = null;
 
+    let attemptIndex = 0;
     // Retry Logic with Exponential Backoff
     while (attempts > 0) {
+      attemptIndex++;
       try {
-        console.log(`[LeetCode Scraper] Fetching LeetCode profile for ${username}. Attempt ${4 - attempts}/3`);
+        console.log(`[LeetCode Scraper] Fetching LeetCode profile for ${username}. Attempt ${attemptIndex}/3`);
         
         const [profileRes, calendarRes, tagsRes, contestRes, submissionsRes] = await Promise.all([
           fetch(url, { method: "POST", headers, body: JSON.stringify({ query: profileQuery, variables: { username } }), next: { revalidate: 0 } }),
@@ -209,13 +212,34 @@ export class LeetcodeService {
         if (!profileData?.data?.matchedUser) {
           throw new Error(`User not found (null matchedUser)`);
         }
+
+        await prisma.fetchLog.create({
+          data: {
+            platform: "LEETCODE",
+            username,
+            status: "SUCCESS",
+            retryCount: attemptIndex - 1
+          }
+        }).catch(err => console.error("Error creating fetch log:", err));
+
         break;
       } catch (err: any) {
+        attempts--;
+
+        await prisma.fetchLog.create({
+          data: {
+            platform: "LEETCODE",
+            username,
+            status: "FAILURE",
+            error: err.message,
+            retryCount: attemptIndex - 1
+          }
+        }).catch(e => console.error("Error creating fetch log:", e));
+
         if (err.message.includes("User not found")) {
           console.error(`[LeetCode Scraper] Profile for user '${username}' not found on LeetCode.`);
           throw new Error(`LeetCode profile for user '${username}' not found.`);
         }
-        attempts--;
         console.warn(`[LeetCode Scraper] Attempt failed: ${err.message}. ${attempts} attempts remaining.`);
         if (attempts === 0) {
           throw new Error(`LeetCode Scraper failed after 3 attempts. Error: ${err.message}`);

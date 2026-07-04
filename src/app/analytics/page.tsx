@@ -77,7 +77,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     const fetchAnalytics = async () => {
       try {
-        const response = await fetch("/api/analytics");
+        const response = await fetch("/api/dashboard/analytics");
         if (!response.ok) {
           throw new Error("Failed to load institutional analytics.");
         }

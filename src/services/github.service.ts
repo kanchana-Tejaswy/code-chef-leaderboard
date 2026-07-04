@@ -1,5 +1,6 @@
 import { queryGitHubGraphQL, queryGitHubREST } from "../lib/github";
 import { GithubAnalyticsService } from "./githubAnalytics";
+import { prisma } from "../lib/prisma";
 
 // Helper function to process requests with a concurrency limit
 async function pool<T, R>(items: T[], fn: (item: T) => Promise<R>, maxConcurrency: number = 8): Promise<R[]> {
@@ -328,20 +329,54 @@ export class GithubService {
     };
 
     let data: any = null;
-    try {
-      console.log(`[GitHub Scraper] Fetching main profile info from GraphQL...`);
-      data = await queryGitHubGraphQL(query, variables, { useCache });
-    } catch (err: any) {
-      console.error(`[GitHub Scraper] GraphQL execution failed for user "${username}":`, err.message);
-      if (err.message?.includes("was not found")) {
-        throw new Error(`GitHub profile for user '${username}' not found.`);
-      }
-      throw new Error(`GitHub profile for user "${username}" does not exist or is invalid.`);
-    }
+    let attempts = 3;
+    let delayMs = 1000;
+    let attemptIndex = 0;
+    let user: any = null;
 
-    const user = data?.user;
-    if (!user) {
-      throw new Error(`GitHub user "${username}" was not found.`);
+    while (attempts > 0) {
+      attemptIndex++;
+      try {
+        console.log(`[GitHub Scraper] Fetching main profile info from GraphQL... Attempt ${attemptIndex}/3`);
+        data = await queryGitHubGraphQL(query, variables, { useCache });
+        user = data?.user;
+        if (!user) {
+          throw new Error(`GitHub user "${username}" was not found.`);
+        }
+
+        await prisma.fetchLog.create({
+          data: {
+            platform: "GITHUB",
+            username,
+            status: "SUCCESS",
+            retryCount: attemptIndex - 1
+          }
+        }).catch(err => console.error("Error creating fetch log:", err));
+
+        break;
+      } catch (err: any) {
+        attempts--;
+
+        await prisma.fetchLog.create({
+          data: {
+            platform: "GITHUB",
+            username,
+            status: "FAILURE",
+            error: err.message,
+            retryCount: attemptIndex - 1
+          }
+        }).catch(e => console.error("Error creating fetch log:", e));
+
+        console.error(`[GitHub Scraper] GraphQL execution failed for user "${username}":`, err.message);
+        if (err.message?.includes("was not found") || err.message?.includes("not found")) {
+          throw new Error(`GitHub profile for user '${username}' not found.`);
+        }
+        if (attempts === 0) {
+          throw new Error(`GitHub Scraper failed after 3 attempts. Error: ${err.message}`);
+        }
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        delayMs *= 2;
+      }
     }
 
     let allReposNodes = user.repositories?.nodes || [];

@@ -15,9 +15,7 @@ export async function GET(request: NextRequest) {
 
     const depts = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
 
-    // ----------------------------------------------------
-    // ORIGINAL ROOT DATA (for backwards compatibility)
-    // ----------------------------------------------------
+    // 1. Department Performance (CodeChef Average rating)
     const departmentPerformance = depts.map((dept) => {
       const deptStudents = students.filter((s) => s.department === dept);
       const active = deptStudents.filter((s) => s.codechefProfile);
@@ -31,6 +29,7 @@ export async function GET(request: NextRequest) {
       };
     }).sort((a, b) => b.averageRating - a.averageRating);
 
+    // 2. Rating Bands Distribution
     const ratingBands = {
       "< 1200": 0,
       "1200-1399": 0,
@@ -52,6 +51,7 @@ export async function GET(request: NextRequest) {
     });
     const ratingDistribution = Object.entries(ratingBands).map(([range, count]) => ({ range, count }));
 
+    // 3. Talent Bands Distribution
     const talentBands = {
       "0-19": 0,
       "20-39": 0,
@@ -71,6 +71,7 @@ export async function GET(request: NextRequest) {
     });
     const talentScoreDistribution = Object.entries(talentBands).map(([range, count]) => ({ range, count }));
 
+    // 4. Contest Participation history
     const contestDatesCount: Record<string, number> = {};
     students.forEach((s) => {
       if (s.codechefProfile) {
@@ -96,6 +97,7 @@ export async function GET(request: NextRequest) {
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .slice(-6);
 
+    // 5. Monthly growth registration
     const monthlyRegCounts: Record<string, number> = {};
     students.forEach((s) => {
       const d = new Date(s.createdAt);
@@ -115,7 +117,7 @@ export async function GET(request: NextRequest) {
     // PLATFORM-SPECIFIC SEGMENT DATA
     // ----------------------------------------------------
 
-    // 1. Overall
+    // Overall
     const overallDeptPerf = depts.map((dept) => {
       const deptStudents = students.filter((s) => s.department === dept);
       const withLeaderboard = deptStudents.filter((s) => s.leaderboardEntry);
@@ -144,7 +146,7 @@ export async function GET(request: NextRequest) {
     });
     const overallDistribution = Object.entries(overallDistBands).map(([range, count]) => ({ range, count }));
 
-    // 2. CodeChef
+    // CodeChef
     const codechefDeptPerf = depts.map((dept) => {
       const deptStudents = students.filter((s) => s.department === dept);
       const withCC = deptStudents.filter((s) => s.codechefProfile);
@@ -175,7 +177,7 @@ export async function GET(request: NextRequest) {
     });
     const ccDistribution = Object.entries(ccDistBands).map(([range, count]) => ({ range, count }));
 
-    // 3. LeetCode
+    // LeetCode
     const leetcodeDeptPerf = depts.map((dept) => {
       const deptStudents = students.filter((s) => s.department === dept);
       const withLC = deptStudents.filter((s) => s.leetcodeProfile);
@@ -204,7 +206,7 @@ export async function GET(request: NextRequest) {
     });
     const lcDistribution = Object.entries(lcDistBands).map(([range, count]) => ({ range, count }));
 
-    // 4. GitHub
+    // GitHub
     const githubDeptPerf = depts.map((dept) => {
       const deptStudents = students.filter((s) => s.department === dept);
       const withGH = deptStudents.filter((s) => s.githubProfile);
@@ -234,14 +236,12 @@ export async function GET(request: NextRequest) {
     const ghDistribution = Object.entries(ghDistBands).map(([range, count]) => ({ range, count }));
 
     return NextResponse.json({
-      // Root fields for compatibility
       departmentPerformance,
       ratingDistribution,
       talentScoreDistribution,
       contestParticipation,
       monthlyGrowth,
 
-      // Segmented statistics
       platforms: {
         overall: {
           departmentPerformance: overallDeptPerf,
@@ -251,17 +251,17 @@ export async function GET(request: NextRequest) {
         codechef: {
           departmentPerformance: codechefDeptPerf,
           distribution: ccDistribution,
-          growth: contestParticipation, // represent activity
+          growth: contestParticipation,
         },
         leetcode: {
           departmentPerformance: leetcodeDeptPerf,
           distribution: lcDistribution,
-          growth: monthlyGrowth.map((g, i) => ({ ...g, count: Math.round(g.count * 1.5) })), // scale solved activity
+          growth: monthlyGrowth.map((g) => ({ ...g, count: Math.round(g.count * 1.5) })),
         },
         github: {
           departmentPerformance: githubDeptPerf,
           distribution: ghDistribution,
-          growth: monthlyGrowth.map((g) => ({ ...g, count: Math.round(g.count * 2.1) })), // scale commits activity
+          growth: monthlyGrowth.map((g) => ({ ...g, count: Math.round(g.count * 2.1) })),
         }
       }
     });

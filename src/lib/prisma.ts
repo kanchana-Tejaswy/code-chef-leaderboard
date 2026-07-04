@@ -20,8 +20,17 @@ if (typeof window === "undefined") {
     const localDbPath = path.join(process.cwd(), "dev.db");
     const prismaDbPath = path.join(process.cwd(), "prisma", "dev.db");
 
-    // Copy built db to tmp directory if it doesn't exist yet
-    if (!fs.existsSync(tmpDbPath)) {
+    // Copy built db to tmp directory if it doesn't exist yet or if the source is newer
+    let shouldCopy = !fs.existsSync(tmpDbPath);
+    if (!shouldCopy) {
+      const srcStat = fs.existsSync(localDbPath) ? fs.statSync(localDbPath) : (fs.existsSync(prismaDbPath) ? fs.statSync(prismaDbPath) : null);
+      const destStat = fs.statSync(tmpDbPath);
+      if (srcStat && srcStat.mtime > destStat.mtime) {
+        shouldCopy = true;
+      }
+    }
+
+    if (shouldCopy) {
       try {
         if (fs.existsSync(localDbPath)) {
           fs.copyFileSync(localDbPath, tmpDbPath);

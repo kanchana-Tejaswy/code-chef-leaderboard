@@ -613,7 +613,7 @@ export default function LandingPage() {
   const loadDashboardData = async () => {
     try {
       const [statsRes, activityRes] = await Promise.all([
-        fetch("/api/stats", { cache: "no-store" }),
+        fetch("/api/dashboard/stats", { cache: "no-store" }),
         fetch("/api/activity", { cache: "no-store" }),
       ]);
 
@@ -647,7 +647,7 @@ export default function LandingPage() {
       params.set("sortBy", sortBy);
       params.set("sortOrder", sortOrder);
 
-      const res = await fetch(`/api/leaderboard?${params.toString()}`, { cache: "no-store" });
+      const res = await fetch(`/api/dashboard/leaderboard-cache?${params.toString()}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         setEntries(data.entries || []);
@@ -935,7 +935,7 @@ export default function LandingPage() {
     if (selectedDepts.length > 0) params.set("departments", selectedDepts.join(","));
     if (selectedYears.length > 0) params.set("years", selectedYears.join(","));
     if (selectedStars.length > 0) params.set("stars", selectedStars.join(","));
-    return `/api/leaderboard?${params.toString()}`;
+    return `/api/dashboard/leaderboard-cache?${params.toString()}`;
   };
 
   // Helper: Student CodeChef Stars Colors

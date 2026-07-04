@@ -1,5 +1,7 @@
 import { ScrapedData } from "../types/scraper";
 import { GitHubAnalytics } from "../types/github";
+import { prisma } from "@/lib/prisma";
+import { OverallScoreService } from "./overallScore.service";
 
 export interface AiEngineResult {
   talentScore: number;
@@ -23,14 +25,40 @@ export interface AiEngineResult {
 
 export class CodechefAiEngine {
   static analyze(data: {
-    currentRating: number;
-    highestRating: number;
-    stars: number;
-    problemsSolved: number;
-    contestCount: number;
+    currentRating: number | null;
+    highestRating: number | null;
+    stars: number | null;
+    problemsSolved: number | null;
+    contestCount: number | null;
     ratingHistory?: any[];
   }): AiEngineResult {
-    const { currentRating, highestRating, stars, problemsSolved, contestCount } = data;
+    const currentRating = data.currentRating ?? 0;
+    const highestRating = data.highestRating ?? 0;
+    const stars = data.stars ?? 0;
+    const problemsSolved = data.problemsSolved ?? 0;
+    const contestCount = data.contestCount ?? 0;
+
+    if (!currentRating || !highestRating || !problemsSolved || !contestCount) {
+      return {
+        talentScore: 0,
+        consistencyScore: 0,
+        problemSolvingScore: 0,
+        competitiveProgrammingScore: 0,
+        contestScore: 0,
+        learningScore: 0,
+        growthScore: 0,
+        disciplineScore: 0,
+        overallPotential: "Insufficient verified data to generate this analysis.",
+        placementReadiness: "Insufficient verified data to generate this analysis.",
+        expectedRating6Months: 0,
+        strengths: ["Insufficient verified data to generate this analysis."],
+        weaknesses: ["Insufficient verified data to generate this analysis."],
+        improvementAreas: ["Unable to determine improvement because contest history is unavailable."],
+        careerRecommendation: "Insufficient verified data to generate this analysis.",
+        suggestedCompanies: [],
+        recommendedLearningPath: []
+      };
+    }
 
     const cpScore = Math.round(Math.min(100, (currentRating / 2200) * 100));
     const problemSolvingScore = Math.round(Math.min(100, (problemsSolved / 300) * 100));
@@ -98,6 +126,28 @@ export class LeetcodeAiEngine {
   }): AiEngineResult {
     const { problemsSolved, easySolved, mediumSolved, hardSolved, acceptanceRate, contestRating, contestRank, consistencyScore } = data;
 
+    if (!problemsSolved || !contestRating) {
+      return {
+        talentScore: 0,
+        consistencyScore: 0,
+        problemSolvingScore: 0,
+        competitiveProgrammingScore: 0,
+        contestScore: 0,
+        learningScore: 0,
+        growthScore: 0,
+        disciplineScore: 0,
+        overallPotential: "Insufficient verified data to generate this analysis.",
+        placementReadiness: "Insufficient verified data to generate this analysis.",
+        expectedRating6Months: 0,
+        strengths: ["Insufficient verified data to generate this analysis."],
+        weaknesses: ["Insufficient verified data to generate this analysis."],
+        improvementAreas: ["Unable to determine improvement because contest history is unavailable."],
+        careerRecommendation: "Insufficient verified data to generate this analysis.",
+        suggestedCompanies: [],
+        recommendedLearningPath: []
+      };
+    }
+
     const cpScore = Math.round(Math.min(100, contestRating > 0 ? (contestRating / 2200) * 100 : 40));
     const problemSolvingScore = Math.round(Math.min(100, (problemsSolved / 350) * 100));
     const contestScore = Math.round(Math.min(100, contestRank > 0 ? Math.max(10, 100 - (contestRank / 2000)) : 30));
@@ -149,6 +199,28 @@ export class LeetcodeAiEngine {
 
 export class GithubAiEngine {
   static analyze(analytics: GitHubAnalytics): AiEngineResult {
+    if (!analytics || !analytics.totalRepositories || analytics.totalRepositories === 0) {
+      return {
+        talentScore: 0,
+        consistencyScore: 0,
+        problemSolvingScore: 0,
+        competitiveProgrammingScore: 0,
+        contestScore: 0,
+        learningScore: 0,
+        growthScore: 0,
+        disciplineScore: 0,
+        overallPotential: "Insufficient verified data to generate this analysis.",
+        placementReadiness: "Insufficient verified data to generate this analysis.",
+        expectedRating6Months: 0,
+        strengths: ["Insufficient verified data to generate this analysis."],
+        weaknesses: ["Insufficient verified data to generate this analysis."],
+        improvementAreas: ["Unable to determine improvement because project history is unavailable."],
+        careerRecommendation: "Insufficient verified data to generate this analysis.",
+        suggestedCompanies: [],
+        recommendedLearningPath: []
+      };
+    }
+
     const rating = analytics.developerScore.score;
 
     return {
@@ -321,16 +393,16 @@ export class OverallAiEngine {
 // Backward compatible default export mapping
 export class AiEngineService {
   static analyzeProfile(data: {
-    currentRating: number;
-    highestRating: number;
-    stars: number;
-    problemsSolved: number;
-    contestCount: number;
+    currentRating: number | null;
+    highestRating: number | null;
+    stars: number | null;
+    problemsSolved: number | null;
+    contestCount: number | null;
     contests: { date: string; rating: number; rank: number }[];
-    fullySolvedCount?: number;
-    partiallySolvedCount?: number;
+    fullySolvedCount?: number | null;
+    partiallySolvedCount?: number | null;
     bestContestRank?: number | null;
-    activeDaysCount?: number;
+    activeDaysCount?: number | null;
   }): any {
     return CodechefAiEngine.analyze({
       currentRating: data.currentRating,
@@ -339,5 +411,129 @@ export class AiEngineService {
       problemsSolved: data.problemsSolved,
       contestCount: data.contestCount
     });
+  }
+
+  static async runAnalysisForStudent(studentId: string): Promise<any> {
+    const normalized = await prisma.normalizedProfile.findUnique({
+      where: { studentId },
+    });
+    if (!normalized) {
+      throw new Error(`Normalized profile not found for student ${studentId}`);
+    }
+
+    const platforms = normalized.platforms as any;
+    const cc = platforms.codechef;
+    const lc = platforms.leetcode;
+    const gh = platforms.github;
+
+    // 1. CodeChef AI
+    let codechefAi = null;
+    if (cc && cc.username !== "N/A" && cc.rating > 0) {
+      codechefAi = CodechefAiEngine.analyze({
+        currentRating: cc.rating,
+        highestRating: cc.highestRating,
+        stars: cc.stars,
+        problemsSolved: cc.problemsSolved,
+        contestCount: cc.contests.length,
+      });
+    }
+
+    // 2. LeetCode AI
+    let leetcodeAi = null;
+    if (lc && lc.username !== "N/A" && (lc.totalSolved > 0 || lc.contestRating > 0)) {
+      leetcodeAi = LeetcodeAiEngine.analyze({
+        problemsSolved: lc.totalSolved,
+        easySolved: lc.easy,
+        mediumSolved: lc.medium,
+        hardSolved: lc.hard,
+        acceptanceRate: 52, // fallback
+        contestRating: lc.contestRating,
+        contestRank: lc.ranking,
+        consistencyScore: normalized.consistencyScore,
+      });
+    }
+
+    // 3. GitHub AI
+    let githubAi = null;
+    const githubProfile = await prisma.githubProfile.findUnique({
+      where: { studentId }
+    });
+    if (githubProfile) {
+      const repos = githubProfile.repos as any;
+      const analytics = {
+        totalRepositories: githubProfile.totalRepositories,
+        totalStars: githubProfile.totalStars,
+        totalForks: githubProfile.totalForks,
+        followers: githubProfile.followers,
+        openSourceScore: githubProfile.openSourceScore,
+        contributions: githubProfile.contributions,
+        languages: githubProfile.languages,
+        repos: repos?.list || [],
+        commitTimeline: githubProfile.commitTimeline,
+        repoQualityScore: githubProfile.repoQualityScore,
+        developerScore: repos?.developerScore || { score: githubProfile.openSourceScore, consistency: 50, codingActivity: 50, documentation: 50 },
+        careerInsights: repos?.careerInsights || { hiringReadiness: "Capable Software Builder", strongestSkills: ["Git"], weaknesses: ["No documented repositories"], recommendedLearningPath: ["Expand project portfolio"] },
+        portfolio: repos?.portfolio || { web: 0, fullStack: 0, ai: 0, mobile: 0 }
+      };
+      githubAi = GithubAiEngine.analyze(analytics as any);
+    }
+
+    const weights = OverallScoreService.getWeights();
+    const overallAi = OverallAiEngine.analyze(
+      codechefAi,
+      leetcodeAi,
+      githubAi,
+      weights
+    );
+
+    // Save to DB
+    await prisma.aiAnalysis.upsert({
+      where: { studentId },
+      create: {
+        studentId,
+        talentScore: overallAi.talentScore,
+        consistencyScore: overallAi.consistencyScore,
+        problemSolvingScore: overallAi.problemSolvingScore,
+        competitiveProgrammingScore: overallAi.competitiveProgrammingScore,
+        contestScore: overallAi.contestScore,
+        learningScore: overallAi.learningScore,
+        growthScore: overallAi.growthScore,
+        disciplineScore: overallAi.disciplineScore,
+        overallPotential: overallAi.overallPotential,
+        placementReadiness: overallAi.placementReadiness,
+        expectedRating6Months: overallAi.expectedRating6Months,
+        strengths: overallAi.strengths as any,
+        weaknesses: overallAi.weaknesses as any,
+        improvementAreas: overallAi.improvementAreas as any,
+        careerRecommendation: overallAi.careerRecommendation,
+        suggestedCompanies: overallAi.suggestedCompanies as any,
+        recommendedLearningPath: overallAi.recommendedLearningPath as any,
+        recommendations: [] as any,
+        careerSuggestions: [] as any,
+        generatedAt: new Date(),
+      },
+      update: {
+        talentScore: overallAi.talentScore,
+        consistencyScore: overallAi.consistencyScore,
+        problemSolvingScore: overallAi.problemSolvingScore,
+        competitiveProgrammingScore: overallAi.competitiveProgrammingScore,
+        contestScore: overallAi.contestScore,
+        learningScore: overallAi.learningScore,
+        growthScore: overallAi.growthScore,
+        disciplineScore: overallAi.disciplineScore,
+        overallPotential: overallAi.overallPotential,
+        placementReadiness: overallAi.placementReadiness,
+        expectedRating6Months: overallAi.expectedRating6Months,
+        strengths: overallAi.strengths as any,
+        weaknesses: overallAi.weaknesses as any,
+        improvementAreas: overallAi.improvementAreas as any,
+        careerRecommendation: overallAi.careerRecommendation,
+        suggestedCompanies: overallAi.suggestedCompanies as any,
+        recommendedLearningPath: overallAi.recommendedLearningPath as any,
+        generatedAt: new Date(),
+      },
+    });
+
+    return overallAi;
   }
 }

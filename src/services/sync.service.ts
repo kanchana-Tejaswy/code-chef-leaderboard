@@ -1,12 +1,67 @@
 import { prisma } from "@/lib/prisma";
-import { AnalyticsService } from "./analytics.service";
+import { CodechefService } from "./codechef.service";
+import { LeetcodeService } from "./leetcode.service";
+import { GithubService } from "./github.service";
+import { NormalizationService } from "./normalization.service";
+import { AiEngineService } from "./ai-engine.service";
+import { OverallScoreService } from "./overallScore.service";
 
 export type SyncTrigger = "SYSTEM_CRON" | "USER_MANUAL" | "ADMIN_FORCE";
+
+function validateProfileData(platform: string, username: string, data: any) {
+  if (!data) return;
+
+  if (typeof data !== "object" || Object.keys(data).length === 0) {
+    throw new Error(`${platform} profile data is empty or invalid.`);
+  }
+
+  if (data.username && data.username.toLowerCase() !== username.toLowerCase()) {
+    throw new Error(`${platform} username mismatch: expected ${username}, got ${data.username}`);
+  }
+
+  if (data.currentRating !== undefined && data.currentRating !== null) {
+    const r = Number(data.currentRating);
+    if (isNaN(r)) {
+      throw new Error(`${platform} rating must be numeric.`);
+    }
+  }
+
+  if (platform === "CODECHEF" && data.stars !== undefined && data.stars !== null) {
+    const s = Number(data.stars);
+    if (isNaN(s) || s < 1 || s > 7) {
+      throw new Error(`CodeChef stars must be an integer between 1 and 7.`);
+    }
+  }
+
+  const contestHistory = data.contestHistory || data.contests;
+  if (contestHistory) {
+    if (!Array.isArray(contestHistory)) {
+      throw new Error(`${platform} contest history must be an array.`);
+    }
+    const seenContests = new Set<string>();
+    for (const contest of contestHistory) {
+      if (!contest.contest || typeof contest.contest !== "string") {
+        throw new Error(`${platform} contest entry must have a valid contest title.`);
+      }
+      if (seenContests.has(contest.contest)) {
+        throw new Error(`${platform} duplicate contest detected: ${contest.contest}`);
+      }
+      seenContests.add(contest.contest);
+
+      if (contest.date) {
+        const parsedDate = new Date(contest.date);
+        if (isNaN(parsedDate.getTime())) {
+          throw new Error(`${platform} contest date is invalid: ${contest.date}`);
+        }
+      }
+    }
+  }
+}
 
 export class SyncService {
   /**
    * Performs sync for a single student.
-   * Invokes parallel scrapes for active platforms, updates DB tables, and adjusts ratings caches.
+   * Runs collectors, normalizes, validates, stores raw data, computes scores, recalculates rankings.
    */
   static async syncStudent(
     studentId: string,
@@ -27,28 +82,128 @@ export class SyncService {
       return { success: false, error: "No profile usernames configured for this student." };
     }
 
+    // Create or update SyncJob
+    const syncJob = await prisma.syncJob.create({
+      data: {
+        studentId,
+        status: "RUNNING",
+      },
+    });
+
     try {
-      // 2. Call AnalyticsService to scrape and process in parallel
-      const analysisResult = await AnalyticsService.analyzeStudent({
-        codechefUrl: student.codechefUsername,
-        leetcodeUrl: student.leetcodeUsername,
-        githubUrl: student.githubUsername,
-      });
+      // 2. Collector Phase: Scrape platforms in parallel
+      const scrapePromises = [
+        // CodeChef Collector
+        student.codechefUsername
+          ? CodechefService.fetchData(student.codechefUsername).catch((err) => {
+              console.error(`[Collector] CodeChef scrape failed for student ${student.name}:`, err);
+              return null;
+            })
+          : Promise.resolve(null),
+        // LeetCode Collector
+        student.leetcodeUsername
+          ? LeetcodeService.fetchData(student.leetcodeUsername).catch((err) => {
+              console.error(`[Collector] LeetCode scrape failed for student ${student.name}:`, err);
+              return null;
+            })
+          : Promise.resolve(null),
+        // GitHub Collector
+        student.githubUsername
+          ? GithubService.fetchData(student.githubUsername, false).catch((err) => {
+              console.error(`[Collector] GitHub scrape failed for student ${student.name}:`, err);
+              return null;
+            })
+          : Promise.resolve(null),
+      ];
 
-      const { codechef, leetcode, github, overall } = analysisResult;
+      const [codechefData, leetcodeData, githubData] = await Promise.all(scrapePromises);
 
-      // 3. Update Database inside a transaction
+      // Validate all successfully scraped data prior to database writes
+      if (student.codechefUsername && codechefData) {
+        validateProfileData("CODECHEF", student.codechefUsername, codechefData);
+      }
+      if (student.leetcodeUsername && leetcodeData) {
+        validateProfileData("LEETCODE", student.leetcodeUsername, leetcodeData);
+      }
+      if (student.githubUsername && githubData) {
+        validateProfileData("GITHUB", student.githubUsername, githubData);
+      }
+
+      // Calculate verificationStatus
+      let codechefSuccess = student.codechefUsername ? (codechefData !== null) : null;
+      let leetcodeSuccess = student.leetcodeUsername ? (leetcodeData !== null) : null;
+      let githubSuccess = student.githubUsername ? (githubData !== null) : null;
+
+      const existingCc = await prisma.codechefProfile.findUnique({ where: { studentId } });
+      const existingLc = await prisma.leetcodeProfile.findUnique({ where: { studentId } });
+      const existingGh = await prisma.githubProfile.findUnique({ where: { studentId } });
+
+      if (student.codechefUsername && !codechefSuccess && existingCc) {
+        codechefSuccess = true;
+      }
+      if (student.leetcodeUsername && !leetcodeSuccess && existingLc) {
+        leetcodeSuccess = true;
+      }
+      if (student.githubUsername && !githubSuccess && existingGh) {
+        githubSuccess = true;
+      }
+
+      let verificationStatus = "UNABLE_TO_VERIFY";
+      const configuredCount = [student.codechefUsername, student.leetcodeUsername, student.githubUsername].filter(Boolean).length;
+      const successCount = [codechefSuccess, leetcodeSuccess, githubSuccess].filter(x => x === true).length;
+
+      if (configuredCount > 0) {
+        if (successCount === configuredCount) {
+          verificationStatus = "VERIFIED";
+        } else if (successCount > 0) {
+          verificationStatus = "PARTIAL";
+        } else {
+          verificationStatus = "UNABLE_TO_VERIFY";
+        }
+      }
+
+      // 3. Database Storage Phase: Update Database inside a transaction
       await prisma.$transaction(async (tx) => {
-        // Fetch old leaderboard entry overall score if exists
-        const oldEntry = await tx.leaderboardEntry.findUnique({
-          where: { studentId },
-          select: { overallScore: true },
+        // Update StudentProfile verificationStatus
+        await tx.studentProfile.update({
+          where: { id: studentId },
+          data: { verificationStatus }
         });
-        const oldOverall = oldEntry?.overallScore || 0;
 
-        // Upsert CodeChef profile if data returned
-        if (codechef && codechef.data) {
-          const codechefData = codechef.data;
+        // Upsert CodeChef Profile
+        if (codechefData) {
+          const retrievedAt = new Date().toISOString();
+          const ccMetadata = {
+            username: { value: codechefData.username, source: "CodeChef", retrievedAt, verificationStatus: "Verified" },
+            fullName: { value: codechefData.fullName, source: "CodeChef", retrievedAt, verificationStatus: codechefData.fullName ? "Verified" : "Unavailable" },
+            country: { value: codechefData.country, source: "CodeChef", retrievedAt, verificationStatus: codechefData.country ? "Verified" : "Unavailable" },
+            institution: { value: codechefData.institution, source: "CodeChef", retrievedAt, verificationStatus: codechefData.institution ? "Verified" : "Unavailable" },
+            city: { value: codechefData.city, source: "CodeChef", retrievedAt, verificationStatus: codechefData.city ? "Verified" : "Unavailable" },
+            currentRating: { value: codechefData.currentRating, source: "CodeChef", retrievedAt, verificationStatus: codechefData.currentRating !== null ? "Verified" : "Unavailable" },
+            highestRating: { value: codechefData.highestRating, source: "CodeChef", retrievedAt, verificationStatus: codechefData.highestRating !== null ? "Verified" : "Unavailable" },
+            stars: { value: codechefData.stars, source: "CodeChef", retrievedAt, verificationStatus: codechefData.stars !== null ? "Verified" : "Unavailable" },
+            maxStars: { value: codechefData.maxStars, source: "CodeChef", retrievedAt, verificationStatus: codechefData.maxStars !== null ? "Verified" : "Unavailable" },
+            globalRank: { value: codechefData.globalRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.globalRank !== null ? "Verified" : "Unavailable" },
+            countryRank: { value: codechefData.countryRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.countryRank !== null ? "Verified" : "Unavailable" },
+            problemsSolved: { value: codechefData.problemsSolved, source: "CodeChef", retrievedAt, verificationStatus: codechefData.problemsSolved !== null ? "Verified" : "Unavailable" },
+            fullySolvedCount: { value: codechefData.fullySolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.fullySolvedCount !== null ? "Verified" : "Unavailable" },
+            partiallySolvedCount: { value: codechefData.partiallySolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.partiallySolvedCount !== null ? "Verified" : "Unavailable" },
+            easySolvedCount: { value: codechefData.easySolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.easySolvedCount !== null ? "Verified" : "Unavailable" },
+            mediumSolvedCount: { value: codechefData.mediumSolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.mediumSolvedCount !== null ? "Verified" : "Unavailable" },
+            hardSolvedCount: { value: codechefData.hardSolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.hardSolvedCount !== null ? "Verified" : "Unavailable" },
+            challengeSolvedCount: { value: codechefData.challengeSolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.challengeSolvedCount !== null ? "Verified" : "Unavailable" },
+            contestCount: { value: codechefData.contestCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.contestCount !== null ? "Verified" : "Unavailable" },
+            longChallengeCount: { value: codechefData.longChallengeCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.longChallengeCount !== null ? "Verified" : "Unavailable" },
+            cookOffCount: { value: codechefData.cookOffCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.cookOffCount !== null ? "Verified" : "Unavailable" },
+            lunchtimeCount: { value: codechefData.lunchtimeCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.lunchtimeCount !== null ? "Verified" : "Unavailable" },
+            startersCount: { value: codechefData.startersCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.startersCount !== null ? "Verified" : "Unavailable" },
+            division: { value: codechefData.division, source: "CodeChef", retrievedAt, verificationStatus: codechefData.division ? "Verified" : "Unavailable" },
+            bestContestRank: { value: codechefData.bestContestRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.bestContestRank !== null ? "Verified" : "Unavailable" },
+            averageContestRank: { value: codechefData.averageContestRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.averageContestRank !== null ? "Verified" : "Unavailable" },
+            lastActive: { value: codechefData.lastActive, source: "CodeChef", retrievedAt, verificationStatus: codechefData.lastActive ? "Verified" : "Unavailable" },
+            activeDaysCount: { value: codechefData.activeDaysCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.activeDaysCount !== null ? "Verified" : "Unavailable" }
+          };
+
           await tx.codechefProfile.upsert({
             where: { studentId },
             create: {
@@ -65,28 +220,29 @@ export class SyncService {
               globalRank: codechefData.globalRank,
               countryRank: codechefData.countryRank,
               problemsSolved: codechefData.problemsSolved,
-              fullySolvedCount: codechefData.fullySolvedCount || 0,
-              partiallySolvedCount: codechefData.partiallySolvedCount || 0,
-              easySolvedCount: codechefData.easySolvedCount || 0,
-              mediumSolvedCount: codechefData.mediumSolvedCount || 0,
-              hardSolvedCount: codechefData.hardSolvedCount || 0,
-              challengeSolvedCount: codechefData.challengeSolvedCount || 0,
+              fullySolvedCount: codechefData.fullySolvedCount,
+              partiallySolvedCount: codechefData.partiallySolvedCount,
+              easySolvedCount: codechefData.easySolvedCount,
+              mediumSolvedCount: codechefData.mediumSolvedCount,
+              hardSolvedCount: codechefData.hardSolvedCount,
+              challengeSolvedCount: codechefData.challengeSolvedCount,
               contestCount: codechefData.contestCount,
-              longChallengeCount: codechefData.longChallengeCount || 0,
-              cookOffCount: codechefData.cookOffCount || 0,
-              lunchtimeCount: codechefData.lunchtimeCount || 0,
-              startersCount: codechefData.startersCount || 0,
+              longChallengeCount: codechefData.longChallengeCount,
+              cookOffCount: codechefData.cookOffCount,
+              lunchtimeCount: codechefData.lunchtimeCount,
+              startersCount: codechefData.startersCount,
               division: codechefData.division,
               bestContestRank: codechefData.bestContestRank,
               averageContestRank: codechefData.averageContestRank,
               lastActive: codechefData.lastActive,
-              activeDaysCount: codechefData.activeDaysCount || 0,
+              activeDaysCount: codechefData.activeDaysCount,
               ratingHistory: codechefData.ratingHistory as any,
               contestHistory: codechefData.contestHistory as any,
               difficultyDistribution: codechefData.difficultyDistribution as any,
               activitySummary: codechefData.activitySummary as any,
               statisticDetails: codechefData.statisticDetails as any,
               contests: codechefData.contests as any,
+              verificationMetadata: ccMetadata as any,
               lastFetchedAt: new Date(),
             },
             update: {
@@ -102,46 +258,59 @@ export class SyncService {
               globalRank: codechefData.globalRank,
               countryRank: codechefData.countryRank,
               problemsSolved: codechefData.problemsSolved,
-              fullySolvedCount: codechefData.fullySolvedCount || 0,
-              partiallySolvedCount: codechefData.partiallySolvedCount || 0,
-              easySolvedCount: codechefData.easySolvedCount || 0,
-              mediumSolvedCount: codechefData.mediumSolvedCount || 0,
-              hardSolvedCount: codechefData.hardSolvedCount || 0,
-              challengeSolvedCount: codechefData.challengeSolvedCount || 0,
+              fullySolvedCount: codechefData.fullySolvedCount,
+              partiallySolvedCount: codechefData.partiallySolvedCount,
+              easySolvedCount: codechefData.easySolvedCount,
+              mediumSolvedCount: codechefData.mediumSolvedCount,
+              hardSolvedCount: codechefData.hardSolvedCount,
+              challengeSolvedCount: codechefData.challengeSolvedCount,
               contestCount: codechefData.contestCount,
-              longChallengeCount: codechefData.longChallengeCount || 0,
-              cookOffCount: codechefData.cookOffCount || 0,
-              lunchtimeCount: codechefData.lunchtimeCount || 0,
-              startersCount: codechefData.startersCount || 0,
+              longChallengeCount: codechefData.longChallengeCount,
+              cookOffCount: codechefData.cookOffCount,
+              lunchtimeCount: codechefData.lunchtimeCount,
+              startersCount: codechefData.startersCount,
               division: codechefData.division,
               bestContestRank: codechefData.bestContestRank,
               averageContestRank: codechefData.averageContestRank,
               lastActive: codechefData.lastActive,
-              activeDaysCount: codechefData.activeDaysCount || 0,
+              activeDaysCount: codechefData.activeDaysCount,
               ratingHistory: codechefData.ratingHistory as any,
               contestHistory: codechefData.contestHistory as any,
               difficultyDistribution: codechefData.difficultyDistribution as any,
               activitySummary: codechefData.activitySummary as any,
               statisticDetails: codechefData.statisticDetails as any,
               contests: codechefData.contests as any,
+              verificationMetadata: ccMetadata as any,
               lastFetchedAt: new Date(),
             },
           });
         }
 
-        // Upsert LeetCode profile if data returned
-        if (leetcode && leetcode.data) {
-          const leetcodeData = leetcode.data;
+        // Upsert LeetCode Profile
+        if (leetcodeData) {
           const metrics = leetcodeData.rawMetrics || {};
+          const retrievedAt = new Date().toISOString();
+          const lcMetadata = {
+            username: { value: leetcodeData.username, source: "LeetCode", retrievedAt, verificationStatus: "Verified" },
+            problemsSolved: { value: leetcodeData.problemsSolved, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.problemsSolved !== null ? "Verified" : "Unavailable" },
+            easySolvedCount: { value: metrics.easySolvedCount, source: "LeetCode", retrievedAt, verificationStatus: metrics.easySolvedCount !== null ? "Verified" : "Unavailable" },
+            mediumSolvedCount: { value: metrics.mediumSolvedCount, source: "LeetCode", retrievedAt, verificationStatus: metrics.mediumSolvedCount !== null ? "Verified" : "Unavailable" },
+            hardSolvedCount: { value: metrics.hardSolvedCount, source: "LeetCode", retrievedAt, verificationStatus: metrics.hardSolvedCount !== null ? "Verified" : "Unavailable" },
+            contestRating: { value: leetcodeData.currentRating, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.currentRating !== null ? "Verified" : "Unavailable" },
+            contestRank: { value: leetcodeData.globalRank, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.globalRank !== null ? "Verified" : "Unavailable" },
+            acceptanceRate: { value: metrics.acceptanceRate, source: "LeetCode", retrievedAt, verificationStatus: metrics.acceptanceRate !== null ? "Verified" : "Unavailable" },
+            consistencyScore: { value: metrics.consistencyScore, source: "LeetCode", retrievedAt, verificationStatus: metrics.consistencyScore !== null ? "Verified" : "Unavailable" }
+          };
+
           await tx.leetcodeProfile.upsert({
             where: { studentId },
             create: {
               studentId,
               username: leetcodeData.username,
               problemsSolved: leetcodeData.problemsSolved,
-              easySolvedCount: metrics.easySolvedCount || 0,
-              mediumSolvedCount: metrics.mediumSolvedCount || 0,
-              hardSolvedCount: metrics.hardSolvedCount || 0,
+              easySolvedCount: metrics.easySolvedCount,
+              mediumSolvedCount: metrics.mediumSolvedCount,
+              hardSolvedCount: metrics.hardSolvedCount,
               contestRating: leetcodeData.currentRating,
               contestRank: leetcodeData.globalRank || 0,
               acceptanceRate: metrics.acceptanceRate || 0,
@@ -152,14 +321,15 @@ export class SyncService {
               consistencyScore: metrics.consistencyScore || 0,
               ratingHistory: metrics.ratingHistory as any,
               contestHistory: metrics.contestHistory as any,
+              verificationMetadata: lcMetadata as any,
               lastFetchedAt: new Date(),
             },
             update: {
               username: leetcodeData.username,
               problemsSolved: leetcodeData.problemsSolved,
-              easySolvedCount: metrics.easySolvedCount || 0,
-              mediumSolvedCount: metrics.mediumSolvedCount || 0,
-              hardSolvedCount: metrics.hardSolvedCount || 0,
+              easySolvedCount: metrics.easySolvedCount,
+              mediumSolvedCount: metrics.mediumSolvedCount,
+              hardSolvedCount: metrics.hardSolvedCount,
               contestRating: leetcodeData.currentRating,
               contestRank: leetcodeData.globalRank || 0,
               acceptanceRate: metrics.acceptanceRate || 0,
@@ -170,14 +340,14 @@ export class SyncService {
               consistencyScore: metrics.consistencyScore || 0,
               ratingHistory: metrics.ratingHistory as any,
               contestHistory: metrics.contestHistory as any,
+              verificationMetadata: lcMetadata as any,
               lastFetchedAt: new Date(),
             },
           });
         }
 
-        // Upsert GitHub profile if data returned
-        if (github && github.data) {
-          const githubData = github.data;
+        // Upsert GitHub Profile
+        if (githubData) {
           const metrics = githubData.rawMetrics || {};
           const reposExtended = {
             list: metrics.repos?.list || [],
@@ -189,155 +359,157 @@ export class SyncService {
             profileDetails: metrics.repos?.profileDetails || {},
             developerScore: metrics.repos?.developerScore || {}
           };
+          const retrievedAt = new Date().toISOString();
+          const ghMetadata = {
+            username: { value: githubData.username, source: "GitHub", retrievedAt, verificationStatus: "Verified" },
+            totalRepositories: { value: metrics.totalRepositories, source: "GitHub", retrievedAt, verificationStatus: metrics.totalRepositories !== null ? "Verified" : "Unavailable" },
+            totalStars: { value: metrics.totalStars, source: "GitHub", retrievedAt, verificationStatus: metrics.totalStars !== null ? "Verified" : "Unavailable" },
+            totalForks: { value: metrics.totalForks, source: "GitHub", retrievedAt, verificationStatus: metrics.totalForks !== null ? "Verified" : "Unavailable" },
+            followers: { value: metrics.followers, source: "GitHub", retrievedAt, verificationStatus: metrics.followers !== null ? "Verified" : "Unavailable" },
+            openSourceScore: { value: metrics.openSourceScore, source: "GitHub", retrievedAt, verificationStatus: metrics.openSourceScore !== null ? "Verified" : "Unavailable" }
+          };
+
           await tx.githubProfile.upsert({
             where: { studentId },
             create: {
               studentId,
               username: githubData.username,
-              totalRepositories: metrics.totalRepositories || 0,
-              totalStars: metrics.totalStars || 0,
-              totalForks: metrics.totalForks || 0,
-              followers: metrics.followers || 0,
+              totalRepositories: metrics.totalRepositories,
+              totalStars: metrics.totalStars,
+              totalForks: metrics.totalForks,
+              followers: metrics.followers,
               contributions: metrics.contributions as any,
               languages: metrics.languages as any,
               repos: reposExtended as any,
               commitTimeline: metrics.commitTimeline as any,
-              openSourceScore: metrics.openSourceScore || 0,
+              openSourceScore: metrics.openSourceScore,
               repoQualityScore: metrics.repoQualityScore as any,
+              verificationMetadata: ghMetadata as any,
               lastFetchedAt: new Date(),
             },
             update: {
               username: githubData.username,
-              totalRepositories: metrics.totalRepositories || 0,
-              totalStars: metrics.totalStars || 0,
-              totalForks: metrics.totalForks || 0,
-              followers: metrics.followers || 0,
+              totalRepositories: metrics.totalRepositories,
+              totalStars: metrics.totalStars,
+              totalForks: metrics.totalForks,
+              followers: metrics.followers,
               contributions: metrics.contributions as any,
               languages: metrics.languages as any,
               repos: reposExtended as any,
               commitTimeline: metrics.commitTimeline as any,
-              openSourceScore: metrics.openSourceScore || 0,
+              openSourceScore: metrics.openSourceScore,
               repoQualityScore: metrics.repoQualityScore as any,
+              verificationMetadata: ghMetadata as any,
               lastFetchedAt: new Date(),
-            },
-          });
-        }
-
-        // Upsert AI analysis using aggregated overall AI insights
-        const analysis = overall.ai;
-        await tx.aiAnalysis.upsert({
-          where: { studentId },
-          create: {
-            studentId,
-            talentScore: analysis.talentScore,
-            consistencyScore: analysis.consistencyScore,
-            problemSolvingScore: analysis.problemSolvingScore,
-            competitiveProgrammingScore: analysis.competitiveProgrammingScore,
-            contestScore: analysis.contestScore,
-            learningScore: analysis.learningScore,
-            growthScore: analysis.growthScore,
-            disciplineScore: analysis.disciplineScore,
-            overallPotential: analysis.overallPotential,
-            placementReadiness: analysis.placementReadiness,
-            expectedRating6Months: analysis.expectedRating6Months,
-            strengths: analysis.strengths as any,
-            weaknesses: analysis.weaknesses as any,
-            improvementAreas: analysis.improvementAreas as any,
-            careerRecommendation: analysis.careerRecommendation,
-            suggestedCompanies: analysis.suggestedCompanies as any,
-            recommendedLearningPath: analysis.recommendedLearningPath as any,
-            recommendations: [] as any,
-            careerSuggestions: [] as any,
-            generatedAt: new Date(),
-          },
-          update: {
-            talentScore: analysis.talentScore,
-            consistencyScore: analysis.consistencyScore,
-            problemSolvingScore: analysis.problemSolvingScore,
-            competitiveProgrammingScore: analysis.competitiveProgrammingScore,
-            contestScore: analysis.contestScore,
-            learningScore: analysis.learningScore,
-            growthScore: analysis.growthScore,
-            disciplineScore: analysis.disciplineScore,
-            overallPotential: analysis.overallPotential,
-            placementReadiness: analysis.placementReadiness,
-            expectedRating6Months: analysis.expectedRating6Months,
-            strengths: analysis.strengths as any,
-            weaknesses: analysis.weaknesses as any,
-            improvementAreas: analysis.improvementAreas as any,
-            careerRecommendation: analysis.careerRecommendation,
-            suggestedCompanies: analysis.suggestedCompanies as any,
-            recommendedLearningPath: analysis.recommendedLearningPath as any,
-            generatedAt: new Date(),
-          },
-        });
-
-        // Determine trend direction
-        let trendDirection = "NEUTRAL";
-        if (oldOverall > 0) {
-          if (overall.score > oldOverall) trendDirection = "UP";
-          else if (overall.score < oldOverall) trendDirection = "DOWN";
-        }
-
-        // Upsert Leaderboard Cache Entry
-        await tx.leaderboardEntry.upsert({
-          where: { studentId },
-          create: {
-            studentId,
-            rating: codechef?.data?.currentRating || 0,
-            stars: codechef?.data?.stars || 1,
-            talentScore: analysis.talentScore,
-            overallScore: overall.score,
-            codechefScore: codechef?.score || 0,
-            leetcodeScore: leetcode?.score || 0,
-            githubScore: github?.score || 0,
-            trendDirection,
-            rank: 0,
-          },
-          update: {
-            rating: codechef?.data?.currentRating || 0,
-            stars: codechef?.data?.stars || 1,
-            talentScore: analysis.talentScore,
-            overallScore: overall.score,
-            codechefScore: codechef?.score || 0,
-            leetcodeScore: leetcode?.score || 0,
-            githubScore: github?.score || 0,
-            trendDirection,
-          },
-        });
-
-        // Save Sync Log
-        await tx.syncLog.create({
-          data: {
-            studentId,
-            status: "SUCCESS",
-            initiatedBy,
-            durationMs: Date.now() - startTime,
-          },
-        });
-
-        // Save Activity Log
-        if (oldOverall > 0 && overall.score > oldOverall) {
-          await tx.activityLog.create({
-            data: {
-              eventType: "RATING_INCREASE",
-              studentId,
-              message: `${student.name}'s overall score increased from ${oldOverall} to ${overall.score}!`,
-            },
-          });
-        } else {
-          await tx.activityLog.create({
-            data: {
-              eventType: "SYNC_SUCCESS",
-              studentId,
-              message: `${student.name}'s Unified Talent Profile was successfully synced.`,
             },
           });
         }
       });
 
-      // 4. Recalculate global ranks
+      // 4. Normalization Phase: Unify and validate platform data
+      const normalizedProfile = await NormalizationService.normalizeStudent(studentId);
+
+      // 5. AI Insights & Rating Phase: Execute AI engines strictly on normalized DB data
+      const overallAi = await AiEngineService.runAnalysisForStudent(studentId);
+
+      // Fetch the updated profiles to calculate the overall rating cache
+      const codechefProfile = await prisma.codechefProfile.findUnique({ where: { studentId } });
+      const leetcodeProfile = await prisma.leetcodeProfile.findUnique({ where: { studentId } });
+      const githubProfile = await prisma.githubProfile.findUnique({ where: { studentId } });
+
+      const ccScore = normalizedProfile.ratingScore;
+      const lcScore = normalizedProfile.consistencyScore;
+      const ghScore = normalizedProfile.problemSolvingScore;
+
+      const active = {
+        codechef: !!codechefProfile,
+        leetcode: !!leetcodeProfile,
+        github: !!githubProfile,
+      };
+
+      const overallScore = OverallScoreService.calculate(
+        { codechef: ccScore, leetcode: lcScore, github: ghScore },
+        active
+      );
+
+      // Determine trend direction
+      let trendDirection = "NEUTRAL";
+      const oldEntry = await prisma.leaderboardEntry.findUnique({
+        where: { studentId },
+        select: { overallScore: true },
+      });
+      const oldOverall = oldEntry?.overallScore || 0;
+      if (oldOverall > 0) {
+        if (overallScore > oldOverall) trendDirection = "UP";
+        else if (overallScore < oldOverall) trendDirection = "DOWN";
+      }
+
+      // Upsert Leaderboard Cache Entry
+      await prisma.leaderboardEntry.upsert({
+        where: { studentId },
+        create: {
+          studentId,
+          rating: codechefProfile?.currentRating || 0,
+          stars: codechefProfile?.stars || 1,
+          talentScore: overallAi.talentScore,
+          overallScore: overallScore,
+          codechefScore: ccScore,
+          leetcodeScore: lcScore,
+          githubScore: ghScore,
+          trendDirection,
+          rank: 0,
+        },
+        update: {
+          rating: codechefProfile?.currentRating || 0,
+          stars: codechefProfile?.stars || 1,
+          talentScore: overallAi.talentScore,
+          overallScore: overallScore,
+          codechefScore: ccScore,
+          leetcodeScore: lcScore,
+          githubScore: ghScore,
+          trendDirection,
+        },
+      });
+
+      // Recalculate ranks on the leaderboard
       await this.recalculateLeaderboardRanks();
+
+      // Log Sync Log
+      await prisma.syncLog.create({
+        data: {
+          studentId,
+          status: "SUCCESS",
+          initiatedBy,
+          durationMs: Date.now() - startTime,
+        },
+      });
+
+      // Log Activity Log
+      if (oldOverall > 0 && overallScore > oldOverall) {
+        await prisma.activityLog.create({
+          data: {
+            eventType: "RATING_INCREASE",
+            studentId,
+            message: `${student.name}'s overall score increased from ${oldOverall} to ${overallScore}!`,
+          },
+        });
+      } else {
+        await prisma.activityLog.create({
+          data: {
+            eventType: "SYNC_SUCCESS",
+            studentId,
+            message: `${student.name}'s Unified Talent Profile was successfully synced.`,
+          },
+        });
+      }
+
+      // Complete SyncJob
+      await prisma.syncJob.update({
+        where: { id: syncJob.id },
+        data: {
+          status: "COMPLETED",
+        },
+      });
 
       return { success: true };
     } catch (err: any) {
@@ -361,8 +533,17 @@ export class SyncService {
             message: `Profile sync failed for ${student?.name || "Student"}: ${err.message || "Unknown error"}.`,
           },
         });
+
+        // Fail SyncJob
+        await prisma.syncJob.update({
+          where: { id: syncJob.id },
+          data: {
+            status: "FAILED",
+            error: err.message || "Unknown error occurred.",
+          },
+        });
       } catch (logErr) {
-        console.error("Failed to write failure sync log:", logErr);
+        console.error("Failed to write failure sync logs:", logErr);
       }
 
       return { success: false, error: err.message };

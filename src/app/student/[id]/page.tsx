@@ -14,7 +14,10 @@ import {
   Sparkles,
   GitBranch,
   Star,
-  Users
+  Users,
+  Edit2,
+  Check,
+  X
 } from "lucide-react";
 
 function Github(props: React.SVGProps<SVGSVGElement>) {
@@ -66,6 +69,7 @@ interface StudentDetails {
   codechefUsername: string | null;
   leetcodeUsername: string | null;
   githubUsername: string | null;
+  verificationStatus?: string;
   codechefProfile?: any;
   leetcodeProfile?: any;
   githubProfile?: any;
@@ -194,6 +198,34 @@ export default function StudentProfileDashboard() {
   const [selectedPlatform, setSelectedPlatform] = useState<"codechef" | "leetcode" | "github" | null>(null);
   const [mounted, setMounted] = useState(false);
 
+  // Editing Name State
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editingName, setEditingName] = useState("");
+  const [isSavingName, setIsSavingName] = useState(false);
+
+  const handleSaveName = async () => {
+    if (!editingName.trim()) return;
+    setIsSavingName(true);
+    try {
+      const response = await fetch("/api/admin/students", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: studentId, name: editingName }),
+      });
+      if (response.ok) {
+        setStudent((prev) => prev ? { ...prev, name: editingName.trim() } : null);
+        setIsEditingName(false);
+      } else {
+        alert("Failed to update student name.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Error updating student name.");
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
   // Repository Explorer states
   const [selectedRepo, setSelectedRepo] = useState<any | null>(null);
   const [isRepoExplorerOpen, setIsRepoExplorerOpen] = useState(false);
@@ -286,6 +318,59 @@ export default function StudentProfileDashboard() {
     );
   }
 
+  const calculateActiveStreak = (heatmap: Record<string, number> | null | undefined): number | "Unavailable" => {
+    if (!heatmap || typeof heatmap !== "object" || Object.keys(heatmap).length === 0) {
+      return "Unavailable";
+    }
+
+    const activeDates = new Set(
+      Object.keys(heatmap).filter((dateStr) => heatmap[dateStr] > 0)
+    );
+
+    if (activeDates.size === 0) {
+      return 0;
+    }
+
+    let streak = 0;
+    let currentDate = new Date();
+    let currentDateStr = currentDate.toISOString().split("T")[0];
+
+    if (!activeDates.has(currentDateStr)) {
+      const yesterday = new Date(currentDate.getTime() - 24 * 60 * 60 * 1000);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+      if (!activeDates.has(yesterdayStr)) {
+        return 0;
+      }
+      currentDate = yesterday;
+      currentDateStr = yesterdayStr;
+    }
+
+    while (activeDates.has(currentDateStr)) {
+      streak++;
+      currentDate = new Date(currentDate.getTime() - 24 * 60 * 60 * 1000);
+      currentDateStr = currentDate.toISOString().split("T")[0];
+    }
+
+    return streak;
+  };
+
+  const formatVal = (val: any, suffix: string = "") => {
+    if (val === null || val === undefined) return "Unavailable";
+    return `${val}${suffix}`;
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "VERIFIED":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ Verified</span>;
+      case "PARTIAL":
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded-lg">⚠ Partial Data</span>;
+      case "UNABLE_TO_VERIFY":
+      default:
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg">❌ Unable to Verify</span>;
+    }
+  };
+
   const overallScore = student.leaderboardEntry?.overallScore || 0;
   const rank = student.leaderboardEntry?.rank || "-";
   
@@ -333,9 +418,56 @@ export default function StudentProfileDashboard() {
             )}
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[#FAFAFA]">
-              {student.name}
-            </h1>
+            {isEditingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={editingName}
+                  onChange={(e) => setEditingName(e.target.value)}
+                  className="px-3 py-1 rounded-xl border border-brand-border bg-zinc-950 text-base font-bold text-white focus:outline-none focus:border-[#EAB308]/50 w-48"
+                  autoFocus
+                  disabled={isSavingName}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSaveName();
+                    if (e.key === "Escape") setIsEditingName(false);
+                  }}
+                />
+                <button
+                  onClick={handleSaveName}
+                  disabled={isSavingName}
+                  className="p-1.5 text-emerald-400 hover:text-emerald-300 border border-[#262626] bg-[#111111]/40 rounded-lg transition-all"
+                  title="Save"
+                >
+                  {isSavingName ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="h-4 w-4" />
+                  )}
+                </button>
+                <button
+                  onClick={() => setIsEditingName(false)}
+                  disabled={isSavingName}
+                  className="p-1.5 text-red-400 hover:text-red-300 border border-[#262626] bg-[#111111]/40 rounded-lg transition-all"
+                  title="Cancel"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[#FAFAFA] flex items-center gap-2 group/title">
+                <span>{student.name}</span>
+                <button
+                  onClick={() => {
+                    setIsEditingName(true);
+                    setEditingName(student.name);
+                  }}
+                  className="opacity-0 group-hover/title:opacity-100 p-1 text-zinc-500 hover:text-[#EAB308] transition-all"
+                  title="Edit name"
+                >
+                  <Edit2 className="h-4 w-4" />
+                </button>
+              </h1>
+            )}
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-wider">
                 {student.department} • {student.year} Year • Sec {student.section}
@@ -343,6 +475,7 @@ export default function StudentProfileDashboard() {
               <span className={`inline-flex px-2 py-0.5 border rounded-lg text-[8px] font-bold tracking-wider uppercase leading-none ${readinessColor}`}>
                 {readinessLabel}
               </span>
+              {getStatusBadge(student.verificationStatus || "UNABLE_TO_VERIFY")}
             </div>
           </div>
         </div>
@@ -533,250 +666,296 @@ export default function StudentProfileDashboard() {
           </div>
 
           {/* CODECHEF DASHBOARD */}
-          {selectedPlatform === "codechef" && student.codechefProfile && (
-            <div className="flex flex-col gap-6">
-              
-              <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-                <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                  <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Current Rating</span>
-                  <span className="text-2xl font-black text-[#EAB308] mt-2">{student.codechefProfile.currentRating}</span>
-                </div>
-                <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                  <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Highest Rating</span>
-                  <span className="text-2xl font-black text-[#FAFAFA] mt-2">{student.codechefProfile.highestRating}</span>
-                </div>
-                <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                  <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Stars</span>
-                  <span className="text-2xl font-black text-[#EAB308] mt-2">{student.codechefProfile.stars}★</span>
-                </div>
-                <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                  <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Contest Count</span>
-                  <span className="text-2xl font-black text-[#FAFAFA] mt-2">{student.codechefProfile.contestCount}</span>
-                </div>
-                <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                  <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Global Rank</span>
-                  <span className="text-2xl font-black text-[#FAFAFA] mt-2">#{student.codechefProfile.globalRank || "-"}</span>
-                </div>
-                <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                  <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Country Rank</span>
-                  <span className="text-2xl font-black text-[#FAFAFA] mt-2">#{student.codechefProfile.countryRank || "-"}</span>
-                </div>
-              </div>
+          {selectedPlatform === "codechef" && student.codechefProfile && (() => {
+            const ccStreak = calculateActiveStreak(student.codechefProfile.activitySummary);
+            const ccStatus = student.verificationStatus === "VERIFIED" ? "VERIFIED" : "PARTIAL";
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="border border-[#262626] bg-[#111111]/70 p-5 rounded-2xl flex items-center justify-between">
-                  <div className="flex flex-col text-left">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Streak Counter</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2 flex items-center gap-1.5">
-                      <Flame className="h-6.5 w-6.5 text-[#EAB308] fill-[#EAB308]/20 animate-pulse" />
-                      {1 + (student.codechefProfile.problemsSolved % 15)} Days Streak 🔥
-                    </span>
+            return (
+              <div className="flex flex-col gap-6">
+                
+                {/* Metadata info block */}
+                <div className="border border-[#262626] bg-[#111111]/40 px-5 py-3 rounded-2xl flex flex-wrap justify-between items-center gap-4 text-[10px] font-bold text-[#A3A3A3]">
+                  <div className="flex items-center gap-1.5">
+                    <span>Data Source:</span>
+                    <span className="text-white">CodeChef Profile Scraper</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>Verification Status:</span>
+                    {getStatusBadge(ccStatus)}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>Last Updated:</span>
+                    <span className="text-white">{student.codechefProfile.lastFetchedAt ? new Date(student.codechefProfile.lastFetchedAt).toLocaleString() : "N/A"}</span>
                   </div>
                 </div>
 
-                <div className="border border-[#262626] bg-[#111111]/70 p-5 rounded-2xl flex items-center justify-between">
-                  <div className="flex flex-col text-left">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Problems Solved</span>
-                    <span className="text-2xl font-black text-[#EAB308] mt-2">{student.codechefProfile.problemsSolved} Fully</span>
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Current Rating</span>
+                    <span className="text-2xl font-black text-[#EAB308] mt-2">{formatVal(student.codechefProfile.currentRating)}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Highest Rating</span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{formatVal(student.codechefProfile.highestRating)}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Stars</span>
+                    <span className="text-2xl font-black text-[#EAB308] mt-2">{student.codechefProfile.stars ? `${student.codechefProfile.stars}★` : "Unavailable"}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Contest Count</span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{formatVal(student.codechefProfile.contestCount)}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Global Rank</span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{student.codechefProfile.globalRank ? `#${student.codechefProfile.globalRank}` : "Unavailable"}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Country Rank</span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{student.codechefProfile.countryRank ? `#${student.codechefProfile.countryRank}` : "Unavailable"}</span>
                   </div>
                 </div>
 
-                <ConsistencyGauge score={student.aiAnalysis?.consistencyScore || 75} title="Consistency Score" color="#EAB308" />
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="border border-[#262626] bg-[#111111]/70 p-5 rounded-2xl flex items-center justify-between">
+                    <div className="flex flex-col text-left">
+                      <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Streak Counter</span>
+                      <span className="text-2xl font-black text-[#FAFAFA] mt-2 flex items-center gap-1.5">
+                        <Flame className="h-6.5 w-6.5 text-[#EAB308] fill-[#EAB308]/20 animate-pulse" />
+                        {ccStreak !== "Unavailable" ? `${ccStreak} Days Streak 🔥` : "Streak: Unavailable"}
+                      </span>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3">
-                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Rating Growth Line Chart</span>
-                  <div className="h-64 w-full">
-                    {Array.isArray(student.codechefProfile.ratingHistory) && student.codechefProfile.ratingHistory.length > 0 ? (
+                  <div className="border border-[#262626] bg-[#111111]/70 p-5 rounded-2xl flex items-center justify-between">
+                    <div className="flex flex-col text-left">
+                      <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Problems Solved</span>
+                      <span className="text-2xl font-black text-[#EAB308] mt-2">{formatVal(student.codechefProfile.problemsSolved, " Solved")}</span>
+                    </div>
+                  </div>
+
+                  <ConsistencyGauge score={student.aiAnalysis?.consistencyScore || 0} title="Consistency Score" color="#EAB308" />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3">
+                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Rating Growth Line Chart</span>
+                    <div className="h-64 w-full">
+                      {Array.isArray(student.codechefProfile.ratingHistory) && student.codechefProfile.ratingHistory.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={student.codechefProfile.ratingHistory}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" />
+                            <XAxis dataKey="contest" stroke="#52525b" fontSize={9} />
+                            <YAxis stroke="#52525b" fontSize={9} domain={["dataMin - 100", "dataMax + 100"]} />
+                            <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
+                            <Line type="monotone" dataKey="rating" stroke="#EAB308" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No rating history available.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3">
+                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Contest Performance Bar Chart</span>
+                    <div className="h-64 w-full">
+                      {Array.isArray(student.codechefProfile.contestHistory) && student.codechefProfile.contestHistory.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={student.codechefProfile.contestHistory}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" />
+                            <XAxis dataKey="contest" stroke="#52525b" fontSize={9} />
+                            <YAxis stroke="#52525b" fontSize={9} />
+                            <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
+                            <Bar dataKey="rating" fill="#F59E0B" radius={[4, 4, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No contest performance history.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
+                  <CalendarHeatmap data={student.codechefProfile.activitySummary || {}} colorTheme="gold" />
+                  
+                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3">
+                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Submission Trend Graph</span>
+                    <div className="h-56 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={student.codechefProfile.ratingHistory}>
+                        <LineChart data={(student.codechefProfile.ratingHistory || []).map((x: any, idx: number) => ({ name: x.contest, submissions: 10 + (idx * 5) + (x.rating % 20) }))}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" />
-                          <XAxis dataKey="contest" stroke="#52525b" fontSize={9} />
-                          <YAxis stroke="#52525b" fontSize={9} domain={["dataMin - 100", "dataMax + 100"]} />
-                          <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
-                          <Line type="monotone" dataKey="rating" stroke="#EAB308" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No rating history available.</div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3">
-                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Contest Performance Bar Chart</span>
-                  <div className="h-64 w-full">
-                    {Array.isArray(student.codechefProfile.contestHistory) && student.codechefProfile.contestHistory.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={student.codechefProfile.contestHistory}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" />
-                          <XAxis dataKey="contest" stroke="#52525b" fontSize={9} />
+                          <XAxis dataKey="name" stroke="#52525b" fontSize={9} />
                           <YAxis stroke="#52525b" fontSize={9} />
                           <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
-                          <Bar dataKey="rating" fill="#F59E0B" radius={[4, 4, 0, 0]} />
-                        </BarChart>
+                          <Line type="monotone" dataKey="submissions" stroke="#EAB308" strokeWidth={1.5} dot={false} />
+                        </LineChart>
                       </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No contest performance history.</div>
-                    )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 gap-6">
-                <CalendarHeatmap data={student.codechefProfile.activitySummary || {}} colorTheme="gold" />
-                
-                <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3">
-                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Submission Trend Graph</span>
-                  <div className="h-56 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={(student.codechefProfile.ratingHistory || []).map((x: any, idx: number) => ({ name: x.contest, submissions: 10 + (idx * 5) + (x.rating % 20) }))}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" />
-                        <XAxis dataKey="name" stroke="#52525b" fontSize={9} />
-                        <YAxis stroke="#52525b" fontSize={9} />
-                        <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
-                        <Line type="monotone" dataKey="submissions" stroke="#EAB308" strokeWidth={1.5} dot={false} />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
               </div>
-
-            </div>
-          )}
+            );
+          })()}
 
           {/* LEETCODE DASHBOARD */}
-          {selectedPlatform === "leetcode" && student.leetcodeProfile && (
-            <div className="flex flex-col gap-6">
-              
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                  <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Contest Rating</span>
-                  <span className="text-2xl font-black text-[#F59E0B] mt-2">{student.leetcodeProfile.contestRating}</span>
-                </div>
-                <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                  <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Contest Rank</span>
-                  <span className="text-2xl font-black text-[#FAFAFA] mt-2">#{student.leetcodeProfile.contestRank}</span>
-                </div>
-                <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                  <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Problems Solved</span>
-                  <span className="text-2xl font-black text-[#FAFAFA] mt-2">{student.leetcodeProfile.problemsSolved}</span>
-                </div>
-                <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                  <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Acceptance Rate</span>
-                  <span className="text-2xl font-black text-[#EAB308] mt-2">{student.leetcodeProfile.acceptanceRate}%</span>
-                </div>
-              </div>
+          {selectedPlatform === "leetcode" && student.leetcodeProfile && (() => {
+            const lcStreak = calculateActiveStreak(student.leetcodeProfile.heatmap);
+            const lcStatus = student.verificationStatus === "VERIFIED" ? "VERIFIED" : "PARTIAL";
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-4 justify-between w-full">
-                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Problems Solved (Easy/Medium/Hard)</span>
-                  <div className="flex flex-col gap-3">
-                    <div>
-                      <div className="flex justify-between text-[10px] font-bold mb-1">
-                        <span className="text-emerald-500">Easy</span>
-                        <span>{student.leetcodeProfile.easySolvedCount}</span>
-                      </div>
-                      <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
-                        <div className="bg-emerald-500 h-full rounded-full" style={{ width: "80%" }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-[10px] font-bold mb-1">
-                        <span className="text-[#F59E0B]">Medium</span>
-                        <span>{student.leetcodeProfile.mediumSolvedCount}</span>
-                      </div>
-                      <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
-                        <div className="bg-[#F59E0B] h-full rounded-full" style={{ width: "70%" }} />
-                      </div>
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-[10px] font-bold mb-1">
-                        <span className="text-red-500">Hard</span>
-                        <span>{student.leetcodeProfile.hardSolvedCount}</span>
-                      </div>
-                      <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
-                        <div className="bg-red-500 h-full rounded-full" style={{ width: "40%" }} />
-                      </div>
-                    </div>
+            return (
+              <div className="flex flex-col gap-6">
+                
+                {/* Metadata info block */}
+                <div className="border border-[#262626] bg-[#111111]/40 px-5 py-3 rounded-2xl flex flex-wrap justify-between items-center gap-4 text-[10px] font-bold text-[#A3A3A3]">
+                  <div className="flex items-center gap-1.5">
+                    <span>Data Source:</span>
+                    <span className="text-white">LeetCode GraphQL API</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>Verification Status:</span>
+                    {getStatusBadge(lcStatus)}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>Last Updated:</span>
+                    <span className="text-white">{student.leetcodeProfile.lastFetchedAt ? new Date(student.leetcodeProfile.lastFetchedAt).toLocaleString() : "N/A"}</span>
                   </div>
                 </div>
 
-                <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 w-full">
-                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Weekly Activity Chart</span>
-                  <div className="h-40 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, idx) => ({
-                        day,
-                        submissions: Array.isArray(student.leetcodeProfile.weeklyActivity) ? student.leetcodeProfile.weeklyActivity[idx] || 0 : 2 + idx
-                      }))}>
-                        <XAxis dataKey="day" stroke="#52525b" fontSize={9} />
-                        <YAxis stroke="#52525b" fontSize={9} />
-                        <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
-                        <Bar dataKey="submissions" fill="#F59E0B" radius={[2, 2, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
+                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Contest Rating</span>
+                    <span className="text-2xl font-black text-[#F59E0B] mt-2">{formatVal(student.leetcodeProfile.contestRating)}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Contest Rank</span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{student.leetcodeProfile.contestRank ? `#${student.leetcodeProfile.contestRank}` : "Unavailable"}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Problems Solved</span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{formatVal(student.leetcodeProfile.problemsSolved)}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Acceptance Rate</span>
+                    <span className="text-2xl font-black text-[#EAB308] mt-2">{formatVal(student.leetcodeProfile.acceptanceRate, "%")}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Streak</span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{lcStreak !== "Unavailable" ? `${lcStreak} Days 🔥` : "Unavailable"}</span>
                   </div>
                 </div>
 
-                <ConsistencyGauge score={student.leetcodeProfile.consistencyScore} title="Consistency Score" color="#F59E0B" />
-              </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-4 justify-between w-full">
+                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Problems Solved (Easy/Medium/Hard)</span>
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <div className="flex justify-between text-[10px] font-bold mb-1">
+                          <span className="text-emerald-500">Easy</span>
+                          <span>{formatVal(student.leetcodeProfile.easySolvedCount)}</span>
+                        </div>
+                        <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
+                          <div className="bg-emerald-500 h-full rounded-full" style={{ width: student.leetcodeProfile.easySolvedCount && student.leetcodeProfile.problemsSolved ? `${(student.leetcodeProfile.easySolvedCount / student.leetcodeProfile.problemsSolved) * 100}%` : "0%" }} />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[10px] font-bold mb-1">
+                          <span className="text-[#F59E0B]">Medium</span>
+                          <span>{formatVal(student.leetcodeProfile.mediumSolvedCount)}</span>
+                        </div>
+                        <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
+                          <div className="bg-[#F59E0B] h-full rounded-full" style={{ width: student.leetcodeProfile.mediumSolvedCount && student.leetcodeProfile.problemsSolved ? `${(student.leetcodeProfile.mediumSolvedCount / student.leetcodeProfile.problemsSolved) * 100}%` : "0%" }} />
+                        </div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[10px] font-bold mb-1">
+                          <span className="text-red-500">Hard</span>
+                          <span>{formatVal(student.leetcodeProfile.hardSolvedCount)}</span>
+                        </div>
+                        <div className="w-full bg-zinc-900 h-2 rounded-full overflow-hidden">
+                          <div className="bg-red-500 h-full rounded-full" style={{ width: student.leetcodeProfile.hardSolvedCount && student.leetcodeProfile.problemsSolved ? `${(student.leetcodeProfile.hardSolvedCount / student.leetcodeProfile.problemsSolved) * 100}%` : "0%" }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 items-center">
-                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider w-full text-left">Skill Radar Chart</span>
-                  <div className="h-64 w-full">
-                    {Array.isArray(student.leetcodeProfile.skillRadar) && student.leetcodeProfile.skillRadar.length > 0 ? (
+                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 w-full">
+                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Weekly Activity Chart</span>
+                    <div className="h-40 w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={student.leetcodeProfile.skillRadar}>
-                          <PolarGrid stroke="#1f1f1f" />
-                          <PolarAngleAxis dataKey="subject" stroke="#a3a3a3" fontSize={9} />
-                          <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#52525b" fontSize={8} />
-                          <Radar name="Proficiency" dataKey="A" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.15} />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No skill radar data.</div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 items-center">
-                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider w-full text-left">Tag Distribution Pie Chart</span>
-                  <div className="h-64 w-full">
-                    {Array.isArray(student.leetcodeProfile.tagDistribution) && student.leetcodeProfile.tagDistribution.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={student.leetcodeProfile.tagDistribution}
-                            cx="50%"
-                            cy="50%"
-                            labelLine={false}
-                            label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                            outerRadius={65}
-                            dataKey="value"
-                            fontSize={8}
-                          >
-                            {student.leetcodeProfile.tagDistribution.map((entry: any, index: number) => {
-                              const colors = ["#EAB308", "#F59E0B", "#22C55E", "#8B5CF6", "#EF4444", "#3B82F6"];
-                              return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
-                            })}
-                          </Pie>
+                        <BarChart data={["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, idx) => ({
+                          day,
+                          submissions: Array.isArray(student.leetcodeProfile.weeklyActivity) ? student.leetcodeProfile.weeklyActivity[idx] || 0 : 0
+                        }))}>
+                          <XAxis dataKey="day" stroke="#52525b" fontSize={9} />
+                          <YAxis stroke="#52525b" fontSize={9} />
                           <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
-                        </PieChart>
+                          <Bar dataKey="submissions" fill="#F59E0B" radius={[2, 2, 0, 0]} />
+                        </BarChart>
                       </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No tag distributions available.</div>
-                    )}
+                    </div>
+                  </div>
+
+                  <ConsistencyGauge score={student.leetcodeProfile.consistencyScore} title="Consistency Score" color="#F59E0B" />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 items-center">
+                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider w-full text-left">Skill Radar Chart</span>
+                    <div className="h-64 w-full">
+                      {Array.isArray(student.leetcodeProfile.skillRadar) && student.leetcodeProfile.skillRadar.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <RadarChart cx="50%" cy="50%" outerRadius="80%" data={student.leetcodeProfile.skillRadar}>
+                            <PolarGrid stroke="#1f1f1f" />
+                            <PolarAngleAxis dataKey="subject" stroke="#a3a3a3" fontSize={9} />
+                            <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#52525b" fontSize={8} />
+                            <Radar name="Proficiency" dataKey="A" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.15} />
+                          </RadarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No skill radar data.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 items-center">
+                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider w-full text-left">Tag Distribution Pie Chart</span>
+                    <div className="h-64 w-full">
+                      {Array.isArray(student.leetcodeProfile.tagDistribution) && student.leetcodeProfile.tagDistribution.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={student.leetcodeProfile.tagDistribution}
+                              cx="50%"
+                              cy="50%"
+                              labelLine={false}
+                              label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                              outerRadius={65}
+                              dataKey="value"
+                              fontSize={8}
+                            >
+                              {student.leetcodeProfile.tagDistribution.map((entry: any, index: number) => {
+                                const colors = ["#EAB308", "#F59E0B", "#22C55E", "#8B5CF6", "#EF4444", "#3B82F6"];
+                                return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
+                              })}
+                            </Pie>
+                            <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No tag distributions available.</div>
+                      )}
+                    </div>
                   </div>
                 </div>
+
+                <CalendarHeatmap data={student.leetcodeProfile.heatmap || {}} colorTheme="leetcode" />
+
               </div>
-
-              <CalendarHeatmap data={student.leetcodeProfile.heatmap || {}} colorTheme="leetcode" />
-
-            </div>
-          )}
+            );
+          })()}
 
           {/* GITHUB DASHBOARD */}
           {selectedPlatform === "github" && student.githubProfile && (() => {
@@ -784,30 +963,48 @@ export default function StudentProfileDashboard() {
             const reposList = Array.isArray(reposData) ? reposData : (reposData?.list || []);
             const contribMap = student.githubProfile.contributions || {};
 
+            const ghStatus = student.verificationStatus === "VERIFIED" ? "VERIFIED" : "PARTIAL";
+
             return (
               <div className="flex flex-col gap-6">
                 
+                {/* Metadata info block */}
+                <div className="border border-[#262626] bg-[#111111]/40 px-5 py-3 rounded-2xl flex flex-wrap justify-between items-center gap-4 text-[10px] font-bold text-[#A3A3A3]">
+                  <div className="flex items-center gap-1.5">
+                    <span>Data Source:</span>
+                    <span className="text-white">GitHub API</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>Verification Status:</span>
+                    {getStatusBadge(ghStatus)}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span>Last Updated:</span>
+                    <span className="text-white">{student.githubProfile.lastFetchedAt ? new Date(student.githubProfile.lastFetchedAt).toLocaleString() : "N/A"}</span>
+                  </div>
+                </div>
+
                 {/* 5 Stats row */}
                 <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
                   <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
                     <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Total Repositories</span>
-                    <span className="text-2xl font-black text-purple-400 mt-2">{student.githubProfile.totalRepositories}</span>
+                    <span className="text-2xl font-black text-purple-400 mt-2">{formatVal(student.githubProfile.totalRepositories)}</span>
                   </div>
                   <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
                     <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Stars</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">⭐ {student.githubProfile.totalStars}</span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">⭐ {formatVal(student.githubProfile.totalStars)}</span>
                   </div>
                   <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
                     <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Forks</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">🍴 {student.githubProfile.totalForks}</span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">🍴 {formatVal(student.githubProfile.totalForks)}</span>
                   </div>
                   <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
                     <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Followers</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{student.githubProfile.followers}</span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{formatVal(student.githubProfile.followers)}</span>
                   </div>
                   <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
                     <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Open Source Score</span>
-                    <span className="text-2xl font-black text-[#EAB308] mt-2">{student.githubProfile.openSourceScore}%</span>
+                    <span className="text-2xl font-black text-[#EAB308] mt-2">{formatVal(student.githubProfile.openSourceScore, "%")}</span>
                   </div>
                 </div>
 
@@ -880,7 +1077,10 @@ export default function StudentProfileDashboard() {
                         { label: "Fork Contributions", value: reposData.openSource.forkContributions, color: "text-sky-400" },
                         { label: "Discussions", value: reposData.openSource.discussions, color: "text-teal-400" },
                         { label: "Releases Published", value: reposData.openSource.releases, color: "text-pink-400" },
-                        { label: "Current Streak", value: student.githubProfile.streaks && typeof student.githubProfile.streaks.current === "number" ? `${student.githubProfile.streaks.current} Days` : "Not available from platform.", color: "text-[#EAB308]" }
+                        { label: "Current Streak", value: (() => {
+                           const streak = calculateActiveStreak(contribMap);
+                           return streak !== "Unavailable" ? `${streak} Days 🔥` : "Unavailable";
+                         })(), color: "text-[#EAB308]" }
                       ].map((o, idx) => (
                         <div key={idx} className="border border-[#262626] bg-[#111111]/70 p-4 rounded-2xl text-center">
                           <span className="text-[8px] uppercase tracking-wider text-[#A3A3A3] font-bold block">{o.label}</span>

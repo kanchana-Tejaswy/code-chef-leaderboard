@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import { ScrapedData, ContestLog } from "../types/scraper";
+import { prisma } from "../lib/prisma";
 
 function hashString(str: string): number {
   let hash = 0;
@@ -75,11 +76,13 @@ export class CodechefService {
     let responseText = "";
     let attempts = 3;
     let delayMs = 1000;
+    let attemptIndex = 0;
 
     // Retry Logic with Exponential Backoff
     while (attempts > 0) {
+      attemptIndex++;
       try {
-        console.log(`[CodeChef Scraper] Fetching CodeChef page, attempt ${4 - attempts}/3`);
+        console.log(`[CodeChef Scraper] Fetching CodeChef page, attempt ${attemptIndex}/3`);
         const response = await fetch(url, { headers, next: { revalidate: 0 } });
         console.log(`[CodeChef Scraper] Response status: ${response.status} ${response.statusText}`);
         if (!response.ok) {
@@ -89,9 +92,30 @@ export class CodechefService {
           throw new Error(`Failed to fetch CodeChef page: ${response.statusText} (${response.status})`);
         }
         responseText = await response.text();
+
+        await prisma.fetchLog.create({
+          data: {
+            platform: "CODECHEF",
+            username,
+            status: "SUCCESS",
+            retryCount: attemptIndex - 1
+          }
+        }).catch(err => console.error("Error creating fetch log:", err));
+
         break;
       } catch (err: any) {
         attempts--;
+
+        await prisma.fetchLog.create({
+          data: {
+            platform: "CODECHEF",
+            username,
+            status: "FAILURE",
+            error: err.message,
+            retryCount: attemptIndex - 1
+          }
+        }).catch(e => console.error("Error creating fetch log:", e));
+
         console.warn(`[CodeChef Scraper] Attempt failed: ${err.message}. ${attempts} attempts remaining.`);
         if (attempts === 0) {
           throw new Error(`CodeChef Scraper failed after 3 attempts. Error: ${err.message}`);
@@ -226,32 +250,13 @@ export class CodechefService {
     const problemsSolved = fullySolvedCount + partiallySolvedCount;
 
     // Difficulty Distribution
-    let easySolvedCount = 0;
-    let mediumSolvedCount = 0;
-    let hardSolvedCount = 0;
-    let challengeSolvedCount = 0;
-
-    solvedProblemsList.forEach((code) => {
-      const val = hashString(code) % 100;
-      if (val < 50) easySolvedCount++;
-      else if (val < 85) mediumSolvedCount++;
-      else if (val < 97) hardSolvedCount++;
-      else challengeSolvedCount++;
-    });
-
-    if (easySolvedCount === 0 && fullySolvedCount > 0) {
-      easySolvedCount = Math.round(fullySolvedCount * 0.55);
-      mediumSolvedCount = Math.round(fullySolvedCount * 0.35);
-      hardSolvedCount = Math.round(fullySolvedCount * 0.08);
-      challengeSolvedCount = fullySolvedCount - easySolvedCount - mediumSolvedCount - hardSolvedCount;
-    }
-
-    const difficultyDistribution = {
-      easy: easySolvedCount,
-      medium: mediumSolvedCount,
-      hard: hardSolvedCount,
-      challenge: challengeSolvedCount,
-    };
+    // CodeChef does not publicly expose difficulty distribution of solved problems on the profile page.
+    // To strictly follow the "Verified Data Only" policy, we return null instead of estimating.
+    const difficultyDistribution = null;
+    const easySolvedCount = null;
+    const mediumSolvedCount = null;
+    const hardSolvedCount = null;
+    const challengeSolvedCount = null;
 
     // 7. Contests History and Details
     let contestCount = 0;
