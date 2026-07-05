@@ -9,7 +9,7 @@ import * as z from "zod";
 import { motion } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 import { useToast } from "@/components/shared/toast";
-import { Eye, EyeOff, Loader2, Sparkles, Trophy, Code, Award, Target, Activity, Shield } from "lucide-react";
+import { Eye, EyeOff, Loader2, Sparkles, Trophy, Code, Target, Activity } from "lucide-react";
 
 // Form validation schema
 const loginSchema = z.object({
@@ -79,20 +79,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-12 bg-gradient-to-b from-[#FFFFFF] via-[#FFFDF5] to-[#FAFAFA] dark:from-brand-bg dark:via-brand-bg dark:to-brand-bg text-brand-text overflow-hidden transition-colors duration-300">
+    <div className="min-h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-12 bg-brand-bg text-brand-text overflow-hidden transition-colors duration-300">
       
       {/* Left Column: Branding Section */}
-      <div className="hidden lg:flex lg:col-span-7 relative flex-col justify-between p-12 bg-gradient-to-b from-[#FFFDF7] to-[#FFF8E8] dark:from-neutral-950 dark:to-neutral-900 border border-[#F4E4A6]/60 dark:border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.08)] dark:shadow-none rounded-[32px] m-6 text-[#111827] dark:text-white overflow-hidden transition-all duration-300">
+      <div className="hidden lg:flex lg:col-span-7 relative flex-col justify-between p-12 bg-brand-card border border-brand-border shadow-sm rounded-[32px] m-6 overflow-hidden transition-all duration-300">
         {/* Animated Background Gradients */}
         <div className="absolute inset-0 z-0 opacity-40">
-          <div className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] rounded-full bg-gradient-to-br from-[#EAB308]/20 to-transparent blur-[120px] animate-pulse" />
-          <div className="absolute -bottom-[10%] -right-[10%] w-[60%] h-[60%] rounded-full bg-gradient-to-tr from-blue-500/20 to-transparent blur-[120px] animate-pulse" />
+          <div className="absolute -top-[10%] -left-[10%] w-[60%] h-[60%] rounded-full bg-gradient-to-br from-[#D4A017]/10 dark:from-[#EAB308]/20 to-transparent blur-[120px] animate-pulse" />
+          <div className="absolute -bottom-[10%] -right-[10%] w-[60%] h-[60%] rounded-full bg-gradient-to-tr from-blue-500/10 dark:from-blue-500/20 to-transparent blur-[120px] animate-pulse" />
         </div>
 
         {/* Header Branding */}
         <div className="relative z-10 flex items-center gap-3">
-          <Trophy className="h-6 w-6 text-[#EAB308]" />
-          <span className="text-sm font-extrabold tracking-widest uppercase text-[#111827] dark:text-white">
+          <Trophy className="h-6 w-6 text-[#D4A017] dark:text-[#EAB308]" />
+          <span className="text-sm font-extrabold tracking-widest uppercase text-brand-text">
             ACE Talent Intelligence
           </span>
         </div>
@@ -100,10 +100,10 @@ export default function LoginPage() {
         {/* Feature Display & Glass Cards */}
         <div className="relative z-10 my-auto max-w-xl space-y-8">
           <div className="space-y-4">
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-none text-[#111827] dark:text-white">
-              Empowering Engineering Talent Through <span className="text-[#EAB308] bg-clip-text">Real-Time</span> <span className="text-[#EAB308] bg-clip-text">Competitive Programming</span> Analytics.
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight leading-none text-brand-text">
+              Empowering Engineering Talent Through <span className="text-[#D4A017] dark:text-[#EAB308] bg-clip-text">Real-Time</span> <span className="text-[#D4A017] dark:text-[#EAB308] bg-clip-text">Competitive Programming</span> Analytics.
             </h2>
-            <p className="text-sm text-[#6B7280] dark:text-neutral-400 font-medium leading-relaxed">
+            <p className="text-sm text-brand-muted font-medium leading-relaxed">
               Verify your coding accomplishments, showcase real skills, and prepare for elite placements automatically.
             </p>
           </div>
@@ -118,15 +118,15 @@ export default function LoginPage() {
             ].map((feature, idx) => (
               <div
                 key={idx}
-                className="p-4 rounded-[18px] border border-[#E5E7EB] dark:border-white/10 bg-white dark:bg-white/5 shadow-sm hover:-translate-y-1 hover:shadow-[0_12px_24px_rgba(234,179,8,0.06)] hover:border-[#EAB308]/40 transition-all duration-300"
+                className="p-4 rounded-[18px] border border-brand-border bg-brand-bg shadow-sm hover:-translate-y-1 hover:shadow-lg hover:border-[#D4A017]/40 dark:hover:border-[#EAB308]/40 transition-all duration-300"
               >
                 <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-[#FEF3C7] dark:bg-[#EAB308]/15 text-[#EAB308]">
+                  <div className="p-2 rounded-lg bg-[#FEF3C7] dark:bg-[#EAB308]/15 text-[#D4A017] dark:text-[#EAB308]">
                     <feature.icon className="h-4 w-4" />
                   </div>
                   <div className="text-left">
-                    <h4 className="text-xs font-bold text-[#111827] dark:text-white">{feature.label}</h4>
-                    <p className="text-[10px] text-[#6B7280] dark:text-neutral-400 mt-0.5">{feature.desc}</p>
+                    <h4 className="text-xs font-bold text-brand-text">{feature.label}</h4>
+                    <p className="text-[10px] text-brand-muted mt-0.5">{feature.desc}</p>
                   </div>
                 </div>
               </div>
@@ -135,7 +135,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer Details */}
-        <div className="relative z-10 flex items-center justify-between text-[10px] text-[#6B7280] dark:text-neutral-500 uppercase tracking-widest font-bold">
+        <div className="relative z-10 flex items-center justify-between text-[10px] text-brand-muted uppercase tracking-widest font-bold">
           <span>ACE Engineering College</span>
           <span>Placement Readiness Dashboard</span>
         </div>
@@ -144,7 +144,7 @@ export default function LoginPage() {
       {/* Right Column: Glassmorphism Login Form */}
       <div className="lg:col-span-5 flex flex-col justify-center items-center p-6 sm:p-12 relative">
         <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none opacity-20 block lg:hidden">
-          <div className="absolute -top-[20%] -left-[20%] w-[60%] h-[60%] rounded-full bg-gradient-to-br from-[#EAB308]/10 to-transparent blur-3xl" />
+          <div className="absolute -top-[20%] -left-[20%] w-[60%] h-[60%] rounded-full bg-gradient-to-br from-[#D4A017]/10 dark:from-[#EAB308]/10 to-transparent blur-3xl" />
         </div>
 
         <motion.div
@@ -152,13 +152,13 @@ export default function LoginPage() {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
-          <div className="w-full max-w-md p-8 rounded-[32px] border border-brand-border border-t-2 border-t-[#EAB308]/30 dark:border-t-brand-border bg-white/80 dark:bg-brand-card/50 backdrop-blur-xl shadow-[0_30px_70px_rgba(0,0,0,0.12)] dark:shadow-[0_30px_70px_rgba(0,0,0,0.4)] space-y-6">
+          <div className="w-full max-w-md p-8 rounded-[32px] border border-brand-border border-t-2 border-t-[#D4A017]/30 dark:border-t-[#EAB308]/30 bg-brand-card/90 backdrop-blur-xl shadow-lg space-y-6">
           {/* Header */}
           <div className="text-center space-y-2">
             <h1 className="text-2xl font-extrabold tracking-tight text-brand-text">
               Welcome Back
             </h1>
-            <p className="text-xs text-[#6B7280] dark:text-brand-muted font-medium">
+            <p className="text-xs text-brand-muted font-medium">
               Enter your credentials to access your talent insights.
             </p>
           </div>
@@ -168,7 +168,7 @@ export default function LoginPage() {
             
             {/* Email Field */}
             <div className="space-y-1.5 text-left">
-              <label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-[#6B7280] dark:text-brand-muted">
+              <label htmlFor="email" className="text-xs font-bold uppercase tracking-wider text-brand-muted">
                 Email Address
               </label>
               <input
@@ -176,7 +176,7 @@ export default function LoginPage() {
                 type="email"
                 placeholder="you@college.edu"
                 {...register("email")}
-                className="w-full h-[52px] px-4 rounded-[16px] border border-[#E5E7EB] dark:border-brand-border bg-white dark:bg-brand-bg text-brand-text text-sm focus:outline-none focus:ring-2 focus:ring-[#EAB308]/30 focus:border-[#EAB308] transition-all duration-200"
+                className="w-full h-[52px] px-4 rounded-[16px] border border-brand-border bg-brand-highlight text-brand-text text-sm focus:outline-none focus:ring-2 focus:ring-[#D4A017]/20 dark:focus:ring-[#EAB308]/20 focus:border-[#D4A017] dark:focus:border-[#EAB308] placeholder-brand-muted/50 transition-all duration-200"
               />
               {errors.email && (
                 <p className="text-[11px] font-semibold text-red-500 mt-1">{errors.email.message}</p>
@@ -186,12 +186,12 @@ export default function LoginPage() {
             {/* Password Field */}
             <div className="space-y-1.5 text-left">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-[#6B7280] dark:text-brand-muted">
+                <label htmlFor="password" className="text-xs font-bold uppercase tracking-wider text-brand-muted">
                   Password
                 </label>
                 <Link
                   href="/forgot-password"
-                  className="text-xs font-bold text-[#EAB308] hover:underline"
+                  className="text-xs font-bold text-[#D4A017] dark:text-[#EAB308] hover:underline"
                 >
                   Forgot Password?
                 </Link>
@@ -202,12 +202,12 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   {...register("password")}
-                  className="w-full h-[52px] pl-4 pr-11 rounded-[16px] border border-[#E5E7EB] dark:border-brand-border bg-white dark:bg-brand-bg text-brand-text text-sm focus:outline-none focus:ring-2 focus:ring-[#EAB308]/30 focus:border-[#EAB308] transition-all duration-200"
+                  className="w-full h-[52px] pl-4 pr-11 rounded-[16px] border border-brand-border bg-brand-highlight text-brand-text text-sm focus:outline-none focus:ring-2 focus:ring-[#D4A017]/20 dark:focus:ring-[#EAB308]/20 focus:border-[#D4A017] dark:focus:border-[#EAB308] placeholder-brand-muted/50 transition-all duration-200"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#6B7280] dark:text-brand-muted hover:text-brand-text"
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-text"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -223,9 +223,9 @@ export default function LoginPage() {
                 id="rememberMe"
                 type="checkbox"
                 {...register("rememberMe")}
-                className="h-4 w-4 rounded border-brand-border text-[#EAB308] focus:ring-[#EAB308] cursor-pointer"
+                className="h-4 w-4 rounded border-brand-border text-[#D4A017] dark:text-[#EAB308] focus:ring-[#D4A017] dark:focus:ring-[#EAB308] cursor-pointer"
               />
-              <label htmlFor="rememberMe" className="text-xs font-semibold text-[#6B7280] dark:text-brand-muted select-none cursor-pointer">
+              <label htmlFor="rememberMe" className="text-xs font-semibold text-brand-muted select-none cursor-pointer">
                 Remember my login
               </label>
             </div>
@@ -234,7 +234,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full h-[52px] rounded-[16px] bg-gradient-to-r from-[#EAB308] to-[#F59E0B] hover:-translate-y-0.5 hover:shadow-[0_4px_20px_rgba(234,179,8,0.3)] text-[#0A0A0A] font-bold text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full h-[52px] rounded-[16px] bg-[#D4A017] dark:bg-[#EAB308] hover:bg-[#B8860B] dark:hover:bg-[#FACC15] hover:-translate-y-0.5 hover:shadow-lg text-[#111827] dark:text-white font-bold text-sm tracking-wide transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
                 <>
@@ -250,7 +250,7 @@ export default function LoginPage() {
           {/* Divider */}
           <div className="relative flex py-2 items-center">
             <div className="flex-grow border-t border-brand-border"></div>
-            <span className="flex-shrink mx-4 text-[10px] font-bold tracking-widest text-[#6B7280] dark:text-brand-muted uppercase">
+            <span className="flex-shrink mx-4 text-[10px] font-bold tracking-widest text-brand-muted uppercase">
               Or Connect With
             </span>
             <div className="flex-grow border-t border-brand-border"></div>
@@ -260,7 +260,7 @@ export default function LoginPage() {
           <button
             onClick={handleGoogleLogin}
             type="button"
-            className="w-full h-[52px] rounded-[16px] border border-[#E5E7EB] dark:border-brand-border bg-white dark:bg-brand-card hover:bg-[#FAFAFA] dark:hover:bg-brand-card/80 text-brand-text font-bold text-xs tracking-wider uppercase shadow-sm transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer"
+            className="w-full h-[52px] rounded-[16px] border border-brand-border bg-brand-card hover:bg-brand-highlight text-brand-text font-bold text-xs tracking-wider uppercase shadow-sm transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer"
           >
             {/* Google Icon SVG */}
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -273,11 +273,11 @@ export default function LoginPage() {
           </button>
 
           {/* Create Account Link */}
-          <div className="text-center text-xs text-[#6B7280] dark:text-brand-muted">
+          <div className="text-center text-xs text-brand-muted font-semibold">
             Don't have an account?{" "}
             <Link
               href="/signup"
-              className="font-bold text-[#EAB308] hover:underline"
+              className="font-bold text-[#D4A017] dark:text-[#EAB308] hover:underline"
             >
               Create Student Account
             </Link>
