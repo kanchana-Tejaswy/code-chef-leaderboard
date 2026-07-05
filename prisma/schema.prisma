@@ -263,3 +263,18 @@ model FetchLog {
 
   @@map("fetch_logs")
 }
+
+model Profile {
+  id           String   @id // Matches Supabase auth.users.id
+  email        String   @unique
+  name         String
+  role         String   // "admin", "faculty", "student"
+  department   String?
+  year         Int?
+  profileImage String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("profiles")
+}
+

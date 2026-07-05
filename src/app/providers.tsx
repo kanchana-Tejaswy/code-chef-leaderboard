@@ -1,43 +1,34 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { createClient } from "@/utils/supabase/client";
+import { User, Session } from "@supabase/supabase-js";
 
-interface UserProfile {
+export interface UserProfile {
   id: string;
   name: string;
-  rollNumber: string;
-  department: string;
-  year: number;
-  profilePictureUrl: string | null;
-  codechefUsername: string | null;
+  rollNumber?: string | null;
+  department?: string | null;
+  year?: number | null;
+  profilePictureUrl?: string | null;
+  codechefUsername?: string | null;
   role: "STUDENT" | "FACULTY" | "PLACEMENT_OFFICER" | "PRINCIPAL" | "ADMIN";
 }
 
 interface AuthContextType {
-  user: any;
-  session: any;
+  user: User | null;
+  session: Session | null;
   profile: UserProfile | null;
   isLoading: boolean;
   refreshProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
-const mockProfile: UserProfile = {
-  id: "mock-user-id",
-  name: "Faculty Member",
-  rollNumber: "FAC001",
-  department: "CSE",
-  year: 4,
-  profilePictureUrl: null,
-  codechefUsername: null,
-  role: "FACULTY",
-};
-
 const AuthContext = createContext<AuthContextType>({
-  user: { id: "mock-user-id", email: "faculty@ace.edu" },
-  session: { access_token: "mock-token" },
-  profile: mockProfile,
-  isLoading: false,
+  user: null,
+  session: null,
+  profile: null,
+  isLoading: true,
   refreshProfile: async () => {},
   signOut: async () => {},
 });
@@ -45,15 +36,94 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const supabase = createClient();
+
+  const fetchProfile = async (userId: string) => {
+    try {
+      const response = await fetch("/api/auth/me");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.profile) {
+          // Normalize role to uppercase for backwards compatibility
+          const normalizedRole = (data.profile.role || "student").toUpperCase() as any;
+          setProfile({
+            id: data.profile.id,
+            name: data.profile.name,
+            rollNumber: data.profile.rollNumber || null,
+            department: data.profile.department || null,
+            year: data.profile.year || null,
+            profilePictureUrl: data.profile.profileImage || null,
+            role: normalizedRole,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // 1. Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    // 2. Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+      setSession(newSession);
+      setUser(newSession?.user ?? null);
+      if (newSession?.user) {
+        await fetchProfile(newSession.user.id);
+      } else {
+        setProfile(null);
+        setIsLoading(false);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const refreshProfile = async () => {
+    if (user) {
+      await fetchProfile(user.id);
+    }
+  };
+
+  const handleSignOut = async () => {
+    setIsLoading(true);
+    await supabase.auth.signOut();
+    setUser(null);
+    setSession(null);
+    setProfile(null);
+    setIsLoading(false);
+    window.location.href = "/login";
+  };
+
   return (
     <AuthContext.Provider
       value={{
-        user: { id: "mock-user-id", email: "faculty@ace.edu" },
-        session: { access_token: "mock-token" },
-        profile: mockProfile,
-        isLoading: false,
-        refreshProfile: async () => {},
-        signOut: async () => {},
+        user,
+        session,
+        profile,
+        isLoading,
+        refreshProfile,
+        signOut: handleSignOut,
       }}
     >
       {children}
@@ -106,4 +176,3 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     </ThemeContext.Provider>
   );
 }
-

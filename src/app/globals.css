@@ -547,3 +547,16 @@ html:not(.dark) {
   }
 }
 
+/* Smooth theme transition */
+body, 
+header, 
+main,
+.bg-brand-bg, 
+.bg-brand-card, 
+.border-brand-border, 
+.text-brand-text, 
+.text-brand-muted {
+  transition: background-color 300ms ease, border-color 300ms ease, color 300ms ease;
+}
+
+

@@ -6,7 +6,6 @@ import Link from "next/link";
 import {
   Trophy,
   Code,
-  Flame,
   ArrowLeft,
   Loader2,
   TrendingUp,
@@ -716,17 +715,7 @@ export default function StudentProfileDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="border border-[#262626] bg-[#111111]/70 p-5 rounded-2xl flex items-center justify-between">
-                    <div className="flex flex-col text-left">
-                      <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Streak Counter</span>
-                      <span className="text-2xl font-black text-[#FAFAFA] mt-2 flex items-center gap-1.5">
-                        <Flame className="h-6.5 w-6.5 text-[#EAB308] fill-[#EAB308]/20 animate-pulse" />
-                        {ccStreak !== "Unavailable" ? `${ccStreak} Days Streak 🔥` : "Streak: Unavailable"}
-                      </span>
-                    </div>
-                  </div>
-
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="border border-[#262626] bg-[#111111]/70 p-5 rounded-2xl flex items-center justify-between">
                     <div className="flex flex-col text-left">
                       <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Problems Solved</span>
@@ -777,24 +766,7 @@ export default function StudentProfileDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 gap-6">
-                  <CalendarHeatmap data={student.codechefProfile.activitySummary || {}} colorTheme="gold" />
-                  
-                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3">
-                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Submission Trend Graph</span>
-                    <div className="h-56 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={(student.codechefProfile.ratingHistory || []).map((x: any, idx: number) => ({ name: x.contest, submissions: 10 + (idx * 5) + (x.rating % 20) }))}>
-                          <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" />
-                          <XAxis dataKey="name" stroke="#52525b" fontSize={9} />
-                          <YAxis stroke="#52525b" fontSize={9} />
-                          <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
-                          <Line type="monotone" dataKey="submissions" stroke="#EAB308" strokeWidth={1.5} dot={false} />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                </div>
+
 
               </div>
             );
@@ -824,7 +796,7 @@ export default function StudentProfileDashboard() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
                     <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Contest Rating</span>
                     <span className="text-2xl font-black text-[#F59E0B] mt-2">{formatVal(student.leetcodeProfile.contestRating)}</span>
@@ -841,13 +813,9 @@ export default function StudentProfileDashboard() {
                     <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Acceptance Rate</span>
                     <span className="text-2xl font-black text-[#EAB308] mt-2">{formatVal(student.leetcodeProfile.acceptanceRate, "%")}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Streak</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{lcStreak !== "Unavailable" ? `${lcStreak} Days 🔥` : "Unavailable"}</span>
-                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-4 justify-between w-full">
                     <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Problems Solved (Easy/Medium/Hard)</span>
                     <div className="flex flex-col gap-3">
@@ -878,23 +846,6 @@ export default function StudentProfileDashboard() {
                           <div className="bg-red-500 h-full rounded-full" style={{ width: student.leetcodeProfile.hardSolvedCount && student.leetcodeProfile.problemsSolved ? `${(student.leetcodeProfile.hardSolvedCount / student.leetcodeProfile.problemsSolved) * 100}%` : "0%" }} />
                         </div>
                       </div>
-                    </div>
-                  </div>
-
-                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 w-full">
-                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Weekly Activity Chart</span>
-                    <div className="h-40 w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((day, idx) => ({
-                          day,
-                          submissions: Array.isArray(student.leetcodeProfile.weeklyActivity) ? student.leetcodeProfile.weeklyActivity[idx] || 0 : 0
-                        }))}>
-                          <XAxis dataKey="day" stroke="#52525b" fontSize={9} />
-                          <YAxis stroke="#52525b" fontSize={9} />
-                          <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
-                          <Bar dataKey="submissions" fill="#F59E0B" radius={[2, 2, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
                     </div>
                   </div>
 
@@ -951,7 +902,7 @@ export default function StudentProfileDashboard() {
                   </div>
                 </div>
 
-                <CalendarHeatmap data={student.leetcodeProfile.heatmap || {}} colorTheme="leetcode" />
+
 
               </div>
             );
@@ -1076,11 +1027,7 @@ export default function StudentProfileDashboard() {
                         { label: "Organizations", value: reposData.openSource.organizations, color: "text-zinc-400" },
                         { label: "Fork Contributions", value: reposData.openSource.forkContributions, color: "text-sky-400" },
                         { label: "Discussions", value: reposData.openSource.discussions, color: "text-teal-400" },
-                        { label: "Releases Published", value: reposData.openSource.releases, color: "text-pink-400" },
-                        { label: "Current Streak", value: (() => {
-                           const streak = calculateActiveStreak(contribMap);
-                           return streak !== "Unavailable" ? `${streak} Days 🔥` : "Unavailable";
-                         })(), color: "text-[#EAB308]" }
+                        { label: "Releases Published", value: reposData.openSource.releases, color: "text-pink-400" }
                       ].map((o, idx) => (
                         <div key={idx} className="border border-[#262626] bg-[#111111]/70 p-4 rounded-2xl text-center">
                           <span className="text-[8px] uppercase tracking-wider text-[#A3A3A3] font-bold block">{o.label}</span>
@@ -1091,7 +1038,7 @@ export default function StudentProfileDashboard() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                   <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 items-center">
                     <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider w-full text-left">Language Distribution Pie Chart</span>
                     <div className="h-64 w-full">
@@ -1132,50 +1079,9 @@ export default function StudentProfileDashboard() {
                       )}
                     </div>
                   </div>
-
-                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3">
-                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Commit Timeline Chart</span>
-                    <div className="h-64 w-full">
-                      {Array.isArray(student.githubProfile.commitTimeline) && student.githubProfile.commitTimeline.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <LineChart data={student.githubProfile.commitTimeline}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#1f1f1f" />
-                            <XAxis dataKey="month" stroke="#52525b" fontSize={9} />
-                            <YAxis stroke="#52525b" fontSize={9} />
-                            <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
-                            <Line type="monotone" dataKey="commits" stroke="#8B5CF6" strokeWidth={2} dot={{ r: 4 }} />
-                          </LineChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No commit timeline available.</div>
-                      )}
-                    </div>
-                  </div>
                 </div>
 
-                {/* Commit Analytics Grid */}
-                {reposData?.commitAnalytics && (
-                  <div className="border border-[#262626] bg-[#111111]/40 p-6 rounded-3xl">
-                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest block mb-4">Commit Velocity & Activity Stats</span>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {[
-                        { label: "Total Commits", value: reposData.commitAnalytics.total },
-                        { label: "Commits This Year", value: reposData.commitAnalytics.commitsThisYear },
-                        { label: "Commits This Month", value: reposData.commitAnalytics.commitsThisMonth },
-                        { label: "Commits This Week", value: reposData.commitAnalytics.weeklyCommits },
-                        { label: "Daily Average", value: `${reposData.commitAnalytics.dailyAverage}/day` },
-                        { label: "Monthly Average", value: `${reposData.commitAnalytics.monthlyAverage}/mo` },
-                        { label: "Most Active Weekday", value: reposData.commitAnalytics.mostActiveWeekday },
-                        { label: "Most Active Month", value: reposData.commitAnalytics.mostActiveMonth },
-                      ].map((c, idx) => (
-                        <div key={idx} className="border border-[#262626] bg-[#111111]/70 p-4 rounded-2xl text-center">
-                          <span className="text-[8px] uppercase tracking-wider text-[#A3A3A3] font-bold">{c.label}</span>
-                          <span className="text-sm font-black text-[#FAFAFA] block mt-1">{c.value || "Not available from platform."}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
 
                 {/* Repository Intelligence Grid */}
                 {reposData?.intelligence && (
@@ -1200,27 +1106,21 @@ export default function StudentProfileDashboard() {
                   </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
-                  <div className="md:col-span-2">
-                    <CalendarHeatmap data={contribMap} colorTheme="purple" />
-                  </div>
-
-                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 items-center w-full">
-                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider w-full text-left">Repository Quality Score (Radar)</span>
-                    <div className="h-52 w-full">
-                      {Array.isArray(student.githubProfile.repoQualityScore) && student.githubProfile.repoQualityScore.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart cx="50%" cy="50%" outerRadius="75%" data={student.githubProfile.repoQualityScore}>
-                            <PolarGrid stroke="#1f1f1f" />
-                            <PolarAngleAxis dataKey="subject" stroke="#a3a3a3" fontSize={7} />
-                            <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#52525b" fontSize={7} />
-                            <Radar name="Repository Quality" dataKey="A" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.15} />
-                          </RadarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No quality analysis available.</div>
-                      )}
-                    </div>
+                <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 items-center w-full">
+                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider w-full text-left">Repository Quality Score (Radar)</span>
+                  <div className="h-52 w-full">
+                    {Array.isArray(student.githubProfile.repoQualityScore) && student.githubProfile.repoQualityScore.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="75%" data={student.githubProfile.repoQualityScore}>
+                          <PolarGrid stroke="#1f1f1f" />
+                          <PolarAngleAxis dataKey="subject" stroke="#a3a3a3" fontSize={7} />
+                          <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#52525b" fontSize={7} />
+                          <Radar name="Repository Quality" dataKey="A" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.15} />
+                        </RadarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No quality analysis available.</div>
+                    )}
                   </div>
                 </div>
 
