@@ -2,6 +2,36 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export async function createClient() {
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
+    return {
+      auth: {
+        getUser: async () => ({
+          data: {
+            user: {
+              id: "demo-user-id",
+              email: "demo@college.edu",
+              user_metadata: { role: "admin", full_name: "Demo Admin" },
+            }
+          },
+          error: null,
+        }),
+        getSession: async () => ({
+          data: {
+            session: {
+              access_token: "demo-token",
+              user: {
+                id: "demo-user-id",
+                email: "demo@college.edu",
+                user_metadata: { role: "admin", full_name: "Demo Admin" },
+              }
+            }
+          },
+          error: null,
+        }),
+      }
+    } as any;
+  }
+
   const cookieStore = await cookies();
 
   return createServerClient(

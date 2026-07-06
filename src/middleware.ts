@@ -19,7 +19,15 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Update session & get current user
-  const { supabaseResponse, user } = await updateSession(request);
+  let { supabaseResponse, user } = await updateSession(request);
+
+  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
+    user = {
+      id: "demo-user-id",
+      email: "demo@college.edu",
+      user_metadata: { role: "admin" },
+    } as any;
+  }
 
   const isAuthenticated = !!user;
 

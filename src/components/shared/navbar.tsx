@@ -94,6 +94,11 @@ export function Navbar() {
               </span>
             </div>
           </Link>
+          {process.env.NEXT_PUBLIC_DEMO_MODE === "true" && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-green-500/10 text-green-500 border border-green-500/20 shrink-0">
+              🟢 Demo Mode
+            </span>
+          )}
         </div>
 
         {/* Center Desktop Navigation Links */}

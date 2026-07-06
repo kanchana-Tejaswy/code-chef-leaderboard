@@ -69,6 +69,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
+      const mockUser = {
+        id: "demo-user-id",
+        email: "demo@college.edu",
+        user_metadata: { role: "admin" },
+      } as any;
+      const mockSession = {
+        access_token: "demo-token",
+        user: mockUser,
+      } as any;
+      const mockProfile = {
+        id: "demo-user-id",
+        name: "Demo Admin",
+        rollNumber: "DEMO101",
+        department: "CSE",
+        year: 4,
+        profilePictureUrl: null,
+        role: "ADMIN" as const,
+      };
+
+      setSession(mockSession);
+      setUser(mockUser);
+      setProfile(mockProfile);
+      setIsLoading(false);
+      return;
+    }
+
     // 1. Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
