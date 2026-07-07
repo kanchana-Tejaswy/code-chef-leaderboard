@@ -31,17 +31,25 @@ export default function LoginPage() {
     const checkSession = async () => {
       try {
         const supabase = createClient();
+        console.log("[Login Page] Checking for existing Supabase session...");
         const { data: { session } } = await supabase.auth.getSession();
+        console.log("[Login Page] Existing session user:", session?.user?.id || "none");
         if (session?.user) {
+          console.log("[Login Page] Session exists. Fetching profile details...");
           const res = await fetch("/api/auth/me");
           if (res.ok) {
             const data = await res.json();
             const role = (data.profile?.role || "STUDENT").toUpperCase();
+            console.log("[Login Page] User Profile Role:", role);
             if (role === "ADMIN") {
-              router.push("/dashboard");
+              console.log("[Login Page] Redirecting Admin to /admin/dashboard");
+              router.push("/admin/dashboard");
             } else {
-              router.push("/student-profile");
+              console.log("[Login Page] Redirecting Student to /student/dashboard");
+              router.push("/student/dashboard");
             }
+          } else {
+            console.warn("[Login Page] Failed to fetch profile from /api/auth/me. Status:", res.status);
           }
         }
       } catch (err) {
@@ -70,34 +78,41 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient();
+      console.log("[Login Page] Attempting email/password sign-in...");
       const { error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
       });
 
       if (error) {
+        console.error("[Login Page] Sign-in error:", error.message);
         showToast(error.message, "error");
       } else {
+        console.log("[Login Page] Sign-in successful! Fetching user role...");
         showToast("Login Successful", "success");
         try {
           const res = await fetch("/api/auth/me");
           if (res.ok) {
             const data = await res.json();
             const role = (data.profile?.role || "STUDENT").toUpperCase();
+            console.log("[Login Page] Fetched user role:", role);
             if (role === "ADMIN") {
-              router.push("/dashboard");
+              router.push("/admin/dashboard");
             } else {
-              router.push("/student-profile");
+              router.push("/student/dashboard");
             }
           } else {
-            router.push("/student-profile");
+            console.warn("[Login Page] Profile fetch failed, redirecting to /student/dashboard");
+            router.push("/student/dashboard");
           }
-        } catch {
-          router.push("/student-profile");
+        } catch (err) {
+          console.error("[Login Page] Error retrieving profile:", err);
+          router.push("/student/dashboard");
         }
         router.refresh();
       }
     } catch (err: any) {
+      console.error("[Login Page] Submit error:", err);
       showToast("Network Error: Could not connect to authentication services.", "error");
     } finally {
       setIsLoading(false);
@@ -110,18 +125,24 @@ export default function LoginPage() {
       const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
       if (!url || !key || url.includes("placeholder") || key.includes("placeholder")) {
+        console.error("[Login Page] Missing Supabase environment variables for Google Auth.");
         showToast("Supabase environment variables are missing", "error");
         return;
       }
 
       const supabase = createClient();
+      const redirectUrl = `${window.location.origin}/auth/callback`;
+      console.log("[Login Page] Initiating signInWithOAuth for Google. Redirect URL:", redirectUrl);
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
+          redirectTo: redirectUrl,
         },
       });
-      if (error) showToast(error.message, "error");
+      if (error) {
+        console.error("[Login Page] Supabase OAuth error:", error.message);
+        showToast(error.message, "error");
+      }
     } catch (err: any) {
       console.error("Google login initiation error:", err);
       showToast(`Failed to initiate Google authentication: ${err.message || err}`, "error");

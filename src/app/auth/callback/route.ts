@@ -6,6 +6,11 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/dashboard";
 
+  console.log(`\n--- [Auth Callback Start] ---`);
+  console.log(`[Auth Callback] Route reached. Request URL: ${request.url}`);
+  console.log(`[Auth Callback] OAuth Code received: ${code ? "Yes" : "No"}`);
+  console.log(`[Auth Callback] Target next redirect path: ${next}`);
+
   if (code) {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-project.supabase.co";
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
@@ -31,10 +36,17 @@ export async function GET(request: NextRequest) {
       }
     );
 
-    console.log(`[Auth Callback] Received OAuth code, exchanging for session...`);
+    console.log(`[Auth Callback] Exchanging OAuth code for session...`);
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       console.log(`[Auth Callback] Session exchanged successfully!`);
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log(`[Auth Callback] Session status: ${session ? "Active" : "None"}`);
+      if (session) {
+        console.log(`[Auth Callback] Access Token Present: ${!!session.access_token}`);
+        console.log(`[Auth Callback] Expires At: ${session.expires_at}`);
+      }
+
       // Sync Google Auth metadata and pre-create database profile
       try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -44,14 +56,23 @@ export async function GET(request: NextRequest) {
           const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir");
           const role = isGK ? "ADMIN" : "STUDENT";
 
-          console.log(`[Auth Callback] User Authenticated: ID=${user.id}, Email=${email}, Assigned Role=${role}`);
+          console.log(`[Auth Callback] Authenticated User details:`);
+          console.log(`  - User ID: ${user.id}`);
+          console.log(`  - Email: ${email}`);
+          console.log(`  - Raw Metadata Role: ${user.user_metadata?.role || "none"}`);
+          console.log(`  - Assigned System Role: ${role}`);
 
           // Update Supabase Auth user metadata
           if (user.user_metadata?.role !== role) {
             console.log(`[Auth Callback] Updating user metadata role to: ${role}`);
-            await supabase.auth.updateUser({
+            const updateResult = await supabase.auth.updateUser({
               data: { role },
             });
+            if (updateResult.error) {
+              console.error(`[Auth Callback] Error updating user metadata role:`, updateResult.error.message);
+            } else {
+              console.log(`[Auth Callback] Metadata role updated successfully!`);
+            }
           }
 
           // Create database profile if missing
@@ -82,11 +103,15 @@ export async function GET(request: NextRequest) {
       }
 
       console.log(`[Auth Callback] Redirecting to: ${next}`);
+      console.log(`--- [Auth Callback End] ---\n`);
       return response; // Return the response containing the set cookies!
     } else {
       console.error(`[Auth Callback] Exchange session error:`, error.message);
+      console.log(`--- [Auth Callback End] ---\n`);
     }
   }
 
+  console.log(`[Auth Callback] Authentication failed or code missing. Redirecting to /login`);
+  console.log(`--- [Auth Callback End] ---\n`);
   return NextResponse.redirect(`${origin}/login?error=Authentication failed`);
 }
