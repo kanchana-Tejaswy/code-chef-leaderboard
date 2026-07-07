@@ -89,8 +89,9 @@ export default function LoginPage() {
         },
       });
       if (error) showToast(error.message, "error");
-    } catch (err) {
-      showToast("Failed to initiate Google authentication.", "error");
+    } catch (err: any) {
+      console.error("Google login initiation error:", err);
+      showToast(`Failed to initiate Google authentication: ${err.message || err}`, "error");
     }
   };
 
