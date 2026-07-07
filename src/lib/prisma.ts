@@ -11,9 +11,11 @@ let prismaInstance: PrismaClient;
 if (typeof window === "undefined") {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL is not set");
+    console.warn("Database connection is not configured: DATABASE_URL is not set.");
   }
-  const pool = new Pool({ connectionString: databaseUrl });
+  const pool = new Pool({
+    connectionString: databaseUrl || "postgresql://postgres:postgres@localhost:5432/postgres",
+  });
   const adapter = new PrismaPg(pool);
 
   prismaInstance =
