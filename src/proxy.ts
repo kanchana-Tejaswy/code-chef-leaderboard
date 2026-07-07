@@ -35,6 +35,8 @@ export async function proxy(request: NextRequest) {
   // Bypass redirect if auth is disabled
   if (disableAuth && (pathname === "/" || pathname === "/login" || pathname === "")) {
     console.log(`[Proxy] Auth bypass active. Redirecting from ${pathname} to /admin/dashboard`);
+
+
     const url = request.nextUrl.clone();
     url.pathname = "/admin/dashboard";
     return NextResponse.redirect(url);
