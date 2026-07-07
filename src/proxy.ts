@@ -15,19 +15,11 @@ const PROTECTED_ROUTES = [
 // Routes for guests only (redirect to dashboard if logged in)
 const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // 1. Update session & get current user
   let { supabaseResponse, user } = await updateSession(request);
-
-  if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-    user = {
-      id: "demo-user-id",
-      email: "demo@college.edu",
-      user_metadata: { role: "admin" },
-    } as any;
-  }
 
   const isAuthenticated = !!user;
 

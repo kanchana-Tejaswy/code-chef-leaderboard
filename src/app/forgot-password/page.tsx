@@ -20,7 +20,6 @@ export default function ForgotPasswordPage() {
   const { showToast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSent, setIsSent] = useState(false);
-  const supabase = createClient();
 
   const {
     register,
@@ -36,6 +35,7 @@ export default function ForgotPasswordPage() {
     setIsLoading(true);
 
     try {
+      const supabase = createClient();
       const { error } = await supabase.auth.resetPasswordForEmail(values.email, {
         redirectTo: `${window.location.origin}/reset-password`,
       });

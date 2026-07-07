@@ -40,7 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const supabase = createClient();
 
   const fetchProfile = async (userId: string) => {
     try {
@@ -69,61 +68,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (process.env.NEXT_PUBLIC_DEMO_MODE === "true") {
-      const mockUser = {
-        id: "demo-user-id",
-        email: "demo@college.edu",
-        user_metadata: { role: "admin" },
-      } as any;
-      const mockSession = {
-        access_token: "demo-token",
-        user: mockUser,
-      } as any;
-      const mockProfile = {
-        id: "demo-user-id",
-        name: "Demo Admin",
-        rollNumber: "DEMO101",
-        department: "CSE",
-        year: 4,
-        profilePictureUrl: null,
-        role: "ADMIN" as const,
-      };
-
-      setSession(mockSession);
-      setUser(mockUser);
-      setProfile(mockProfile);
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) {
+      console.warn("Supabase credentials missing. Skipping AuthProvider initialization.");
       setIsLoading(false);
       return;
     }
 
-    // 1. Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      } else {
-        setIsLoading(false);
-      }
-    });
+    try {
+      const supabase = createClient();
 
-    // 2. Listen for auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-      if (newSession?.user) {
-        await fetchProfile(newSession.user.id);
-      } else {
-        setProfile(null);
-        setIsLoading(false);
-      }
-    });
+      // 1. Get initial session
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        if (session?.user) {
+          fetchProfile(session.user.id);
+        } else {
+          setIsLoading(false);
+        }
+      });
 
-    return () => {
-      subscription.unsubscribe();
-    };
+      // 2. Listen for auth state changes
+      const {
+        data: { subscription },
+      } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
+        if (newSession?.user) {
+          await fetchProfile(newSession.user.id);
+        } else {
+          setProfile(null);
+          setIsLoading(false);
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    } catch (error) {
+      console.error("Failed to initialize Supabase client in AuthProvider:", error);
+      setIsLoading(false);
+    }
   }, []);
 
   const refreshProfile = async () => {
@@ -133,13 +120,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const handleSignOut = async () => {
-    setIsLoading(true);
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
-    setProfile(null);
-    setIsLoading(false);
-    window.location.href = "/login";
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) {
+      console.error("Cannot sign out: Supabase credentials missing.");
+      return;
+    }
+
+    try {
+      const supabase = createClient();
+      setIsLoading(true);
+      await supabase.auth.signOut();
+      setUser(null);
+      setSession(null);
+      setProfile(null);
+      setIsLoading(false);
+      window.location.href = "/login";
+    } catch (error) {
+      console.error("Sign out failed:", error);
+      setIsLoading(false);
+    }
   };
 
   return (

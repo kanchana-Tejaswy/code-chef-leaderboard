@@ -33,7 +33,6 @@ export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
-  const supabase = createClient();
 
   const {
     register,
@@ -49,6 +48,7 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
 
     try {
+      const supabase = createClient();
       const { error } = await supabase.auth.updateUser({
         password: values.password,
       });

@@ -25,7 +25,6 @@ export default function LoginPage() {
   const { showToast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClient();
 
   const {
     register,
@@ -45,6 +44,7 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
+      const supabase = createClient();
       const { error } = await supabase.auth.signInWithPassword({
         email: values.email,
         password: values.password,
@@ -66,6 +66,7 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     try {
+      const supabase = createClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
