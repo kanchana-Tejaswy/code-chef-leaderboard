@@ -22,6 +22,8 @@ export async function proxy(request: NextRequest) {
   console.log(`\n--- [Proxy/Middleware Start] ---`);
   console.log(`[Proxy] Incoming request for: ${pathname}`);
 
+  const disableAuth = process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
+
   // Safety net: If OAuth callback code lands on homepage, redirect to /auth/callback
   if (code && (pathname === "/" || pathname === "")) {
     console.log(`[Proxy] Detected OAuth code on homepage. Redirecting to /auth/callback with code`);
@@ -30,8 +32,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Bypass redirect if auth is disabled
+  if (disableAuth && (pathname === "/" || pathname === "/login" || pathname === "")) {
+    console.log(`[Proxy] Auth bypass active. Redirecting from ${pathname} to /admin/dashboard`);
+    const url = request.nextUrl.clone();
+    url.pathname = "/admin/dashboard";
+    return NextResponse.redirect(url);
+  }
+
   // 1. Update session & get current user
-  const isDemoMode = request.cookies.get("demo_mode")?.value === "true";
+  const isDemoMode = disableAuth || request.cookies.get("demo_mode")?.value === "true";
   let { supabaseResponse, user } = await updateSession(request);
 
   if (isDemoMode) {

@@ -8,7 +8,7 @@ const DEMO_USER_ID = "00000000-0000-0000-0000-000000000000";
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const isDemoMode = cookieStore.get("demo_mode")?.value === "true";
+    const isDemoMode = process.env.NEXT_PUBLIC_DISABLE_AUTH === "true" || cookieStore.get("demo_mode")?.value === "true";
     let user;
 
     if (isDemoMode) {
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const isDemoMode = cookieStore.get("demo_mode")?.value === "true";
+    const isDemoMode = process.env.NEXT_PUBLIC_DISABLE_AUTH === "true" || cookieStore.get("demo_mode")?.value === "true";
     let user;
 
     if (isDemoMode) {
