@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
       const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split("@")[0] || "User";
       
       const lowerEmail = email.toLowerCase();
-      const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir");
+      const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir") || lowerEmail === "demo-admin@college.edu";
       const role = isGK ? "ADMIN" : (user.user_metadata?.role?.toUpperCase() || "STUDENT");
 
       profile = await prisma.profile.create({

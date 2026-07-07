@@ -149,6 +149,87 @@ export default function LoginPage() {
     }
   };
 
+  const handleDemoLogin = async () => {
+    if (isLoading) return;
+    setIsLoading(true);
+    try {
+      const supabase = createClient();
+      console.log("[Demo Login] Attempting to sign in with demo credentials...");
+      
+      const email = "demo-admin@college.edu";
+      const password = "DemoAdmin123!";
+
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        console.log("[Demo Login] Sign-in failed. Error message:", signInError.message);
+        
+        // If account does not exist, automatically sign up the demo user
+        if (signInError.message.includes("Invalid login credentials") || signInError.message.includes("does not exist") || signInError.message.includes("Email not confirmed")) {
+          console.log("[Demo Login] Account doesn't exist or not verified. Automatically signing up...");
+          const { error: signUpError } = await supabase.auth.signUp({
+            email,
+            password,
+            options: {
+              data: {
+                role: "ADMIN",
+                full_name: "Demo Admin",
+              },
+            },
+          });
+
+          if (signUpError) {
+            console.error("[Demo Login] Sign-up failed:", signUpError.message);
+            showToast(`Demo Sign-up failed: ${signUpError.message}`, "error");
+            setIsLoading(false);
+            return;
+          }
+
+          console.log("[Demo Login] Sign-up successful. Re-attempting sign-in...");
+          const { error: secondSignInError } = await supabase.auth.signInWithPassword({
+            email,
+            password,
+          });
+
+          if (secondSignInError) {
+            console.error("[Demo Login] Second sign-in failed:", secondSignInError.message);
+            showToast(`Demo Login failed: ${secondSignInError.message}`, "error");
+            setIsLoading(false);
+            return;
+          }
+        } else {
+          showToast(`Demo Sign-in error: ${signInError.message}`, "error");
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      console.log("[Demo Login] Successfully authenticated! Redirecting to dashboard...");
+      showToast("Signed in as Demo User", "success");
+      
+      // Fetch /api/auth/me to sync database profile
+      try {
+        const res = await fetch("/api/auth/me");
+        if (res.ok) {
+          console.log("[Demo Login] Profile synced successfully.");
+        }
+      } catch (syncErr) {
+        console.error("[Demo Login] Profile sync error:", syncErr);
+      }
+
+      router.push("/admin/dashboard");
+      router.refresh();
+    } catch (err: any) {
+      console.error("[Demo Login] Unexpected error:", err);
+      showToast(`Unexpected error during demo login: ${err.message || err}`, "error");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-[calc(100vh-4rem)] grid grid-cols-1 lg:grid-cols-12 bg-brand-bg text-brand-text overflow-hidden transition-colors duration-300">
       
@@ -341,6 +422,16 @@ export default function LoginPage() {
               <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
             </svg>
             Continue with Google
+          </button>
+
+          {/* Demo Login Button */}
+          <button
+            onClick={handleDemoLogin}
+            disabled={isLoading}
+            type="button"
+            className="w-full h-[52px] rounded-[16px] border border-brand-border bg-brand-card hover:bg-brand-highlight text-brand-text font-bold text-xs tracking-wider uppercase shadow-sm transition-all duration-200 flex items-center justify-center gap-2.5 cursor-pointer disabled:opacity-50"
+          >
+            Continue as Demo User
           </button>
 
           {/* Create Account Link */}

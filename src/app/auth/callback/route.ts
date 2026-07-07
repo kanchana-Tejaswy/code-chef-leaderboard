@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         if (user) {
           const email = user.email || "";
           const lowerEmail = email.toLowerCase();
-          const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir");
+          const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir") || lowerEmail === "demo-admin@college.edu";
           const role = isGK ? "ADMIN" : "STUDENT";
 
           console.log(`[Auth Callback] Authenticated User details:`);
