@@ -17,9 +17,18 @@ const AUTH_ROUTES = ["/login", "/signup", "/forgot-password", "/reset-password"]
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const code = request.nextUrl.searchParams.get("code");
 
   console.log(`\n--- [Proxy/Middleware Start] ---`);
   console.log(`[Proxy] Incoming request for: ${pathname}`);
+
+  // Safety net: If OAuth callback code lands on homepage, redirect to /auth/callback
+  if (code && (pathname === "/" || pathname === "")) {
+    console.log(`[Proxy] Detected OAuth code on homepage. Redirecting to /auth/callback with code`);
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url);
+  }
 
   // 1. Update session & get current user
   let { supabaseResponse, user } = await updateSession(request);
