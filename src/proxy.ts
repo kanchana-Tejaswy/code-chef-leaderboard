@@ -31,9 +31,21 @@ export async function proxy(request: NextRequest) {
   }
 
   // 1. Update session & get current user
+  const isDemoMode = request.cookies.get("demo_mode")?.value === "true";
   let { supabaseResponse, user } = await updateSession(request);
 
-  const isAuthenticated = !!user;
+  if (isDemoMode) {
+    user = {
+      id: "00000000-0000-0000-0000-000000000000",
+      email: "demo@college.edu",
+      user_metadata: {
+        role: "ADMIN",
+        full_name: "Demo Admin",
+      },
+    } as any;
+  }
+
+  const isAuthenticated = isDemoMode || !!user;
   const userRole = (user?.user_metadata?.role || "STUDENT").toUpperCase();
 
   console.log(`[Proxy] Auth Status:`);
@@ -60,6 +72,9 @@ export async function proxy(request: NextRequest) {
         sameSite: cookie.sameSite,
       });
     });
+    if (isDemoMode) {
+      redirectResponse.cookies.set("demo_mode", "true", { path: "/" });
+    }
     return redirectResponse;
   };
 

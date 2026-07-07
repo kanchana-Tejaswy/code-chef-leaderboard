@@ -1,17 +1,37 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
+
+const DEMO_USER_ID = "00000000-0000-0000-0000-000000000000";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const cookieStore = await cookies();
+    const isDemoMode = cookieStore.get("demo_mode")?.value === "true";
+    let user;
 
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (isDemoMode) {
+      user = {
+        id: DEMO_USER_ID,
+        email: "demo@college.edu",
+        user_metadata: {
+          role: "ADMIN",
+          full_name: "Demo Admin",
+          name: "Demo Admin",
+        },
+      } as any;
+    } else {
+      const supabase = await createClient();
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !authUser) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      user = authUser;
     }
 
     // Try to find the profile in database
@@ -19,13 +39,13 @@ export async function GET(request: NextRequest) {
       where: { id: user.id },
     });
 
-    // Fallback: If profile doesn't exist but user exists in Supabase, create it
+    // Fallback: If profile doesn't exist but user exists, create it
     if (!profile) {
       const email = user.email || "";
       const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split("@")[0] || "User";
       
       const lowerEmail = email.toLowerCase();
-      const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir") || lowerEmail === "demo-admin@college.edu";
+      const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir") || lowerEmail === "demo-admin@college.edu" || lowerEmail === "demo@college.edu";
       const role = isGK ? "ADMIN" : (user.user_metadata?.role?.toUpperCase() || "STUDENT");
 
       profile = await prisma.profile.create({
@@ -57,14 +77,26 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
+    const cookieStore = await cookies();
+    const isDemoMode = cookieStore.get("demo_mode")?.value === "true";
+    let user;
 
-    if (authError || !user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (isDemoMode) {
+      user = {
+        id: DEMO_USER_ID,
+        email: "demo@college.edu",
+      };
+    } else {
+      const supabase = await createClient();
+      const {
+        data: { user: authUser },
+        error: authError,
+      } = await supabase.auth.getUser();
+
+      if (authError || !authUser) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
+      user = authUser;
     }
 
     const body = await request.json();

@@ -130,6 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const supabase = createClient();
       setIsLoading(true);
+      // Clear demo mode cookie
+      document.cookie = "demo_mode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC;";
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);

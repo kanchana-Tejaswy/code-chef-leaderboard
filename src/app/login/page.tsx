@@ -153,68 +153,21 @@ export default function LoginPage() {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      const supabase = createClient();
-      console.log("[Demo Login] Attempting to sign in with demo credentials...");
+      console.log("[Demo Login] Starting passwordless demo mode...");
       
-      const email = "demo-admin@college.edu";
-      const password = "DemoAdmin123!";
-
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        console.log("[Demo Login] Sign-in failed. Error message:", signInError.message);
-        
-        // If account does not exist, automatically sign up the demo user
-        if (signInError.message.includes("Invalid login credentials") || signInError.message.includes("does not exist") || signInError.message.includes("Email not confirmed")) {
-          console.log("[Demo Login] Account doesn't exist or not verified. Automatically signing up...");
-          const { error: signUpError } = await supabase.auth.signUp({
-            email,
-            password,
-            options: {
-              data: {
-                role: "ADMIN",
-                full_name: "Demo Admin",
-              },
-            },
-          });
-
-          if (signUpError) {
-            console.error("[Demo Login] Sign-up failed:", signUpError.message);
-            showToast(`Demo Sign-up failed: ${signUpError.message}`, "error");
-            setIsLoading(false);
-            return;
-          }
-
-          console.log("[Demo Login] Sign-up successful. Re-attempting sign-in...");
-          const { error: secondSignInError } = await supabase.auth.signInWithPassword({
-            email,
-            password,
-          });
-
-          if (secondSignInError) {
-            console.error("[Demo Login] Second sign-in failed:", secondSignInError.message);
-            showToast(`Demo Login failed: ${secondSignInError.message}`, "error");
-            setIsLoading(false);
-            return;
-          }
-        } else {
-          showToast(`Demo Sign-in error: ${signInError.message}`, "error");
-          setIsLoading(false);
-          return;
-        }
-      }
-
-      console.log("[Demo Login] Successfully authenticated! Redirecting to dashboard...");
+      // Set demo_mode cookie directly on the browser client
+      document.cookie = "demo_mode=true; path=/; max-age=86400; SameSite=Lax";
+      
+      console.log("[Demo Login] demo_mode cookie set successfully. Syncing profile details...");
       showToast("Signed in as Demo User", "success");
       
-      // Fetch /api/auth/me to sync database profile
+      // Fetch /api/auth/me to automatically pre-create/sync the PostgreSQL profile
       try {
         const res = await fetch("/api/auth/me");
         if (res.ok) {
-          console.log("[Demo Login] Profile synced successfully.");
+          console.log("[Demo Login] Profile pre-created/synced successfully.");
+        } else {
+          console.warn("[Demo Login] Profile sync API returned status:", res.status);
         }
       } catch (syncErr) {
         console.error("[Demo Login] Profile sync error:", syncErr);
