@@ -22,6 +22,7 @@ export async function proxy(request: NextRequest) {
   let { supabaseResponse, user } = await updateSession(request);
 
   const isAuthenticated = !!user;
+  console.log(`[Proxy] Path=${pathname}, Authenticated=${isAuthenticated}, UserID=${user?.id || 'none'}, Role=${user?.user_metadata?.role || 'none'}`);
 
   // 2. Check if trying to access a protected route
   const isProtectedRoute = PROTECTED_ROUTES.some(

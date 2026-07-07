@@ -26,6 +26,31 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Check if session already exists on mount and redirect to prevent login loop
+  React.useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const res = await fetch("/api/auth/me");
+          if (res.ok) {
+            const data = await res.json();
+            const role = (data.profile?.role || "STUDENT").toUpperCase();
+            if (role === "ADMIN") {
+              router.push("/dashboard");
+            } else {
+              router.push("/student-profile");
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error checking existing session:", err);
+      }
+    };
+    checkSession();
+  }, [router]);
+
   const {
     register,
     handleSubmit,
