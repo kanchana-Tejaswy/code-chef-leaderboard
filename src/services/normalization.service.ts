@@ -85,7 +85,7 @@ export class NormalizationService {
     try {
       const parsed = JSON.parse(val);
       if (Array.isArray(parsed)) return parsed;
-    } catch {}
+    } catch { }
     return [];
   }
 
@@ -98,7 +98,7 @@ export class NormalizationService {
     try {
       const parsed = JSON.parse(val);
       if (typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
-    } catch {}
+    } catch { }
     return {};
   }
 
