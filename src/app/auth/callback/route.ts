@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@/utils/supabase/server";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -12,29 +12,8 @@ export async function GET(request: NextRequest) {
   console.log(`[Auth Callback] Target next redirect path: ${next}`);
 
   if (code) {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-project.supabase.co";
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
-
-    // Create the response redirect object first
-    const response = NextResponse.redirect(`${origin}${next}`);
-
-    // Create Supabase client that writes cookies directly onto the response
-    const supabase = createServerClient(
-      url,
-      key,
-      {
-        cookies: {
-          getAll() {
-            return request.cookies.getAll();
-          },
-          setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              response.cookies.set(name, value, options)
-            );
-          },
-        },
-      }
-    );
+    console.log(`[Auth Callback] Initializing Supabase server client...`);
+    const supabase = await createClient();
 
     console.log(`[Auth Callback] Exchanging OAuth code for session...`);
     const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -104,7 +83,7 @@ export async function GET(request: NextRequest) {
 
       console.log(`[Auth Callback] Redirecting to: ${next}`);
       console.log(`--- [Auth Callback End] ---\n`);
-      return response; // Return the response containing the set cookies!
+      return NextResponse.redirect(`${origin}${next}`);
     } else {
       console.error(`[Auth Callback] Exchange session error:`, error.message);
       console.log(`--- [Auth Callback End] ---\n`);
