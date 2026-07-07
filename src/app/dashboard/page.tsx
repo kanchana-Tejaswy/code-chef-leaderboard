@@ -34,7 +34,8 @@ import {
   Target,
   RefreshCw,
   Trash2,
-  UserPlus
+  UserPlus,
+  Eye
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -2340,7 +2341,7 @@ export default function LandingPage() {
                           })()}
 
                           {/* Action Buttons */}
-                          <td className="py-4 px-6 text-center">
+                          <td className="py-4 px-6 text-center whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1.5">
                               {/* View Profile */}
                               <Link
@@ -2348,7 +2349,8 @@ export default function LandingPage() {
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#EAB308]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white transition-all shadow-sm"
                                 title="View detailed profile"
                               >
-                                View
+                                <Eye className="h-3 w-3 text-zinc-500" />
+                                <span className="hidden md:inline">View</span>
                               </Link>
 
                               {/* Refresh Data */}
@@ -2363,7 +2365,7 @@ export default function LandingPage() {
                                 ) : (
                                   <RefreshCw className="h-3 w-3 text-zinc-500 hover:text-[#22C55E] transition-colors" />
                                 )}
-                                Refresh
+                                <span className="hidden md:inline">Refresh</span>
                               </button>
 
                               {/* Delete Student */}
@@ -2378,7 +2380,7 @@ export default function LandingPage() {
                                 ) : (
                                   <Trash2 className="h-3 w-3" />
                                 )}
-                                Delete
+                                <span className="hidden md:inline">Delete</span>
                               </button>
                             </div>
                           </td>
