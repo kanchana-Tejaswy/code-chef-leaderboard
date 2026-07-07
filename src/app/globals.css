@@ -36,6 +36,13 @@
   --input: 0 0% 89%;
   --ring: 45 93% 47%;
   --radius: 0.75rem;
+
+  /* Button Premium Shadows & Glows */
+  --primary-glow: 0 0 20px rgba(212, 160, 23, 0.25);
+  --primary-shadow: 0 4px 6px -1px rgba(212, 160, 23, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  --primary-hover-shadow: 0 10px 15px -3px rgba(212, 160, 23, 0.3), 0 4px 6px -2px rgba(212, 160, 23, 0.15), 0 0 25px rgba(212, 160, 23, 0.35);
+  --secondary-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  --secondary-hover-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.05), 0 1px 3px 0 rgba(0, 0, 0, 0.03);
 }
 
 .dark {
@@ -73,6 +80,13 @@
   --border: 0 0% 15%;
   --input: 0 0% 15%;
   --ring: 45 93% 47%;
+
+  /* Button Premium Shadows & Glows */
+  --primary-glow: 0 0 20px rgba(234, 179, 8, 0.2);
+  --primary-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  --primary-hover-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4), 0 4px 6px -2px rgba(0, 0, 0, 0.3), 0 0 25px rgba(234, 179, 8, 0.25);
+  --secondary-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px 0 rgba(0, 0, 0, 0.4);
+  --secondary-hover-shadow: 0 4px 12px 0 rgba(0, 0, 0, 0.6), 0 1px 3px 0 rgba(0, 0, 0, 0.5);
 }
 
 @theme {
@@ -557,6 +571,87 @@ main,
 .text-brand-text, 
 .text-brand-muted {
   transition: background-color 300ms ease, border-color 300ms ease, color 300ms ease;
+}
+
+/* ==========================================================
+   PREMIUM BUTTON SYSTEM & AUTOMATIC INJECTORS
+   ========================================================== */
+
+/* Utility Button Classes */
+.btn-primary {
+  box-shadow: var(--primary-shadow) !important;
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.btn-primary:hover {
+  box-shadow: var(--primary-hover-shadow) !important;
+  transform: translateY(-2px) !important;
+}
+.btn-primary:active {
+  transform: translateY(0.5px) scale(0.97) !important;
+}
+
+.btn-secondary {
+  box-shadow: var(--secondary-shadow) !important;
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.btn-secondary:hover {
+  box-shadow: var(--secondary-hover-shadow) !important;
+  transform: translateY(-1px) !important;
+}
+.btn-secondary:active {
+  transform: translateY(0.5px) scale(0.99) !important;
+}
+
+/* Selector Interceptors for all existing UI buttons */
+button[class*="bg-[#D4A017]"],
+button[class*="bg-[#EAB308]"],
+button[class*="bg-amber-500"],
+a[class*="bg-[#D4A017]"],
+a[class*="bg-[#EAB308]"],
+a[class*="bg-amber-500"] {
+  box-shadow: var(--primary-shadow) !important;
+  border: 1px solid rgba(212, 160, 23, 0.25) !important;
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+button[class*="bg-[#D4A017]"]:hover,
+button[class*="bg-[#EAB308]"]:hover,
+button[class*="bg-amber-500"]:hover,
+a[class*="bg-[#D4A017]"]:hover,
+a[class*="bg-[#EAB308]"]:hover,
+a[class*="bg-amber-500"]:hover {
+  box-shadow: var(--primary-hover-shadow) !important;
+  transform: translateY(-2px) !important;
+}
+
+button[class*="bg-[#D4A017]"]:active,
+button[class*="bg-[#EAB308]"]:active,
+button[class*="bg-amber-500"]:active,
+a[class*="bg-[#D4A017]"]:active,
+a[class*="bg-[#EAB308]"]:active,
+a[class*="bg-amber-500"]:active {
+  transform: translateY(0.5px) scale(0.97) !important;
+}
+
+/* Secondary outline/card buttons */
+button[class*="bg-brand-card"][class*="border"],
+button[class*="bg-zinc-900"][class*="border"],
+a[class*="bg-brand-card"][class*="border"] {
+  box-shadow: var(--secondary-shadow) !important;
+  transition: all 300ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+button[class*="bg-brand-card"][class*="border"]:hover,
+button[class*="bg-zinc-900"][class*="border"]:hover,
+a[class*="bg-brand-card"][class*="border"]:hover {
+  box-shadow: var(--secondary-hover-shadow) !important;
+  transform: translateY(-1.5px) !important;
+}
+
+button[class*="bg-brand-card"][class*="border"]:active,
+button[class*="bg-zinc-900"][class*="border"]:active,
+a[class*="bg-brand-card"][class*="border"]:active {
+  transform: translateY(0.5px) scale(0.98) !important;
 }
 
 
