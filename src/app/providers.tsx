@@ -68,6 +68,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    const isDemoCookie = typeof document !== "undefined" && document.cookie.split("; ").find((row) => row.startsWith("demo_mode="))?.split("=")[1] === "true";
+    const disableAuth = process.env.NEXT_PUBLIC_DISABLE_AUTH === "true";
+    const isDemo = disableAuth || isDemoCookie;
+
+    if (isDemo) {
+      const mockUser = {
+        id: "00000000-0000-0000-0000-000000000000",
+        email: "demo@college.edu",
+        user_metadata: {
+          role: "ADMIN",
+          full_name: "Demo Admin",
+        }
+      };
+      setUser(mockUser as any);
+      fetchProfile("00000000-0000-0000-0000-000000000000");
+      return;
+    }
+
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !key) {
