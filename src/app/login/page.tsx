@@ -54,7 +54,22 @@ export default function LoginPage() {
         showToast(error.message, "error");
       } else {
         showToast("Login Successful", "success");
-        router.push("/dashboard");
+        try {
+          const res = await fetch("/api/auth/me");
+          if (res.ok) {
+            const data = await res.json();
+            const role = (data.profile?.role || "STUDENT").toUpperCase();
+            if (role === "ADMIN") {
+              router.push("/dashboard");
+            } else {
+              router.push("/student-profile");
+            }
+          } else {
+            router.push("/student-profile");
+          }
+        } catch {
+          router.push("/student-profile");
+        }
         router.refresh();
       }
     } catch (err: any) {

@@ -23,22 +23,32 @@ export async function GET(request: NextRequest) {
     if (!profile) {
       const email = user.email || "";
       const name = user.user_metadata?.full_name || user.user_metadata?.name || email.split("@")[0] || "User";
-      const role = user.user_metadata?.role || "student";
+      
+      const lowerEmail = email.toLowerCase();
+      const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir");
+      const role = isGK ? "ADMIN" : (user.user_metadata?.role?.toUpperCase() || "STUDENT");
 
       profile = await prisma.profile.create({
         data: {
           id: user.id,
+          authUserId: user.id,
           email,
           name,
           role,
           department: user.user_metadata?.department || null,
           year: user.user_metadata?.year ? parseInt(user.user_metadata.year) : null,
-          profileImage: user.user_metadata?.avatar_url || null,
+          avatarUrl: user.user_metadata?.avatar_url || null,
         },
       });
     }
 
-    return NextResponse.json({ profile });
+    // Return mapped object for UI backward compatibility
+    const uiProfile = {
+      ...profile,
+      profileImage: profile.avatarUrl,
+    };
+
+    return NextResponse.json({ profile: uiProfile });
   } catch (err: any) {
     console.error("Error in GET /api/auth/me:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -66,11 +76,17 @@ export async function PUT(request: NextRequest) {
         name,
         department,
         year: year ? parseInt(year) : null,
-        profileImage,
+        avatarUrl: profileImage,
       },
     });
 
-    return NextResponse.json({ success: true, profile: updatedProfile });
+    // Return mapped object for UI backward compatibility
+    const uiProfile = {
+      ...updatedProfile,
+      profileImage: updatedProfile.avatarUrl,
+    };
+
+    return NextResponse.json({ success: true, profile: uiProfile });
   } catch (err: any) {
     console.error("Error in PUT /api/auth/me:", err);
     return NextResponse.json({ error: err.message || "Internal server error" }, { status: 500 });

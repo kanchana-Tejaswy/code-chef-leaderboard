@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createClient } from "@/utils/supabase/server";
+
+async function checkAdmin() {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return false;
+    const role = (user.user_metadata?.role || "STUDENT").toUpperCase();
+    return role === "ADMIN";
+  } catch {
+    return false;
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
+    if (!(await checkAdmin())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     // Fetch all student profiles with their CodeChef status
     const students = await prisma.studentProfile.findMany({
       include: {
@@ -31,6 +48,10 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    if (!(await checkAdmin())) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id, name } = await request.json();
 
     if (!id || !name || !name.trim()) {

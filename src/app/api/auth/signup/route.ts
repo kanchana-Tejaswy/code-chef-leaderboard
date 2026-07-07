@@ -94,6 +94,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Determine role based on email validation (GK Sir checks)
+    const lowerEmail = email.toLowerCase();
+    const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir");
+    const role = isGK ? "ADMIN" : "STUDENT";
+
     // 5. Sign up user via Supabase Auth
     const supabase = await createClient();
     const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -102,7 +107,7 @@ export async function POST(request: NextRequest) {
       options: {
         data: {
           name,
-          role: "student",
+          role,
           department,
           year: parseInt(year),
           rollNumber,
@@ -120,9 +125,10 @@ export async function POST(request: NextRequest) {
     await prisma.profile.create({
       data: {
         id: userId,
+        authUserId: userId,
         email,
         name,
-        role: "student",
+        role,
         department,
         year: parseInt(year),
       },
@@ -164,7 +170,7 @@ export async function POST(request: NextRequest) {
         id: userId,
         email,
         name,
-        role: "student",
+        role: role.toLowerCase(),
       },
     });
   } catch (err: any) {

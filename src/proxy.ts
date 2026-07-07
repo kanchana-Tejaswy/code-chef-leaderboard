@@ -47,9 +47,15 @@ export async function proxy(request: NextRequest) {
     }
 
     // Role-based authorization check
-    const userRole = user.user_metadata?.role || "student";
+    const userRole = (user.user_metadata?.role || "STUDENT").toUpperCase();
 
-    if (isAdminRoute && userRole !== "admin") {
+    if (userRole === "STUDENT" && (pathname === "/dashboard" || pathname.startsWith("/admin") || pathname.startsWith("/analytics") || pathname.startsWith("/api/admin"))) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/student-profile";
+      return NextResponse.redirect(url);
+    }
+
+    if (isAdminRoute && userRole !== "ADMIN") {
       // Non-admins cannot access admin panels or admin APIs
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard";

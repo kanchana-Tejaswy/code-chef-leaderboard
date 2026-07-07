@@ -1,7 +1,6 @@
 import { PrismaClient } from "@prisma/client";
-import fs from "fs";
-import path from "path";
-import os from "os";
+import { PrismaPg } from "@prisma/adapter-pg";
+import { Pool } from "pg";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -10,75 +9,19 @@ const globalForPrisma = globalThis as unknown as {
 let prismaInstance: PrismaClient;
 
 if (typeof window === "undefined") {
-  const databaseUrl = process.env.DATABASE_URL || "file:./dev.db";
-
-  if (databaseUrl.startsWith("file:")) {
-    let dbPath = databaseUrl.replace("file:", "");
-
-    // Check if running on Vercel or in serverless production environment
-    if (process.env.VERCEL || process.env.NODE_ENV === "production") {
-      const tmpDbPath = path.join(os.tmpdir(), "dev.db");
-      const localDbPath = path.join(process.cwd(), "dev.db");
-      const prismaDbPath = path.join(process.cwd(), "prisma", "dev.db");
-
-      // Copy built db to tmp directory if it doesn't exist yet or if the source is newer
-      let shouldCopy = !fs.existsSync(tmpDbPath);
-      if (!shouldCopy) {
-        const srcStat = fs.existsSync(localDbPath) ? fs.statSync(localDbPath) : (fs.existsSync(prismaDbPath) ? fs.statSync(prismaDbPath) : null);
-        const destStat = fs.statSync(tmpDbPath);
-        if (srcStat && srcStat.mtime > destStat.mtime) {
-          shouldCopy = true;
-        }
-      }
-
-      if (shouldCopy) {
-        try {
-          if (fs.existsSync(localDbPath)) {
-            fs.copyFileSync(localDbPath, tmpDbPath);
-            console.log(`Database copied successfully to ${tmpDbPath} from cwd`);
-          } else if (fs.existsSync(prismaDbPath)) {
-            fs.copyFileSync(prismaDbPath, tmpDbPath);
-            console.log(`Database copied successfully to ${tmpDbPath} from prisma/`);
-          } else {
-            console.log(`No built database file found in cwd or prisma/. Creating empty database in ${tmpDbPath}`);
-            fs.writeFileSync(tmpDbPath, "");
-            
-            // Programmatically push schema if database is completely empty
-            const { execSync } = require("child_process");
-            execSync("npx prisma db push --accept-data-loss", {
-              env: { ...process.env, DATABASE_URL: `file:${tmpDbPath}` }
-            });
-          }
-        } catch (err) {
-          console.error(`Failed to copy or initialize SQLite database in ${tmpDbPath}:`, err);
-        }
-      }
-      dbPath = tmpDbPath;
-    }
-
-    const { PrismaBetterSqlite3 } = require("@prisma/adapter-better-sqlite3");
-    const adapter = new PrismaBetterSqlite3({ url: dbPath });
-
-    prismaInstance =
-      globalForPrisma.prisma ??
-      new PrismaClient({
-        adapter,
-        log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-      });
-  } else {
-    // Postgres / production setup
-    const { PrismaPg } = require("@prisma/adapter-pg");
-    const { Pool } = require("pg");
-    const pool = new Pool({ connectionString: databaseUrl });
-    const adapter = new PrismaPg(pool);
-
-    prismaInstance =
-      globalForPrisma.prisma ??
-      new PrismaClient({
-        adapter,
-        log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
-      });
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error("DATABASE_URL is not set");
   }
+  const pool = new Pool({ connectionString: databaseUrl });
+  const adapter = new PrismaPg(pool);
+
+  prismaInstance =
+    globalForPrisma.prisma ??
+    new PrismaClient({
+      adapter,
+      log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+    });
 
   if (process.env.NODE_ENV !== "production") {
     globalForPrisma.prisma = prismaInstance;
