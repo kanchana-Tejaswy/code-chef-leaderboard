@@ -91,7 +91,11 @@ export default function LoginPage() {
       if (error) showToast(error.message, "error");
     } catch (err: any) {
       console.error("Google login initiation error:", err);
-      showToast(`Failed to initiate Google authentication: ${err.message || err}`, "error");
+      if (err?.message?.includes("Missing NEXT_PUBLIC_SUPABASE_URL") || err?.message?.includes("NEXT_PUBLIC_SUPABASE_ANON_KEY")) {
+        showToast("Supabase environment variables are missing", "error");
+      } else {
+        showToast(`Failed to initiate Google authentication: ${err.message || err}`, "error");
+      }
     }
   };
 
