@@ -1,14 +1,36 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/utils/supabase/server";
-import { prisma } from "@/lib/prisma";
+import { NextResponse, type NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
 
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/dashboard";
 
   if (code) {
-    const supabase = await createClient();
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder-project.supabase.co";
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-anon-key";
+
+    // Create the response redirect object first
+    const response = NextResponse.redirect(`${origin}${next}`);
+
+    // Create Supabase client that writes cookies directly onto the response
+    const supabase = createServerClient(
+      url,
+      key,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            );
+          },
+        },
+      }
+    );
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       // Sync Google Auth metadata and pre-create database profile
@@ -28,6 +50,7 @@ export async function GET(request: Request) {
           }
 
           // Create database profile if missing
+          const prisma = (await import("@/lib/prisma")).default;
           let profile = await prisma.profile.findUnique({
             where: { id: user.id },
           });
@@ -50,7 +73,7 @@ export async function GET(request: Request) {
         console.error("Error syncing auth callback metadata/profile:", syncErr);
       }
 
-      return NextResponse.redirect(`${origin}${next}`);
+      return response; // Return the response containing the set cookies!
     }
   }
 

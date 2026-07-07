@@ -66,7 +66,12 @@ export async function proxy(request: NextRequest) {
   // Authenticated user checks (cannot visit login/signup pages)
   if (isAuthRoute && isAuthenticated) {
     const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
+    const userRole = (user.user_metadata?.role || "STUDENT").toUpperCase();
+    if (userRole === "ADMIN") {
+      url.pathname = "/dashboard";
+    } else {
+      url.pathname = "/student-profile";
+    }
     return NextResponse.redirect(url);
   }
 
