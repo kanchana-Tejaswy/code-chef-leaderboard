@@ -167,6 +167,9 @@ export async function POST(request: NextRequest) {
         .catch((e) => console.error("Sync error:", e));
     }
 
+    // Recalculate ranks on the leaderboard to ensure immediate sync
+    await SyncService.recalculateLeaderboardRanks();
+
     return NextResponse.json({ success: true, profile });
   } catch (err: any) {
     console.error("Error updating profile API:", err);

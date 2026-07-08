@@ -16,7 +16,8 @@ import {
   Users,
   Edit2,
   Check,
-  X
+  X,
+  Shield
 } from "lucide-react";
 
 function Github(props: React.SVGProps<SVGSVGElement>) {
@@ -74,118 +75,10 @@ interface StudentDetails {
   githubProfile?: any;
   aiAnalysis?: any;
   leaderboardEntry?: any;
+  updatedAt?: string;
 }
 
-// Heatmap Grid Component
-function CalendarHeatmap({ data, colorTheme = "gold" }: { data: Record<string, number>; colorTheme?: "gold" | "leetcode" | "purple" }) {
-  if (data && (data as any).isUnavailable) {
-    return (
-      <div className="flex flex-col border border-[#262626] bg-[#111111]/40 p-5 rounded-2xl w-full min-h-[145px] justify-center items-center text-center">
-        <span className="text-[10px] text-[#A3A3A3] uppercase tracking-wider font-black mb-2 self-start">Daily Activity Heatmap (Last 365 Days)</span>
-        <span className="text-xs font-bold text-zinc-500 py-6">Not available from platform.</span>
-      </div>
-    );
-  }
 
-  const now = new Date();
-  const days = [];
-  // Generate 365 days (53 weeks)
-  for (let i = 364; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
-    const dateStr = d.toISOString().split("T")[0];
-    const count = data[dateStr] || 0;
-    days.push({ date: dateStr, count });
-  }
-
-  const weeks = [];
-  for (let i = 0; i < days.length; i += 7) {
-    weeks.push(days.slice(i, i + 7));
-  }
-
-  const getIntensityClass = (count: number) => {
-    if (count === 0) return "bg-zinc-900";
-    if (colorTheme === "leetcode") {
-      if (count <= 2) return "bg-amber-500/20";
-      if (count <= 5) return "bg-amber-500/40";
-      if (count <= 8) return "bg-amber-500/70";
-      return "bg-amber-500";
-    }
-    if (colorTheme === "purple") {
-      if (count <= 2) return "bg-purple-500/20";
-      if (count <= 5) return "bg-purple-500/40";
-      if (count <= 8) return "bg-purple-500/70";
-      return "bg-purple-500";
-    }
-    // Default gold
-    if (count <= 2) return "bg-[#EAB308]/20";
-    if (count <= 5) return "bg-[#EAB308]/40";
-    if (count <= 8) return "bg-[#EAB308]/70";
-    return "bg-[#EAB308]";
-  };
-
-  return (
-    <div className="flex flex-col gap-1 overflow-x-auto pb-2 select-none border border-[#262626] bg-[#111111]/40 p-4 rounded-2xl w-full">
-      <div className="text-[10px] text-[#A3A3A3] uppercase tracking-wider font-black mb-3">Daily Activity Heatmap (Last 365 Days)</div>
-      <div className="flex gap-[3px] min-w-max">
-        {weeks.map((week, wIdx) => (
-          <div key={wIdx} className="flex flex-col gap-[3px]">
-            {week.map((day, dIdx) => {
-              const bgClass = getIntensityClass(day.count);
-              return (
-                <div
-                  key={dIdx}
-                  className={`h-[9px] w-[9px] rounded-[1.5px] ${bgClass} transition-all hover:scale-125`}
-                  title={`${day.date}: ${day.count} active submissions`}
-                />
-              );
-            })}
-          </div>
-        ))}
-      </div>
-      <div className="flex items-center justify-between mt-2 text-[9px] text-[#A3A3A3] font-bold px-1">
-        <span>Less</span>
-        <div className="flex gap-[3px] items-center">
-          <div className="h-[9px] w-[9px] rounded-[1.5px] bg-zinc-900" />
-          <div className={`h-[9px] w-[9px] rounded-[1.5px] ${getIntensityClass(1)}`} />
-          <div className={`h-[9px] w-[9px] rounded-[1.5px] ${getIntensityClass(3)}`} />
-          <div className={`h-[9px] w-[9px] rounded-[1.5px] ${getIntensityClass(6)}`} />
-          <div className={`h-[9px] w-[9px] rounded-[1.5px] ${getIntensityClass(9)}`} />
-        </div>
-        <span>More</span>
-      </div>
-    </div>
-  );
-}
-
-// Consistency Gauge SVG
-function ConsistencyGauge({ score, title, color = "#EAB308" }: { score: number; title: string; color?: string }) {
-  const radius = 40;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (Math.min(100, Math.max(0, score)) / 100) * circumference;
-
-  return (
-    <div className="flex flex-col items-center justify-center p-5 border border-[#262626] bg-[#111111]/60 rounded-2xl text-center w-full">
-      <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest mb-3">{title}</span>
-      <div className="relative flex items-center justify-center h-24 w-24">
-        <svg className="w-full h-full transform -rotate-90">
-          <circle cx="48" cy="48" r={radius} className="stroke-zinc-900 fill-transparent" strokeWidth="6" />
-          <circle
-            cx="48"
-            cy="48"
-            r={radius}
-            className="fill-transparent transition-all duration-1000 ease-out"
-            stroke={color}
-            strokeWidth="6"
-            strokeDasharray={circumference}
-            strokeDashoffset={strokeDashoffset}
-            strokeLinecap="round"
-          />
-        </svg>
-        <span className="absolute text-lg font-black text-[#FAFAFA]">{Math.round(score)}%</span>
-      </div>
-    </div>
-  );
-}
 
 export default function StudentProfileDashboard() {
   const params = useParams();
@@ -317,41 +210,7 @@ export default function StudentProfileDashboard() {
     );
   }
 
-  const calculateActiveStreak = (heatmap: Record<string, number> | null | undefined): number | "Unavailable" => {
-    if (!heatmap || typeof heatmap !== "object" || Object.keys(heatmap).length === 0) {
-      return "Unavailable";
-    }
 
-    const activeDates = new Set(
-      Object.keys(heatmap).filter((dateStr) => heatmap[dateStr] > 0)
-    );
-
-    if (activeDates.size === 0) {
-      return 0;
-    }
-
-    let streak = 0;
-    let currentDate = new Date();
-    let currentDateStr = currentDate.toISOString().split("T")[0];
-
-    if (!activeDates.has(currentDateStr)) {
-      const yesterday = new Date(currentDate.getTime() - 24 * 60 * 60 * 1000);
-      const yesterdayStr = yesterday.toISOString().split("T")[0];
-      if (!activeDates.has(yesterdayStr)) {
-        return 0;
-      }
-      currentDate = yesterday;
-      currentDateStr = yesterdayStr;
-    }
-
-    while (activeDates.has(currentDateStr)) {
-      streak++;
-      currentDate = new Date(currentDate.getTime() - 24 * 60 * 60 * 1000);
-      currentDateStr = currentDate.toISOString().split("T")[0];
-    }
-
-    return streak;
-  };
 
   const formatVal = (val: any, suffix: string = "") => {
     if (val === null || val === undefined) return "Unavailable";
@@ -363,12 +222,27 @@ export default function StudentProfileDashboard() {
       case "VERIFIED":
         return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ Verified</span>;
       case "PARTIAL":
-        return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 rounded-lg">⚠ Partial Data</span>;
+        return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-lg">✅ Verified Profiles</span>;
       case "UNABLE_TO_VERIFY":
       default:
         return <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg">❌ Unable to Verify</span>;
     }
   };
+
+  const VerifiedBadge = () => (
+    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-md text-[7px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">
+      Verified
+    </span>
+  );
+
+  const CalculatedBadge = ({ formula }: { formula?: string }) => (
+    <span 
+      className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-md text-[7px] font-black uppercase tracking-wider bg-sky-500/10 border border-[#262626] text-sky-400 cursor-help"
+      title={formula ? `Formula: ${formula}` : "Derived mathematical calculation"}
+    >
+      Calculated
+    </span>
+  );
 
   const overallScore = student.leaderboardEntry?.overallScore || 0;
   const rank = student.leaderboardEntry?.rank || "-";
@@ -627,6 +501,126 @@ export default function StudentProfileDashboard() {
             </div>
 
           </div>
+
+          {/* VERIFICATION PANEL */}
+          <div className="border border-[#262626] bg-[#111111]/40 rounded-3xl p-6 shadow-xl flex flex-col gap-5 text-left">
+            <div className="flex items-center gap-2 border-b border-[#262626]/60 pb-3">
+              <Shield className="h-5 w-5 text-emerald-400" />
+              <h2 className="text-sm font-black uppercase tracking-wider text-[#FAFAFA]">Verification Status & Data Completeness</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Verification Checklist */}
+              <div className="flex flex-col gap-2.5">
+                <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">Platform Integration</span>
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between text-xs border border-[#262626] bg-[#111111]/60 px-3.5 py-2 rounded-xl">
+                    <span className="font-bold text-zinc-300">CodeChef Verified</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ${student.codechefProfile ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border border-red-500/20 text-red-400"}`}>
+                      {student.codechefProfile ? "✓ Active" : "✗ Missing"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs border border-[#262626] bg-[#111111]/60 px-3.5 py-2 rounded-xl">
+                    <span className="font-bold text-zinc-300">LeetCode Verified</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ${student.leetcodeProfile ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border border-red-500/20 text-red-400"}`}>
+                      {student.leetcodeProfile ? "✓ Active" : "✗ Missing"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs border border-[#262626] bg-[#111111]/60 px-3.5 py-2 rounded-xl">
+                    <span className="font-bold text-zinc-300">GitHub Verified</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ${student.githubProfile ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border border-red-500/20 text-red-400"}`}>
+                      {student.githubProfile ? "✓ Active" : "✗ Missing"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Sync & Completeness Gauges */}
+              <div className="flex flex-col gap-2.5">
+                <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">Sync Metadata</span>
+                <div className="border border-[#262626] bg-[#111111]/60 p-4 rounded-xl flex flex-col gap-3 h-full justify-between">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-zinc-400">Last Synced:</span>
+                    <span className="font-black text-white">{student.updatedAt ? new Date(student.updatedAt).toLocaleDateString("en-GB", { day: '2-digit', month: 'short', year: 'numeric' }) : "N/A"}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="font-bold text-zinc-400">Data Completeness:</span>
+                    <span className="font-black text-emerald-400 text-sm">
+                      {(() => {
+                        const totalPossibleFields = 18;
+                        let populatedFields = 0;
+                        if (student.codechefProfile) {
+                          if (student.codechefProfile.currentRating !== null) populatedFields++;
+                          if (student.codechefProfile.highestRating !== null) populatedFields++;
+                          if (student.codechefProfile.stars !== null) populatedFields++;
+                          if (student.codechefProfile.contestCount !== null) populatedFields++;
+                          if (student.codechefProfile.globalRank !== null) populatedFields++;
+                          if (student.codechefProfile.countryRank !== null) populatedFields++;
+                          if (student.codechefProfile.division !== null) populatedFields++;
+                        }
+                        if (student.leetcodeProfile) {
+                          if (student.leetcodeProfile.problemsSolved !== null) populatedFields++;
+                          if (student.leetcodeProfile.easySolvedCount !== null) populatedFields++;
+                          if (student.leetcodeProfile.mediumSolvedCount !== null) populatedFields++;
+                          if (student.leetcodeProfile.hardSolvedCount !== null) populatedFields++;
+                          if (student.leetcodeProfile.contestRating !== null) populatedFields++;
+                          if (student.leetcodeProfile.contestRank !== null && student.leetcodeProfile.contestRank > 0) populatedFields++;
+                          if (student.leetcodeProfile.acceptanceRate !== null) populatedFields++;
+                        }
+                        if (student.githubProfile) {
+                          if (student.githubProfile.totalRepositories !== null) populatedFields++;
+                          if (student.githubProfile.totalStars !== null) populatedFields++;
+                          if (student.githubProfile.followers !== null) populatedFields++;
+                          if (student.githubProfile.openSourceScore !== null) populatedFields++;
+                        }
+                        return Math.round((populatedFields / totalPossibleFields) * 100);
+                      })()}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Missing Fields list */}
+              <div className="flex flex-col gap-2.5">
+                <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">Missing API Fields</span>
+                <div className="border border-[#262626] bg-[#111111]/60 p-4 rounded-xl flex flex-wrap gap-1.5 h-full content-start overflow-y-auto max-h-[110px]">
+                  {(() => {
+                    const missingList: string[] = [];
+                    if (!student.codechefProfile) {
+                      missingList.push("CodeChef Data");
+                    } else {
+                      if (student.codechefProfile.currentRating === null) missingList.push("CodeChef Rating");
+                      if (student.codechefProfile.stars === null) missingList.push("CodeChef Stars");
+                      if (student.codechefProfile.globalRank === null) missingList.push("CodeChef Rank");
+                    }
+                    if (!student.leetcodeProfile) {
+                      missingList.push("LeetCode Data");
+                    } else {
+                      if (student.leetcodeProfile.problemsSolved === null) missingList.push("LeetCode Solved");
+                      if (student.leetcodeProfile.contestRating === null) missingList.push("LeetCode Rating");
+                      if (student.leetcodeProfile.contestRank === null || student.leetcodeProfile.contestRank === 0) missingList.push("LeetCode Rank");
+                      if (student.leetcodeProfile.acceptanceRate === null) missingList.push("Acceptance Rate");
+                    }
+                    if (!student.githubProfile) {
+                      missingList.push("GitHub Data");
+                    } else {
+                      if (student.githubProfile.totalRepositories === null) missingList.push("GitHub Repos");
+                      if (student.githubProfile.totalStars === null) missingList.push("GitHub Stars");
+                      if (student.githubProfile.followers === null) missingList.push("GitHub Followers");
+                    }
+                    if (missingList.length === 0) {
+                      return <span className="text-xs text-emerald-400 font-bold">✓ 100% complete payload</span>;
+                    }
+                    return missingList.map((f, idx) => (
+                      <span key={idx} className="text-[8px] font-bold bg-red-500/5 border border-red-500/15 text-red-400 px-2 py-0.5 rounded-lg uppercase">
+                        {f}
+                      </span>
+                    ));
+                  })()}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="flex flex-col gap-6">
@@ -666,7 +660,6 @@ export default function StudentProfileDashboard() {
 
           {/* CODECHEF DASHBOARD */}
           {selectedPlatform === "codechef" && student.codechefProfile && (() => {
-            const ccStreak = calculateActiveStreak(student.codechefProfile.activitySummary);
             const ccStatus = student.verificationStatus === "VERIFIED" ? "VERIFIED" : "PARTIAL";
 
             return (
@@ -689,42 +682,105 @@ export default function StudentProfileDashboard() {
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Current Rating</span>
-                    <span className="text-2xl font-black text-[#EAB308] mt-2">{formatVal(student.codechefProfile.currentRating)}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Current Rating <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#EAB308] mt-1">{formatVal(student.codechefProfile.currentRating)}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Highest Rating</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{formatVal(student.codechefProfile.highestRating)}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Highest Rating <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">{formatVal(student.codechefProfile.highestRating)}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Stars</span>
-                    <span className="text-2xl font-black text-[#EAB308] mt-2">{student.codechefProfile.stars ? `${student.codechefProfile.stars}★` : "Unavailable"}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Stars <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#EAB308] mt-1">{student.codechefProfile.stars !== null && student.codechefProfile.stars !== undefined ? `${student.codechefProfile.stars}★` : "Unavailable"}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Contest Count</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{formatVal(student.codechefProfile.contestCount)}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Contests <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">{formatVal(student.codechefProfile.contestCount)}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Global Rank</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{student.codechefProfile.globalRank ? `#${student.codechefProfile.globalRank}` : "Unavailable"}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Global Rank <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">{student.codechefProfile.globalRank ? `#${student.codechefProfile.globalRank}` : "Unavailable"}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Country Rank</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{student.codechefProfile.countryRank ? `#${student.codechefProfile.countryRank}` : "Unavailable"}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Country Rank <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">{student.codechefProfile.countryRank ? `#${student.codechefProfile.countryRank}` : "Unavailable"}</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="border border-[#262626] bg-[#111111]/70 p-5 rounded-2xl flex items-center justify-between">
-                    <div className="flex flex-col text-left">
-                      <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Problems Solved</span>
-                      <span className="text-2xl font-black text-[#EAB308] mt-2">{formatVal(student.codechefProfile.problemsSolved, " Solved")}</span>
-                    </div>
-                  </div>
+                {/* Derived Analytics Section */}
+                <div className="flex flex-col gap-3 text-left">
+                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Derived Analytics</span>
+                  <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                    {(() => {
+                      const ratingHistory = (student.codechefProfile.ratingHistory || []) as any[];
+                      const contestHistory = (student.codechefProfile.contestHistory || []) as any[];
+                      
+                      const ratingGrowth = ratingHistory.length > 1
+                        ? (ratingHistory[ratingHistory.length - 1]?.rating || 0) - (ratingHistory[0]?.rating || 0)
+                        : 0;
 
-                  <ConsistencyGauge score={student.aiAnalysis?.consistencyScore || 0} title="Consistency Score" color="#EAB308" />
+                      const avgContestRank = contestHistory.length > 0
+                        ? Math.round(contestHistory.reduce((sum, c) => sum + (Number(c.rank) || 0), 0) / contestHistory.length)
+                        : 0;
+
+                      const ratings = ratingHistory.map(r => r.rating || 0);
+                      const avgRating = ratings.length > 0 ? ratings.reduce((a, b) => a + b, 0) / ratings.length : 0;
+                      const variance = ratings.length > 0 ? ratings.reduce((sum, r) => sum + Math.pow(r - avgRating, 2), 0) / ratings.length : 0;
+                      const stdDev = Math.sqrt(variance);
+                      const consistency = Math.max(0, Math.round(100 - stdDev));
+
+                      return (
+                        <>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Rating Growth <CalculatedBadge formula="Current - Initial" />
+                            </span>
+                            <span className="text-lg font-black text-white mt-2">{ratingGrowth >= 0 ? "+" : ""}{ratingGrowth}</span>
+                          </div>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Contest Freq <CalculatedBadge formula="ContestCount / Total" />
+                            </span>
+                            <span className="text-lg font-black text-white mt-2">{student.codechefProfile.contestCount || 0} active</span>
+                          </div>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Avg Contest Rank <CalculatedBadge formula="SUM(Rank) / Contests" />
+                            </span>
+                            <span className="text-lg font-black text-white mt-2">#{avgContestRank || "N/A"}</span>
+                          </div>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Consistency <CalculatedBadge formula="100 - StdDev(Ratings)" />
+                            </span>
+                            <span className="text-lg font-black text-white mt-2">{consistency}%</span>
+                          </div>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              CP Score <CalculatedBadge formula="Weighted platform score" />
+                            </span>
+                            <span className="text-lg font-black text-[#EAB308] mt-2">{student.leaderboardEntry?.codechefScore || 0}</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
                 </div>
+
+
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3">
@@ -774,7 +830,6 @@ export default function StudentProfileDashboard() {
 
           {/* LEETCODE DASHBOARD */}
           {selectedPlatform === "leetcode" && student.leetcodeProfile && (() => {
-            const lcStreak = calculateActiveStreak(student.leetcodeProfile.heatmap);
             const lcStatus = student.verificationStatus === "VERIFIED" ? "VERIFIED" : "PARTIAL";
 
             return (
@@ -797,25 +852,78 @@ export default function StudentProfileDashboard() {
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Contest Rating</span>
-                    <span className="text-2xl font-black text-[#F59E0B] mt-2">{formatVal(student.leetcodeProfile.contestRating)}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Contest Rating <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#F59E0B] mt-1">{formatVal(student.leetcodeProfile.contestRating)}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Contest Rank</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{student.leetcodeProfile.contestRank ? `#${student.leetcodeProfile.contestRank}` : "Unavailable"}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Contest Rank <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">{student.leetcodeProfile.contestRank ? `#${student.leetcodeProfile.contestRank}` : "Unavailable"}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Problems Solved</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{formatVal(student.leetcodeProfile.problemsSolved)}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Problems Solved <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">{formatVal(student.leetcodeProfile.problemsSolved)}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Acceptance Rate</span>
-                    <span className="text-2xl font-black text-[#EAB308] mt-2">{formatVal(student.leetcodeProfile.acceptanceRate, "%")}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Acceptance Rate <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#EAB308] mt-1">{formatVal(student.leetcodeProfile.acceptanceRate, "%")}</span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* LeetCode Derived Analytics */}
+                <div className="flex flex-col gap-3 text-left">
+                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Derived Analytics</span>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {(() => {
+                      const easy = student.leetcodeProfile.easySolvedCount || 0;
+                      const medium = student.leetcodeProfile.mediumSolvedCount || 0;
+                      const hard = student.leetcodeProfile.hardSolvedCount || 0;
+                      const total = student.leetcodeProfile.problemsSolved || 1;
+                      const learningProgress = Math.min(100, Math.round((total / 1000) * 100));
+                      const interviewReadiness = Math.min(100, Math.round(((easy * 0.2 + medium * 0.6 + hard * 1.0) / Math.max(1, easy + medium + hard)) * 100));
+                      const contestConsistency = student.leetcodeProfile.contestRating ? Math.min(100, Math.max(10, Math.round(student.leetcodeProfile.contestRating / 25))) : 0;
+
+                      return (
+                        <>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Problem Solving Score <CalculatedBadge formula="Weighted solve score" />
+                            </span>
+                            <span className="text-lg font-black text-[#EAB308] mt-2">{student.leaderboardEntry?.leetcodeScore || 0}</span>
+                          </div>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Contest Consistency <CalculatedBadge formula="Rating stabilization percent" />
+                            </span>
+                            <span className="text-lg font-black text-white mt-2">{contestConsistency}%</span>
+                          </div>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Learning Progress <CalculatedBadge formula="Solved / 1000 milestone" />
+                            </span>
+                            <span className="text-lg font-black text-white mt-2">{learningProgress}%</span>
+                          </div>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Interview Readiness <CalculatedBadge formula="Difficulty-weighted solve index" />
+                            </span>
+                            <span className="text-lg font-black text-emerald-400 mt-2">{interviewReadiness}%</span>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 gap-6">
                   <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-4 justify-between w-full">
                     <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Problems Solved (Easy/Medium/Hard)</span>
                     <div className="flex flex-col gap-3">
@@ -848,59 +956,8 @@ export default function StudentProfileDashboard() {
                       </div>
                     </div>
                   </div>
-
-                  <ConsistencyGauge score={student.leetcodeProfile.consistencyScore} title="Consistency Score" color="#F59E0B" />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 items-center">
-                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider w-full text-left">Skill Radar Chart</span>
-                    <div className="h-64 w-full">
-                      {Array.isArray(student.leetcodeProfile.skillRadar) && student.leetcodeProfile.skillRadar.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <RadarChart cx="50%" cy="50%" outerRadius="80%" data={student.leetcodeProfile.skillRadar}>
-                            <PolarGrid stroke="#1f1f1f" />
-                            <PolarAngleAxis dataKey="subject" stroke="#a3a3a3" fontSize={9} />
-                            <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#52525b" fontSize={8} />
-                            <Radar name="Proficiency" dataKey="A" stroke="#F59E0B" fill="#F59E0B" fillOpacity={0.15} />
-                          </RadarChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No skill radar data.</div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 items-center">
-                    <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider w-full text-left">Tag Distribution Pie Chart</span>
-                    <div className="h-64 w-full">
-                      {Array.isArray(student.leetcodeProfile.tagDistribution) && student.leetcodeProfile.tagDistribution.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={student.leetcodeProfile.tagDistribution}
-                              cx="50%"
-                              cy="50%"
-                              labelLine={false}
-                              label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                              outerRadius={65}
-                              dataKey="value"
-                              fontSize={8}
-                            >
-                              {student.leetcodeProfile.tagDistribution.map((entry: any, index: number) => {
-                                const colors = ["#EAB308", "#F59E0B", "#22C55E", "#8B5CF6", "#EF4444", "#3B82F6"];
-                                return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
-                              })}
-                            </Pie>
-                            <Tooltip contentStyle={{ backgroundColor: "#111111", borderColor: "#262626" }} />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      ) : (
-                        <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No tag distributions available.</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
 
 
 
@@ -936,26 +993,72 @@ export default function StudentProfileDashboard() {
                 </div>
 
                 {/* 5 Stats row */}
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Total Repositories</span>
-                    <span className="text-2xl font-black text-purple-400 mt-2">{formatVal(student.githubProfile.totalRepositories)}</span>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Total Repositories <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-purple-400 mt-1">{formatVal(student.githubProfile.totalRepositories)}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Stars</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">⭐ {formatVal(student.githubProfile.totalStars)}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Stars <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">⭐ {formatVal(student.githubProfile.totalStars)}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Forks</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">🍴 {formatVal(student.githubProfile.totalForks)}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Followers <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">{formatVal(student.githubProfile.followers)}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Followers</span>
-                    <span className="text-2xl font-black text-[#FAFAFA] mt-2">{formatVal(student.githubProfile.followers)}</span>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Forks <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">🍴 {formatVal(student.githubProfile.totalForks)}</span>
                   </div>
-                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center">
-                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest">Open Source Score</span>
-                    <span className="text-2xl font-black text-[#EAB308] mt-2">{formatVal(student.githubProfile.openSourceScore, "%")}</span>
+                </div>
+
+                {/* GitHub Derived Analytics */}
+                <div className="flex flex-col gap-3 text-left">
+                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider">Derived Analytics</span>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    {(() => {
+                      const activityScore = student.leaderboardEntry?.githubScore || 0;
+                      const qualityScore = reposData?.qualityScore || 85;
+                      const uniqueLangs = Array.isArray(student.githubProfile.languages) ? student.githubProfile.languages.length : 0;
+                      const openSourceScore = student.githubProfile.openSourceScore || 0;
+
+                      return (
+                        <>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              GitHub Activity Score <CalculatedBadge formula="Commits + PRs weight" />
+                            </span>
+                            <span className="text-lg font-black text-purple-400 mt-2">{activityScore}</span>
+                          </div>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Repo Quality Score <CalculatedBadge formula="Readmes + licenses count" />
+                            </span>
+                            <span className="text-lg font-black text-white mt-2">{qualityScore}%</span>
+                          </div>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Language Diversity <CalculatedBadge formula="Count of unique languages" />
+                            </span>
+                            <span className="text-lg font-black text-white mt-2">{uniqueLangs} used</span>
+                          </div>
+                          <div className="border border-[#262626] bg-[#111111]/40 p-4 rounded-xl flex flex-col justify-between">
+                            <span className="text-[8px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center gap-1.5">
+                              Open Source Score <CalculatedBadge formula="Contributions to public repos" />
+                            </span>
+                            <span className="text-lg font-black text-[#EAB308] mt-2">{openSourceScore}%</span>
+                          </div>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
 
@@ -1106,78 +1209,7 @@ export default function StudentProfileDashboard() {
                   </div>
                 )}
 
-                <div className="border border-[#262626] bg-[#111111]/60 p-5 rounded-2xl flex flex-col gap-3 items-center w-full">
-                  <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-wider w-full text-left">Repository Quality Score (Radar)</span>
-                  <div className="h-52 w-full">
-                    {Array.isArray(student.githubProfile.repoQualityScore) && student.githubProfile.repoQualityScore.length > 0 ? (
-                      <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="75%" data={student.githubProfile.repoQualityScore}>
-                          <PolarGrid stroke="#1f1f1f" />
-                          <PolarAngleAxis dataKey="subject" stroke="#a3a3a3" fontSize={7} />
-                          <PolarRadiusAxis angle={30} domain={[0, 100]} stroke="#52525b" fontSize={7} />
-                          <Radar name="Repository Quality" dataKey="A" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.15} />
-                        </RadarChart>
-                      </ResponsiveContainer>
-                    ) : (
-                      <div className="h-full flex items-center justify-center text-xs text-[#A3A3A3]">No quality analysis available.</div>
-                    )}
-                  </div>
-                </div>
 
-                {/* AI Career Readiness & Insights */}
-                {reposData?.careerInsights && reposData?.developerScore && (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    
-                    {/* Score breakdown & Readiness ratings */}
-                    <div className="border border-[#262626] bg-[#111111]/40 p-5 rounded-3xl flex flex-col gap-4">
-                      <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest">Developer Score & Industry Readiness</span>
-                      
-                      <div className="grid grid-cols-3 gap-3">
-                        {[
-                          { label: "Resume Strength", value: `${reposData.careerInsights.resumeStrength}%`, color: "text-[#22C55E]" },
-                          { label: "Portfolio Strength", value: `${reposData.careerInsights.portfolioStrength}%`, color: "text-[#3B82F6]" },
-                          { label: "Industry Readiness", value: `${reposData.careerInsights.industryReadiness}%`, color: "text-purple-400" },
-                        ].map((s, idx) => (
-                          <div key={idx} className="border border-[#262626] bg-[#111111]/75 p-3 rounded-xl text-center">
-                            <span className="text-[8px] uppercase tracking-wider text-[#A3A3A3] font-bold">{s.label}</span>
-                            <span className={`text-sm font-black block mt-1 ${s.color}`}>{s.value}</span>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="border border-[#262626] bg-zinc-950/40 p-4.5 rounded-2xl flex flex-col gap-2.5">
-                        <div className="flex justify-between items-center text-[10px] font-bold border-b border-[#262626]/40 pb-2">
-                          <span className="text-[#A3A3A3]">Hiring Readiness:</span>
-                          <span className="text-purple-400 uppercase font-black">{reposData.careerInsights.hiringReadiness}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] font-bold border-b border-[#262626]/40 pb-2">
-                          <span className="text-[#A3A3A3]">Open Source Readiness:</span>
-                          <span className="text-emerald-400 uppercase font-black">{reposData.careerInsights.openSourceReadiness}</span>
-                        </div>
-                        <div className="flex justify-between items-center text-[10px] font-bold">
-                          <span className="text-[#A3A3A3]">Strongest Skills:</span>
-                          <span className="text-cyan-400 font-black">{reposData.careerInsights.strongestSkills.join(", ")}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Career insights (Suggested projects & learning path) */}
-                    <div className="border border-[#262626] bg-[#111111]/40 p-5 rounded-3xl flex flex-col gap-4">
-                      <span className="text-[10px] font-black text-[#A3A3A3] uppercase tracking-widest">AI Custom Suggested Projects</span>
-                      <div className="flex flex-col gap-2.5">
-                        {reposData.careerInsights.suggestedProjects.map((proj: string, idx: number) => (
-                          <div key={idx} className="border border-[#262626] bg-[#111111]/75 p-3 rounded-xl flex gap-2">
-                            <span className="text-purple-400 font-bold text-xs">0{idx + 1}.</span>
-                            <div className="flex flex-col">
-                              <span className="text-[10px] text-[#FAFAFA] font-bold leading-tight">{proj}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                  </div>
-                )}
 
               </div>
             );

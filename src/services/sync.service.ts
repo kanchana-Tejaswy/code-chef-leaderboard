@@ -28,8 +28,8 @@ function validateProfileData(platform: string, username: string, data: any) {
 
   if (platform === "CODECHEF" && data.stars !== undefined && data.stars !== null) {
     const s = Number(data.stars);
-    if (isNaN(s) || s < 1 || s > 7) {
-      throw new Error(`CodeChef stars must be an integer between 1 and 7.`);
+    if (isNaN(s) || s < 0 || s > 7) {
+      throw new Error("CodeChef stars must be an integer between 0 and 7.");
     }
   }
 
@@ -450,7 +450,7 @@ export class SyncService {
         create: {
           studentId,
           rating: codechefProfile?.currentRating || 0,
-          stars: codechefProfile?.stars || 1,
+          stars: codechefProfile?.stars ?? 0,
           talentScore: overallAi.talentScore,
           overallScore: overallScore,
           codechefScore: ccScore,
@@ -461,7 +461,7 @@ export class SyncService {
         },
         update: {
           rating: codechefProfile?.currentRating || 0,
-          stars: codechefProfile?.stars || 1,
+          stars: codechefProfile?.stars ?? 0,
           talentScore: overallAi.talentScore,
           overallScore: overallScore,
           codechefScore: ccScore,

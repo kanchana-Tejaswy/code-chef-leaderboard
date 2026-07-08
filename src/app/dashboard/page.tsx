@@ -85,6 +85,13 @@ interface StatsData {
   averageConsistencyScore: SparklineData;
   averageProblemsSolved: SparklineData;
   averageContestParticipation: SparklineData;
+  averageRepositories?: SparklineData;
+  averageStars?: SparklineData;
+  averageOpenSourceScore?: SparklineData;
+  averageAcceptanceRate?: SparklineData;
+  activeLeetcode?: SparklineData;
+  activeGithub?: SparklineData;
+  activeOverall?: SparklineData;
 }
 
 interface ActivityItem {
@@ -1270,25 +1277,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Card 6: Placement Ready Index */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <ShieldCheck className="h-3.5 w-3.5 text-[#22C55E]" />
-                        Placement Ready Index
-                      </span>
-                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.placementReadinessIndex?.value || 0}%
-                      </span>
-                    </div>
-                    {getTrendBadge(stats.placementReadinessIndex?.trend || "")}
-                  </div>
-                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.placementReadinessIndex?.sparkline || [0, 0, 0, 0, 0, 0]} color="#22C55E" />
-                  </div>
-                </div>
+
               </>
             )}
 
@@ -1435,14 +1424,14 @@ export default function LandingPage() {
                         LeetCode Students
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.totalStudents.value}
+                        {stats.activeLeetcode?.value || 0}
                       </span>
                     </div>
-                    {getTrendBadge(stats.totalStudents.trend)}
+                    {getTrendBadge(stats.activeLeetcode?.trend || "")}
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
                     <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.totalStudents.sparkline} color="#F59E0B" />
+                    <Sparkline data={stats.activeLeetcode?.sparkline || [0,0,0,0,0,0]} color="#F59E0B" />
                   </div>
                 </div>
 
@@ -1499,7 +1488,7 @@ export default function LandingPage() {
                         Avg Acceptance
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        52%
+                        {stats.averageAcceptanceRate?.value || 0}%
                       </span>
                     </div>
                     <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/15">
@@ -1508,7 +1497,7 @@ export default function LandingPage() {
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
                     <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={[48, 49, 50, 51, 52, 52]} color="#10B981" />
+                    <Sparkline data={stats.averageAcceptanceRate?.sparkline || [0, 0, 0, 0, 0, 0]} color="#10B981" />
                   </div>
                 </div>
 
@@ -1545,14 +1534,14 @@ export default function LandingPage() {
                         GitHub Students
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.totalStudents.value}
+                        {stats.activeGithub?.value || 0}
                       </span>
                     </div>
-                    {getTrendBadge(stats.totalStudents.trend)}
+                    {getTrendBadge(stats.activeGithub?.trend || "")}
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
                     <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.totalStudents.sparkline} color="#06B6D4" />
+                    <Sparkline data={stats.activeGithub?.sparkline || [0,0,0,0,0,0]} color="#06B6D4" />
                   </div>
                 </div>
 
@@ -1587,7 +1576,7 @@ export default function LandingPage() {
                         Avg Repositories
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        15 Repos
+                        {stats.averageRepositories?.value || 0} Repos
                       </span>
                     </div>
                     <span className="text-[10px] font-bold text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">
@@ -1596,7 +1585,7 @@ export default function LandingPage() {
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
                     <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={[12, 13, 13, 14, 15, 15]} color="#06B6D4" />
+                    <Sparkline data={stats.averageRepositories?.sparkline || [0, 0, 0, 0, 0, 0]} color="#06B6D4" />
                   </div>
                 </div>
 
@@ -1609,7 +1598,7 @@ export default function LandingPage() {
                         Avg Stars
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        ⭐ 18
+                        ⭐ {stats.averageStars?.value || 0}
                       </span>
                     </div>
                     <span className="text-[10px] font-bold text-[#EAB308] bg-[#EAB308]/5 px-2 py-0.5 rounded-full border border-[#EAB308]/15">
@@ -1618,7 +1607,7 @@ export default function LandingPage() {
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
                     <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={[14, 15, 16, 17, 18, 18]} color="#06B6D4" />
+                    <Sparkline data={stats.averageStars?.sparkline || [0, 0, 0, 0, 0, 0]} color="#06B6D4" />
                   </div>
                   </div>
 
@@ -1631,7 +1620,7 @@ export default function LandingPage() {
                         Avg OS Score
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        56%
+                        {stats.averageOpenSourceScore?.value || 0}%
                       </span>
                     </div>
                     <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/5 px-2 py-0.5 rounded-full border border-cyan-500/15">
@@ -1640,7 +1629,7 @@ export default function LandingPage() {
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
                     <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={[50, 52, 53, 55, 56, 56]} color="#06B6D4" />
+                    <Sparkline data={stats.averageOpenSourceScore?.sparkline || [0, 0, 0, 0, 0, 0]} color="#06B6D4" />
                   </div>
                 </div>
               </>
@@ -1958,7 +1947,13 @@ export default function LandingPage() {
                     key={tab.value}
                     onClick={() => {
                       setLeaderboardFilter(tab.value as any);
-                      setSortBy(tab.value);
+                      if (tab.value === "leetcodeScore") {
+                        setSortBy("lcRank");
+                        setSortOrder("asc");
+                      } else {
+                        setSortBy(tab.value);
+                        setSortOrder("desc");
+                      }
                       setPage(1);
                     }}
                     className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
@@ -2065,12 +2060,13 @@ export default function LandingPage() {
             </div>
 
             {/* Stars Filter Row */}
-            <div className="flex items-center gap-2 flex-wrap border-t border-brand-border/50 pt-3">
-              <span className="text-[9px] font-black text-brand-muted uppercase tracking-widest mr-2 flex items-center gap-1">
-                <Star className="h-3 w-3 text-amber-500 fill-amber-500/20" />
-                Filter Stars:
-              </span>
-              <div className="flex flex-wrap gap-1.5">
+            {leaderboardFilter === "codechefScore" && (
+              <div className="flex items-center gap-2 flex-wrap border-t border-brand-border/50 pt-3">
+                <span className="text-[9px] font-black text-brand-muted uppercase tracking-widest mr-2 flex items-center gap-1">
+                  <Star className="h-3 w-3 text-amber-500 fill-amber-500/20" />
+                  Filter Stars:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
                 {starsList.map((star) => {
                   const active = selectedStars.includes(star);
                   return (
@@ -2088,6 +2084,7 @@ export default function LandingPage() {
                 })}
               </div>
             </div>
+            )}
           </div>
 
           {/* Standings Table Console */}

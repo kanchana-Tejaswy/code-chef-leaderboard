@@ -229,7 +229,7 @@ function LeaderboardContent() {
 
   const departments = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
   const years = [1, 2, 3, 4];
-  const starsList = [1, 2, 3, 4, 5, 6, 7];
+  const starsList = [0, 1, 2, 3, 4, 5, 6, 7];
 
   const fetchStandings = async () => {
     setIsLoading(true);
@@ -464,8 +464,8 @@ function LeaderboardContent() {
       <div className="flex border border-brand-border bg-[#111111]/45 p-1 rounded-2xl gap-1 w-full max-w-md relative z-10">
         {[
           { name: "Overall", value: "overall", defaultSort: "overallScore" },
-          { name: "CodeChef", value: "codechef", defaultSort: "ccRating" },
-          { name: "LeetCode", value: "leetcode", defaultSort: "lcRating" },
+          { name: "CodeChef", value: "codechef", defaultSort: "ccHighestRating" },
+          { name: "LeetCode", value: "leetcode", defaultSort: "lcRank" },
           { name: "GitHub", value: "github", defaultSort: "ghActivity" }
         ].map((tab) => {
           const active = activeTab === tab.value;
@@ -475,7 +475,7 @@ function LeaderboardContent() {
               onClick={() => {
                 setActiveTab(tab.value as any);
                 setSortBy(tab.defaultSort);
-                setSortOrder("desc");
+                setSortOrder(tab.value === "leetcode" ? "asc" : "desc");
                 setPage(1);
               }}
               className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
@@ -811,8 +811,8 @@ function LeaderboardContent() {
                           Solved {renderSortIcon("lcSolved")}
                         </th>
                         <th className="py-4.5 px-3 text-center select-none">E / M / H</th>
-                        <th onClick={() => handleSort("lcConsistency")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Consistency {renderSortIcon("lcConsistency")}
+                        <th onClick={() => handleSort("lcRank")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Global Rank {renderSortIcon("lcRank")}
                         </th>
                         <th onClick={() => handleSort("leetcodeScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
                           LeetCode Score {renderSortIcon("leetcodeScore")}
@@ -1015,8 +1015,8 @@ function LeaderboardContent() {
                               <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
                                 {lc ? `${lc.easySolvedCount}/${lc.mediumSolvedCount}/${lc.hardSolvedCount}` : "N/A"}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-emerald-400">
-                                {lc ? `${lc.consistencyScore}%` : "N/A"}
+                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {lc && lc.contestRank > 0 ? `#${lc.contestRank}` : "N/A"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
                                 {entry.leetcodeScore}

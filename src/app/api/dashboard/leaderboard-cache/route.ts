@@ -118,37 +118,53 @@ export async function GET(request: NextRequest) {
 
     const validSortFields = [
       "rank", "rating", "stars", "talentScore", "overallScore", "codechefScore", "leetcodeScore", "githubScore",
-      "ccRating", "ccHighestRating", "ccContests", "lcRating", "lcSolved", "lcConsistency", "ghActivity", "ghRepos", "consistency"
+      "ccRating", "ccHighestRating", "ccContests", "lcRating", "lcSolved", "lcConsistency", "lcRank", "ghActivity", "ghRepos", "consistency"
     ];
     const finalSortBy = validSortFields.includes(sortBy) ? sortBy : "overallScore";
 
-    let orderClause: any = {};
+    let orderByArray: any[] = [];
     if (finalSortBy === "ccRating") {
-      orderClause = { student: { codechefProfile: { currentRating: sortOrder } } };
+      orderByArray = [
+        { student: { codechefProfile: { currentRating: sortOrder } } },
+        { student: { codechefProfile: { highestRating: sortOrder } } },
+        { student: { codechefProfile: { globalRank: "asc" } } }
+      ];
     } else if (finalSortBy === "ccHighestRating") {
-      orderClause = { student: { codechefProfile: { highestRating: sortOrder } } };
-    } else if (finalSortBy === "ccContests") {
-      orderClause = { student: { codechefProfile: { contestCount: sortOrder } } };
-    } else if (finalSortBy === "lcRating") {
-      orderClause = { student: { leetcodeProfile: { contestRating: sortOrder } } };
-    } else if (finalSortBy === "lcSolved") {
-      orderClause = { student: { leetcodeProfile: { problemsSolved: sortOrder } } };
-    } else if (finalSortBy === "lcConsistency") {
-      orderClause = { student: { leetcodeProfile: { consistencyScore: sortOrder } } };
+      orderByArray = [
+        { student: { codechefProfile: { highestRating: sortOrder } } },
+        { student: { codechefProfile: { globalRank: "asc" } } }
+      ];
+    } else if (finalSortBy === "lcRank") {
+      // Best global rank (lowest number) first by default (asc)
+      orderByArray = [
+        { student: { leetcodeProfile: { contestRank: sortOrder } } }
+      ];
     } else if (finalSortBy === "ghActivity") {
-      orderClause = { student: { githubProfile: { openSourceScore: sortOrder } } };
-    } else if (finalSortBy === "ghRepos") {
-      orderClause = { student: { githubProfile: { totalRepositories: sortOrder } } };
-    } else if (finalSortBy === "consistency") {
-      orderClause = { student: { normalizedProfile: { consistencyScore: sortOrder } } };
+      orderByArray = [
+        { student: { githubProfile: { openSourceScore: sortOrder } } },
+        { student: { githubProfile: { followers: sortOrder } } },
+        { student: { githubProfile: { totalStars: sortOrder } } },
+        { student: { githubProfile: { totalRepositories: sortOrder } } }
+      ];
     } else {
-      orderClause = { [finalSortBy]: sortOrder };
+      let orderClause: any = {};
+      if (finalSortBy === "ccContests") {
+        orderClause = { student: { codechefProfile: { contestCount: sortOrder } } };
+      } else if (finalSortBy === "lcRating") {
+        orderClause = { student: { leetcodeProfile: { contestRating: sortOrder } } };
+      } else if (finalSortBy === "lcSolved") {
+        orderClause = { student: { leetcodeProfile: { problemsSolved: sortOrder } } };
+      } else if (finalSortBy === "lcConsistency") {
+        orderClause = { student: { leetcodeProfile: { consistencyScore: sortOrder } } };
+      } else if (finalSortBy === "ghRepos") {
+        orderClause = { student: { githubProfile: { totalRepositories: sortOrder } } };
+      } else if (finalSortBy === "consistency") {
+        orderClause = { student: { normalizedProfile: { consistencyScore: sortOrder } } };
+      } else {
+        orderClause = { [finalSortBy]: sortOrder };
+      }
+      orderByArray = [orderClause, { rank: "asc" }];
     }
-
-    const orderByArray = [
-      orderClause,
-      { rank: "asc" }
-    ];
 
     // 2. Handle Excel Export Request (Bypasses Pagination)
     if (doExport) {

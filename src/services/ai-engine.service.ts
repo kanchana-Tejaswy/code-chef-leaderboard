@@ -102,13 +102,13 @@ export class CodechefAiEngine {
       disciplineScore,
       overallPotential,
       placementReadiness,
-      expectedRating6Months: currentRating + 50,
-      strengths,
-      weaknesses,
-      improvementAreas,
-      careerRecommendation: "Algorithmist / Competitive Programmer",
-      suggestedCompanies: stars >= 5 ? ["Google", "Directi", "Tower Research"] : ["Amazon", "Razorpay", "Infosys"],
-      recommendedLearningPath: ["Advanced Graph Models", "Segment Trees & Range Queries"]
+      expectedRating6Months: 0,
+      strengths: [],
+      weaknesses: [],
+      improvementAreas: [],
+      careerRecommendation: "",
+      suggestedCompanies: [],
+      recommendedLearningPath: []
     };
   }
 }
@@ -186,13 +186,13 @@ export class LeetcodeAiEngine {
       disciplineScore,
       overallPotential,
       placementReadiness,
-      expectedRating6Months: Math.round(contestRating > 0 ? contestRating + 100 : 1400),
-      strengths,
-      weaknesses,
-      improvementAreas,
-      careerRecommendation: "Software Development Engineer (SDE)",
-      suggestedCompanies: problemsSolved >= 250 ? ["Microsoft", "Amazon", "Uber"] : ["TCS Digital", "Infosys", "Wipro"],
-      recommendedLearningPath: ["Dynamic Programming State Reductions", "Backtracking & Recursion Basics"]
+      expectedRating6Months: 0,
+      strengths: [],
+      weaknesses: [],
+      improvementAreas: [],
+      careerRecommendation: "",
+      suggestedCompanies: [],
+      recommendedLearningPath: []
     };
   }
 }
@@ -232,15 +232,15 @@ export class GithubAiEngine {
       learningScore: analytics.developerScore.documentation,
       growthScore: rating,
       disciplineScore: analytics.developerScore.consistency,
-      overallPotential: analytics.careerInsights.hiringReadiness === "Immediate Tier-1 Ready" ? "Elite Developer Portfolio" : "Capable Software Builder",
-      placementReadiness: analytics.careerInsights.hiringReadiness,
-      expectedRating6Months: rating + 10,
-      strengths: analytics.careerInsights.strongestSkills.map(s => `${s} Specialist`),
-      weaknesses: analytics.careerInsights.weaknesses,
-      improvementAreas: analytics.careerInsights.weaknesses,
-      careerRecommendation: analytics.portfolio.ai > 1 ? "Machine Learning Specialist" : analytics.portfolio.mobile > 1 ? "Mobile Developer" : "Full Stack Developer",
-      suggestedCompanies: rating >= 75 ? ["Google", "Atlassian", "GitHub"] : ["TCS Digital", "Cognizant"],
-      recommendedLearningPath: analytics.careerInsights.recommendedLearningPath
+      overallPotential: "",
+      placementReadiness: "",
+      expectedRating6Months: 0,
+      strengths: [],
+      weaknesses: [],
+      improvementAreas: [],
+      careerRecommendation: "",
+      suggestedCompanies: [],
+      recommendedLearningPath: []
     };
   }
 }

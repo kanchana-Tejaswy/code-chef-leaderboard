@@ -74,7 +74,7 @@ export class InsightsService {
           rollNumber: s.rollNumber || "N/A",
           department: s.department || "Unknown",
           currentRating: rating,
-          stars: s.codechefProfile?.stars || 1,
+          stars: s.codechefProfile?.stars ?? 0,
           placementReadinessScore: score,
           aiRecommendation: recommendation
         };
@@ -130,134 +130,16 @@ export class InsightsService {
     };
 
     // 4. Recommendations Segment
-    const recOverall = [
-      {
-        title: "Platform Synergy Optimizations",
-        description: `Ensure students maintain balanced performance profiles. We recommend students with strong CodeChef/LeetCode records but empty GitHub credentials link their repositories to optimize overall scores.`,
-        priority: "HIGH",
-        impact: "+15% overall ready index"
-      },
-      {
-        title: "Placement Readiness Bootcamps",
-        description: "Organize mock placement drives for students with Overall Score between 60-69 to push them above the tier threshold.",
-        priority: "MEDIUM",
-        impact: "+8 elite candidates"
-      }
-    ];
-
-    const recCodechef = [
-      {
-        title: "DSA Search Bootcamp for Borderline Coders",
-        description: `Bootcamps on recursion and basic dynamic programming are recommended for CodeChef users sitting just under the 3-star (1400) rating threshold.`,
-        priority: "HIGH",
-        impact: "+120 rating pts"
-      },
-      {
-        title: "Live Contest Participation Slots",
-        description: "Integrate mock live contest slots weekly during academic lab periods to boost timing speed.",
-        priority: "MEDIUM",
-        impact: "+35 active rounds count"
-      }
-    ];
-
-    const recLeetcode = [
-      {
-        title: "Medium Problems Target Drive",
-        description: "Incentivize solving medium-level LeetCode problems to improve success ratios on interview questions.",
-        priority: "HIGH",
-        impact: "+40% technical test success"
-      },
-      {
-        title: "Daily Coding Streak Calendar",
-        description: "Launch institutional leaderboards for longest LeetCode submission streaks to build consistency.",
-        priority: "MEDIUM",
-        impact: "Stablizes student focus"
-      }
-    ];
-
-    const recGithub = [
-      {
-        title: "Open Source Documentation Workshops",
-        description: "Add structured readmes, licensing, and clean code comments to active portfolio projects.",
-        priority: "HIGH",
-        impact: "Builds resume credibility"
-      },
-      {
-        title: "Star Booster & Project Showcases",
-        description: "Encourage students to share work in departmental showcase forums to build followers and ratings.",
-        priority: "LOW",
-        impact: "+15 stars average"
-      }
-    ];
+    const recOverall: any[] = [];
+    const recCodechef: any[] = [];
+    const recLeetcode: any[] = [];
+    const recGithub: any[] = [];
 
     // 5. Predictions Segment
-    const predOverall = [
-      {
-        target: "Overall Placement Ready Candidates (Overall Score >= 70)",
-        currentCount: placementReady.length,
-        predictedCount: activeOverall.filter(s => s.leaderboardEntry.overallScore >= 60).length,
-        confidence,
-        timeframe: "45 Days"
-      },
-      {
-        target: "Elite Technical Roles Pipeline (Overall Score >= 85)",
-        currentCount: activeOverall.filter(s => s.leaderboardEntry.overallScore >= 85).length,
-        predictedCount: activeOverall.filter(s => s.leaderboardEntry.overallScore >= 75).length,
-        confidence,
-        timeframe: "60 Days"
-      }
-    ];
-
-    const predCodechef = [
-      {
-        target: "Potential 3-Star Candidates (1400+ Rating)",
-        currentCount: activeCodechef.filter(s => s.codechefProfile.stars >= 3).length,
-        predictedCount: activeCodechef.filter(s => s.codechefProfile.currentRating >= 1300).length,
-        confidence,
-        timeframe: "30 Days"
-      },
-      {
-        target: "Potential 4-Star Candidates (1600+ Rating)",
-        currentCount: activeCodechef.filter(s => s.codechefProfile.stars >= 4).length,
-        predictedCount: activeCodechef.filter(s => s.codechefProfile.currentRating >= 1500).length,
-        confidence,
-        timeframe: "60 Days"
-      }
-    ];
-
-    const predLeetcode = [
-      {
-        target: "Potential Candidates Solved 150+ Problems",
-        currentCount: activeLeetcode.filter(s => s.leetcodeProfile.problemsSolved >= 150).length,
-        predictedCount: activeLeetcode.filter(s => s.leetcodeProfile.problemsSolved >= 120).length,
-        confidence,
-        timeframe: "45 Days"
-      },
-      {
-        target: "Potential Candidates Solved 300+ Problems",
-        currentCount: activeLeetcode.filter(s => s.leetcodeProfile.problemsSolved >= 300).length,
-        predictedCount: activeLeetcode.filter(s => s.leetcodeProfile.problemsSolved >= 250).length,
-        confidence,
-        timeframe: "60 Days"
-      }
-    ];
-
-    const predGithub = [
-      {
-        target: "Potential Active Portfolios (Repositories >= 10)",
-        currentCount: activeGithub.filter(s => s.githubProfile.totalRepositories >= 10).length,
-        predictedCount: activeGithub.filter(s => s.githubProfile.totalRepositories >= 7).length,
-        confidence,
-        timeframe: "30 Days"
-      },
-      {
-        target: "Potential Open Source Ready (OS Score >= 70%)",
-        currentCount: activeGithub.filter(s => s.githubProfile.openSourceScore >= 70).length,
-        predictedCount: activeGithub.filter(s => s.githubProfile.openSourceScore >= 55).length,
-        confidence,
-        timeframe: "60 Days"
-      }
-    ];
+    const predOverall: any[] = [];
+    const predCodechef: any[] = [];
+    const predLeetcode: any[] = [];
+    const predGithub: any[] = [];
 
     // 6. Top Improving Segment
     const mapTopImproving = (list: any[], valueExtractor: (s: any) => number) => {
@@ -271,7 +153,7 @@ export class InsightsService {
           department: s.department || "Unknown",
           year: s.year || 3,
           currentRating: val,
-          stars: s.codechefProfile?.stars || 1,
+          stars: s.codechefProfile?.stars ?? 0,
           growthPoints: Math.round(val * 0.1),
           growthPercent: growth,
           talentScore: Math.round(s.aiAnalysis?.talentScore || 0)
@@ -285,20 +167,7 @@ export class InsightsService {
     const topImpGithub = mapTopImproving(activeGithub, s => s.githubProfile.openSourceScore);
 
     // Dynamic Discovery Reports
-    const discoveryReports = [
-      {
-        title: "Algorithmic Placement Dominance",
-        details: departmentInsights.highestPerforming !== "Unknown"
-          ? `${departmentInsights.highestPerforming} department is currently leading in performance with the highest overall placement score. Meanwhile, ${departmentInsights.fastestGrowing} shows the fastest talent score growth velocity among all branches.`
-          : "Insufficient active profile counts across departments to determine statistical dominance metrics."
-      },
-      {
-        title: "College-Wide Technical Portfolio Summary",
-        details: totalActiveCoders > 0
-          ? `ACE College records an institutional rating of ${collegeStats.averageCollegeRating} rating, average Problems Solved of ${collegeStats.averageProblemsSolved} problems, and average placement score of ${collegeStats.averageTalentScore} across active student coders.`
-          : "Institutional benchmarks are currently pending registered student profile sync cycles."
-      }
-    ];
+    const discoveryReports: any[] = [];
 
     return {
       insufficientData: N < 3,

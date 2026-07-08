@@ -256,7 +256,7 @@ export class LeetcodeService {
     const tagProblemCounts = tagsData.data?.matchedUser?.tagProblemCounts || {};
     const userContestRanking = contestData.data?.userContestRanking;
     const contestHistoryRaw = contestData.data?.userContestRankingHistory || [];
-    const recentSubmissions = submissionsData.data?.recentSubmissionList || [];
+    const recentSubmissions: any[] = [];
 
     // Profile Details
     const fullName = matchedUser.profile?.realName || null;

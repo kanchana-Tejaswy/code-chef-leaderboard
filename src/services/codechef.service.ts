@@ -139,7 +139,7 @@ export class CodechefService {
 
     // 2. Stars
     const ratingHeader = $(".rating-header").first().text();
-    let stars = 1;
+    let stars = 0;
     const starMatch = ratingHeader.match(/(\d+)★/);
     if (starMatch) {
       stars = parseInt(starMatch[1], 10);
@@ -155,7 +155,7 @@ export class CodechefService {
         else if (currentRating >= 1800) stars = 4;
         else if (currentRating >= 1600) stars = 3;
         else if (currentRating >= 1400) stars = 2;
-        else stars = 1;
+        else stars = currentRating > 0 ? 1 : 0;
       }
     }
 
