@@ -1,189 +1,210 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
+
+type PlatformKey = "overall" | "codechef" | "leetcode" | "github";
+type SortOrder = "asc" | "desc";
+
+type PlatformConfig = {
+  defaultSort: string;
+  defaultOrder: SortOrder;
+  applyFilters: (studentWhere: Prisma.StudentProfileWhereInput, params: URLSearchParams) => void;
+  sortFields: Record<string, (order: SortOrder) => Prisma.LeaderboardEntryOrderByWithRelationInput[]>;
+};
+
+const parseNumbers = (value: string | null) =>
+  value?.split(",").map(Number).filter((n) => !Number.isNaN(n)) || [];
+
+const numericParam = (params: URLSearchParams, key: string) => {
+  const value = params.get(key);
+  return value ? Number(value) : null;
+};
+
+const nullableOrder = (sort: SortOrder) => ({ sort, nulls: "last" });
+const nestedOrder = (relation: string, field: string, sort: SortOrder) => ({
+  student: {
+    [relation]: {
+      [field]: nullableOrder(sort),
+    },
+  },
+}) as unknown as Prisma.LeaderboardEntryOrderByWithRelationInput;
+
+const withRankTieBreaker = (orders: Prisma.LeaderboardEntryOrderByWithRelationInput[]) => [...orders, { rank: "asc" as const }];
+
+const platformConfigs: Record<PlatformKey, PlatformConfig> = {
+  overall: {
+    defaultSort: "overallScore",
+    defaultOrder: "desc",
+    applyFilters: () => {},
+    sortFields: {
+      overallScore: (order) => [{ overallScore: order }],
+      talentScore: (order) => [{ talentScore: order }],
+      consistency: (order) => [nestedOrder("normalizedProfile", "consistencyScore", order)],
+      rank: (order) => [{ rank: order }],
+    },
+  },
+  codechef: {
+    defaultSort: "ccRating",
+    defaultOrder: "desc",
+    applyFilters: (studentWhere, params) => {
+      const ratingMin = numericParam(params, "ccRatingMin");
+      const ratingMax = numericParam(params, "ccRatingMax");
+      const contestsMin = numericParam(params, "ccContestsMin");
+      const stars = parseNumbers(params.get("stars"));
+      const codechefProfile: Prisma.CodechefProfileWhereInput = {};
+
+      if (ratingMin !== null || ratingMax !== null) {
+        codechefProfile.currentRating = {};
+        if (ratingMin !== null) codechefProfile.currentRating.gte = ratingMin;
+        if (ratingMax !== null) codechefProfile.currentRating.lte = ratingMax;
+      }
+
+      if (contestsMin !== null) codechefProfile.contestCount = { gte: contestsMin };
+      if (stars.length > 0) codechefProfile.stars = { in: stars };
+      if (Object.keys(codechefProfile).length > 0) studentWhere.codechefProfile = { is: codechefProfile };
+    },
+    sortFields: {
+      ccRating: (order) => [
+        nestedOrder("codechefProfile", "currentRating", order),
+        nestedOrder("codechefProfile", "highestRating", "desc"),
+        nestedOrder("codechefProfile", "globalRank", "asc"),
+      ],
+      ccHighestRating: (order) => [
+        nestedOrder("codechefProfile", "highestRating", order),
+        nestedOrder("codechefProfile", "currentRating", "desc"),
+      ],
+      stars: (order) => [nestedOrder("codechefProfile", "stars", order)],
+      ccGlobalRank: (order) => [nestedOrder("codechefProfile", "globalRank", order)],
+      ccContests: (order) => [nestedOrder("codechefProfile", "contestCount", order)],
+      ccRatingGrowth: (order) => [nestedOrder("codechefProfile", "highestRating", order)],
+      codechefScore: (order) => [{ codechefScore: order }],
+    },
+  },
+  leetcode: {
+    defaultSort: "lcRank",
+    defaultOrder: "asc",
+    applyFilters: (studentWhere, params) => {
+      const ratingMin = numericParam(params, "lcRatingMin");
+      const ratingMax = numericParam(params, "lcRatingMax");
+      const easyMin = numericParam(params, "lcEasyMin");
+      const mediumMin = numericParam(params, "lcMediumMin");
+      const hardMin = numericParam(params, "lcHardMin");
+      const leetcodeProfile: Prisma.LeetcodeProfileWhereInput = {};
+
+      if (ratingMin !== null || ratingMax !== null) {
+        leetcodeProfile.contestRating = {};
+        if (ratingMin !== null) leetcodeProfile.contestRating.gte = ratingMin;
+        if (ratingMax !== null) leetcodeProfile.contestRating.lte = ratingMax;
+      }
+
+      if (easyMin !== null) leetcodeProfile.easySolvedCount = { gte: easyMin };
+      if (mediumMin !== null) leetcodeProfile.mediumSolvedCount = { gte: mediumMin };
+      if (hardMin !== null) leetcodeProfile.hardSolvedCount = { gte: hardMin };
+      if (Object.keys(leetcodeProfile).length > 0) studentWhere.leetcodeProfile = { is: leetcodeProfile };
+    },
+    sortFields: {
+      lcRank: (order) => [nestedOrder("leetcodeProfile", "contestRank", order)],
+      lcRating: (order) => [nestedOrder("leetcodeProfile", "contestRating", order)],
+      lcSolved: (order) => [nestedOrder("leetcodeProfile", "problemsSolved", order)],
+      lcAcceptance: (order) => [nestedOrder("leetcodeProfile", "acceptanceRate", order)],
+      lcInterviewReadiness: (order) => [{ leetcodeScore: order }],
+      leetcodeScore: (order) => [{ leetcodeScore: order }],
+    },
+  },
+  github: {
+    defaultSort: "githubScore",
+    defaultOrder: "desc",
+    applyFilters: (studentWhere, params) => {
+      const followersMin = numericParam(params, "ghFollowersMin");
+      const starsMin = numericParam(params, "ghStarsMin");
+      const reposMin = numericParam(params, "ghReposMin");
+      const githubProfile: Prisma.GithubProfileWhereInput = {};
+
+      if (followersMin !== null) githubProfile.followers = { gte: followersMin };
+      if (starsMin !== null) githubProfile.totalStars = { gte: starsMin };
+      if (reposMin !== null) githubProfile.totalRepositories = { gte: reposMin };
+      if (Object.keys(githubProfile).length > 0) studentWhere.githubProfile = { is: githubProfile };
+    },
+    sortFields: {
+      githubScore: (order) => [{ githubScore: order }],
+      ghFollowers: (order) => [nestedOrder("githubProfile", "followers", order)],
+      ghRepos: (order) => [nestedOrder("githubProfile", "totalRepositories", order)],
+      ghStars: (order) => [nestedOrder("githubProfile", "totalStars", order)],
+      ghActivity: (order) => [nestedOrder("githubProfile", "openSourceScore", order)],
+      ghOpenSource: (order) => [nestedOrder("githubProfile", "openSourceScore", order)],
+    },
+  },
+};
+
+const getPlatform = (value: string | null): PlatformKey =>
+  value === "codechef" || value === "leetcode" || value === "github" ? value : "overall";
+
+const buildWhereClause = (platform: PlatformKey, searchParams: URLSearchParams) => {
+  const search = searchParams.get("search") || "";
+  const departments = searchParams.get("departments")?.split(",").filter(Boolean) || [];
+  const years = parseNumbers(searchParams.get("years"));
+  const studentWhere: Prisma.StudentProfileWhereInput = {};
+
+  if (search) {
+    studentWhere.OR = [
+      { name: { contains: search, mode: "insensitive" } },
+      { rollNumber: { contains: search, mode: "insensitive" } },
+    ];
+  }
+
+  if (departments.length > 0) studentWhere.department = { in: departments };
+  if (years.length > 0) studentWhere.year = { in: years };
+
+  platformConfigs[platform].applyFilters(studentWhere, searchParams);
+
+  return Object.keys(studentWhere).length > 0 ? { student: studentWhere } : {};
+};
+
+const buildOrderBy = (platform: PlatformKey, searchParams: URLSearchParams) => {
+  const config = platformConfigs[platform];
+  const requestedSort = searchParams.get("sortBy") || config.defaultSort;
+  const requestedOrder = (searchParams.get("sortOrder") || config.defaultOrder).toLowerCase() === "asc" ? "asc" : "desc";
+  const sortFactory = config.sortFields[requestedSort] || config.sortFields[config.defaultSort];
+  return withRankTieBreaker(sortFactory(requestedOrder));
+};
+
+const studentSelect = {
+  id: true,
+  name: true,
+  rollNumber: true,
+  department: true,
+  year: true,
+  codechefUsername: true,
+  leetcodeUsername: true,
+  githubUsername: true,
+  profilePictureUrl: true,
+  verificationStatus: true,
+  codechefProfile: true,
+  leetcodeProfile: true,
+  githubProfile: true,
+  aiAnalysis: true,
+  normalizedProfile: true,
+};
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
-  const search = searchParams.get("search") || "";
-  const departments = searchParams.get("departments")?.split(",").filter(Boolean) || [];
-  const years = searchParams.get("years")?.split(",").map(Number).filter((y) => !isNaN(y)) || [];
-  const stars = searchParams.get("stars")?.split(",").map(Number).filter((s) => !isNaN(s)) || [];
+  const platform = getPlatform(searchParams.get("platform"));
   const doExport = searchParams.get("export") === "true";
 
-  // CodeChef filters
-  const ccRatingMin = searchParams.get("ccRatingMin") ? Number(searchParams.get("ccRatingMin")) : null;
-  const ccRatingMax = searchParams.get("ccRatingMax") ? Number(searchParams.get("ccRatingMax")) : null;
-  const ccContestsMin = searchParams.get("ccContestsMin") ? Number(searchParams.get("ccContestsMin")) : null;
-
-  // LeetCode filters
-  const lcRatingMin = searchParams.get("lcRatingMin") ? Number(searchParams.get("lcRatingMin")) : null;
-  const lcRatingMax = searchParams.get("lcRatingMax") ? Number(searchParams.get("lcRatingMax")) : null;
-  const lcEasyMin = searchParams.get("lcEasyMin") ? Number(searchParams.get("lcEasyMin")) : null;
-  const lcMediumMin = searchParams.get("lcMediumMin") ? Number(searchParams.get("lcMediumMin")) : null;
-  const lcHardMin = searchParams.get("lcHardMin") ? Number(searchParams.get("lcHardMin")) : null;
-
-  // GitHub filters
-  const ghFollowersMin = searchParams.get("ghFollowersMin") ? Number(searchParams.get("ghFollowersMin")) : null;
-  const ghStarsMin = searchParams.get("ghStarsMin") ? Number(searchParams.get("ghStarsMin")) : null;
-  const ghReposMin = searchParams.get("ghReposMin") ? Number(searchParams.get("ghReposMin")) : null;
-
   try {
-    // 1. Build Query Filters
-    const whereClause: any = {};
+    const whereClause = buildWhereClause(platform, searchParams);
+    const orderBy = buildOrderBy(platform, searchParams);
 
-    if (search || departments.length > 0 || years.length > 0 ||
-        ccRatingMin !== null || ccRatingMax !== null || ccContestsMin !== null ||
-        lcRatingMin !== null || lcRatingMax !== null || lcEasyMin !== null || lcMediumMin !== null || lcHardMin !== null ||
-        ghFollowersMin !== null || ghStarsMin !== null || ghReposMin !== null) {
-      
-      whereClause.student = {};
-
-      if (search) {
-        whereClause.student.OR = [
-          { name: { contains: search } },
-          { rollNumber: { contains: search } },
-        ];
-      }
-
-      if (departments.length > 0) {
-        whereClause.student.department = { in: departments };
-      }
-
-      if (years.length > 0) {
-        whereClause.student.year = { in: years };
-      }
-
-      // CodeChef relation filters
-      if (ccRatingMin !== null || ccRatingMax !== null || ccContestsMin !== null) {
-        whereClause.student.codechefProfile = {};
-        if (ccRatingMin !== null) {
-          whereClause.student.codechefProfile.currentRating = { gte: ccRatingMin };
-        }
-        if (ccRatingMax !== null) {
-          whereClause.student.codechefProfile.currentRating = {
-            ...whereClause.student.codechefProfile.currentRating,
-            lte: ccRatingMax,
-          };
-        }
-        if (ccContestsMin !== null) {
-          whereClause.student.codechefProfile.contestCount = { gte: ccContestsMin };
-        }
-      }
-
-      // LeetCode relation filters
-      if (lcRatingMin !== null || lcRatingMax !== null || lcEasyMin !== null || lcMediumMin !== null || lcHardMin !== null) {
-        whereClause.student.leetcodeProfile = {};
-        if (lcRatingMin !== null) {
-          whereClause.student.leetcodeProfile.contestRating = { gte: lcRatingMin };
-        }
-        if (lcRatingMax !== null) {
-          whereClause.student.leetcodeProfile.contestRating = {
-            ...whereClause.student.leetcodeProfile.contestRating,
-            lte: lcRatingMax,
-          };
-        }
-        if (lcEasyMin !== null) {
-          whereClause.student.leetcodeProfile.easySolvedCount = { gte: lcEasyMin };
-        }
-        if (lcMediumMin !== null) {
-          whereClause.student.leetcodeProfile.mediumSolvedCount = { gte: lcMediumMin };
-        }
-        if (lcHardMin !== null) {
-          whereClause.student.leetcodeProfile.hardSolvedCount = { gte: lcHardMin };
-        }
-      }
-
-      // GitHub relation filters
-      if (ghFollowersMin !== null || ghStarsMin !== null || ghReposMin !== null) {
-        whereClause.student.githubProfile = {};
-        if (ghFollowersMin !== null) {
-          whereClause.student.githubProfile.followers = { gte: ghFollowersMin };
-        }
-        if (ghStarsMin !== null) {
-          whereClause.student.githubProfile.totalStars = { gte: ghStarsMin };
-        }
-        if (ghReposMin !== null) {
-          whereClause.student.githubProfile.totalRepositories = { gte: ghReposMin };
-        }
-      }
-    }
-
-    if (stars.length > 0) {
-      whereClause.stars = { in: stars };
-    }
-
-    // Sorting parameters
-    const sortBy = searchParams.get("sortBy") || "overallScore";
-    const sortOrder = (searchParams.get("sortOrder") || "desc").toLowerCase() === "asc" ? "asc" : "desc";
-
-    const validSortFields = [
-      "rank", "rating", "stars", "talentScore", "overallScore", "codechefScore", "leetcodeScore", "githubScore",
-      "ccRating", "ccHighestRating", "ccContests", "lcRating", "lcSolved", "lcConsistency", "lcRank", "ghActivity", "ghRepos", "consistency"
-    ];
-    const finalSortBy = validSortFields.includes(sortBy) ? sortBy : "overallScore";
-
-    let orderByArray: any[] = [];
-    if (finalSortBy === "ccRating") {
-      orderByArray = [
-        { student: { codechefProfile: { currentRating: sortOrder } } },
-        { student: { codechefProfile: { highestRating: sortOrder } } },
-        { student: { codechefProfile: { globalRank: "asc" } } }
-      ];
-    } else if (finalSortBy === "ccHighestRating") {
-      orderByArray = [
-        { student: { codechefProfile: { highestRating: sortOrder } } },
-        { student: { codechefProfile: { globalRank: "asc" } } }
-      ];
-    } else if (finalSortBy === "lcRank") {
-      // Best global rank (lowest number) first by default (asc)
-      orderByArray = [
-        { student: { leetcodeProfile: { contestRank: sortOrder } } }
-      ];
-    } else if (finalSortBy === "ghActivity") {
-      orderByArray = [
-        { student: { githubProfile: { openSourceScore: sortOrder } } },
-        { student: { githubProfile: { followers: sortOrder } } },
-        { student: { githubProfile: { totalStars: sortOrder } } },
-        { student: { githubProfile: { totalRepositories: sortOrder } } }
-      ];
-    } else {
-      let orderClause: any = {};
-      if (finalSortBy === "ccContests") {
-        orderClause = { student: { codechefProfile: { contestCount: sortOrder } } };
-      } else if (finalSortBy === "lcRating") {
-        orderClause = { student: { leetcodeProfile: { contestRating: sortOrder } } };
-      } else if (finalSortBy === "lcSolved") {
-        orderClause = { student: { leetcodeProfile: { problemsSolved: sortOrder } } };
-      } else if (finalSortBy === "lcConsistency") {
-        orderClause = { student: { leetcodeProfile: { consistencyScore: sortOrder } } };
-      } else if (finalSortBy === "ghRepos") {
-        orderClause = { student: { githubProfile: { totalRepositories: sortOrder } } };
-      } else if (finalSortBy === "consistency") {
-        orderClause = { student: { normalizedProfile: { consistencyScore: sortOrder } } };
-      } else {
-        orderClause = { [finalSortBy]: sortOrder };
-      }
-      orderByArray = [orderClause, { rank: "asc" }];
-    }
-
-    // 2. Handle Excel Export Request (Bypasses Pagination)
     if (doExport) {
       const entries = await prisma.leaderboardEntry.findMany({
         where: whereClause,
         include: {
           student: {
-            select: {
-              name: true,
-              rollNumber: true,
-              department: true,
-              year: true,
-              codechefUsername: true,
-              leetcodeUsername: true,
-              githubUsername: true,
-            },
+            select: studentSelect,
           },
         },
-        orderBy: orderByArray,
+        orderBy,
       });
 
       const exportData = entries.map((e, idx) => ({
@@ -191,10 +212,10 @@ export async function GET(request: NextRequest) {
         Name: e.student.name,
         "Roll Number": e.student.rollNumber,
         Department: e.student.department,
-        Year: `${e.student.year} Year`,
-        "CodeChef Username": e.student.codechefUsername || "N/A",
-        "LeetCode Username": e.student.leetcodeUsername || "N/A",
-        "GitHub Username": e.student.githubUsername || "N/A",
+        Year: e.student.year ? `${e.student.year} Year` : "Not Linked",
+        "CodeChef Username": e.student.codechefUsername || "Not Linked",
+        "LeetCode Username": e.student.leetcodeUsername || "Not Linked",
+        "GitHub Username": e.student.githubUsername || "Not Linked",
         "Overall Score": e.overallScore,
         "CodeChef Score": e.codechefScore,
         "LeetCode Score": e.leetcodeScore,
@@ -204,36 +225,31 @@ export async function GET(request: NextRequest) {
       const worksheet = XLSX.utils.json_to_sheet(exportData);
       const workbook = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(workbook, worksheet, "Leaderboard");
-
-      // Set column widths for presentation
-      const wscols = [
-        { wch: 6 },  // Rank
-        { wch: 22 }, // Name
-        { wch: 15 }, // Roll Number
-        { wch: 12 }, // Department
-        { wch: 8 },  // Year
-        { wch: 20 }, // CodeChef
-        { wch: 20 }, // LeetCode
-        { wch: 20 }, // GitHub
-        { wch: 12 }, // Overall Score
-        { wch: 12 }, // CodeChef Score
-        { wch: 12 }, // LeetCode Score
-        { wch: 12 }, // GitHub Score
+      worksheet["!cols"] = [
+        { wch: 6 },
+        { wch: 22 },
+        { wch: 15 },
+        { wch: 12 },
+        { wch: 8 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 20 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 12 },
+        { wch: 12 },
       ];
-      worksheet["!cols"] = wscols;
 
       const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
 
       return new NextResponse(buffer, {
         headers: {
-          "Content-Type":
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "Content-Disposition": `attachment; filename=ace_developer_leaderboard_${new Date().toISOString().split("T")[0]}.xlsx`,
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": `attachment; filename=ace_${platform}_leaderboard_${new Date().toISOString().split("T")[0]}.xlsx`,
         },
       });
     }
 
-    // 3. Paginated & Sorted JSON request
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const limit = Math.max(1, parseInt(searchParams.get("limit") || "10", 10));
     const skip = (page - 1) * limit;
@@ -243,25 +259,10 @@ export async function GET(request: NextRequest) {
         where: whereClause,
         include: {
           student: {
-            select: {
-              id: true,
-              name: true,
-              rollNumber: true,
-              department: true,
-              year: true,
-              codechefUsername: true,
-              leetcodeUsername: true,
-              githubUsername: true,
-              profilePictureUrl: true,
-              verificationStatus: true,
-              codechefProfile: true,
-              leetcodeProfile: true,
-              githubProfile: true,
-              aiAnalysis: true,
-            },
+            select: studentSelect,
           },
         },
-        orderBy: orderByArray,
+        orderBy,
         skip,
         take: limit,
       }),
@@ -279,7 +280,7 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error fetching leaderboard cache API:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

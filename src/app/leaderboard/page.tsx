@@ -44,6 +44,67 @@ interface LeaderboardEntry {
   };
 }
 
+type PlatformKey = "overall" | "codechef" | "leetcode" | "github";
+type SortOrder = "asc" | "desc";
+
+interface PlatformLeaderboardState {
+  search: string;
+  selectedDepts: string[];
+  selectedYears: number[];
+  selectedStars: number[];
+  ccRatingMin: string;
+  ccRatingMax: string;
+  ccContestsMin: string;
+  lcRatingMin: string;
+  lcRatingMax: string;
+  lcEasyMin: string;
+  lcMediumMin: string;
+  lcHardMin: string;
+  ghFollowersMin: string;
+  ghStarsMin: string;
+  ghReposMin: string;
+  page: number;
+  sortBy: string;
+  sortOrder: SortOrder;
+}
+
+const createPlatformState = (sortBy: string, sortOrder: SortOrder = "desc"): PlatformLeaderboardState => ({
+  search: "",
+  selectedDepts: [],
+  selectedYears: [],
+  selectedStars: [],
+  ccRatingMin: "",
+  ccRatingMax: "",
+  ccContestsMin: "",
+  lcRatingMin: "",
+  lcRatingMax: "",
+  lcEasyMin: "",
+  lcMediumMin: "",
+  lcHardMin: "",
+  ghFollowersMin: "",
+  ghStarsMin: "",
+  ghReposMin: "",
+  page: 1,
+  sortBy,
+  sortOrder,
+});
+
+const platformStateDefaults: Record<PlatformKey, PlatformLeaderboardState> = {
+  overall: createPlatformState("overallScore"),
+  codechef: createPlatformState("ccRating"),
+  leetcode: createPlatformState("lcRank", "asc"),
+  github: createPlatformState("githubScore"),
+};
+
+const platformTabs: { name: string; value: PlatformKey }[] = [
+  { name: "Overall", value: "overall" },
+  { name: "CodeChef", value: "codechef" },
+  { name: "LeetCode", value: "leetcode" },
+  { name: "GitHub", value: "github" },
+];
+
+const notLinkedLabel = "Not Linked";
+
 function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
   if (top3.length < 3) return null;
   const first = top3[0];
@@ -160,7 +221,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
 function LeaderboardContent() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"overall" | "codechef" | "leetcode" | "github">("overall");
+  const [activeTab, setActiveTab] = useState<PlatformKey>("overall");
 
   // Editing Student Name State
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
@@ -196,63 +257,101 @@ function LeaderboardContent() {
     }
   };
 
-  // Basic Filter States
-  const [search, setSearch] = useState("");
-  const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
-  const [selectedYears, setSelectedYears] = useState<number[]>([]);
-  const [selectedStars, setSelectedStars] = useState<number[]>([]);
-
-  // CodeChef Ranges
-  const [ccRatingMin, setCcRatingMin] = useState("");
-  const [ccRatingMax, setCcRatingMax] = useState("");
-  const [ccContestsMin, setCcContestsMin] = useState("");
-
-  // LeetCode Ranges
-  const [lcRatingMin, setLcRatingMin] = useState("");
-  const [lcRatingMax, setLcRatingMax] = useState("");
-  const [lcEasyMin, setLcEasyMin] = useState("");
-  const [lcMediumMin, setLcMediumMin] = useState("");
-  const [lcHardMin, setLcHardMin] = useState("");
-
-  // GitHub Ranges
-  const [ghFollowersMin, setGhFollowersMin] = useState("");
-  const [ghStarsMin, setGhStarsMin] = useState("");
-  const [ghReposMin, setGhReposMin] = useState("");
-
-  // Pagination & Sorting State
-  const [page, setPage] = useState(1);
+  const [platformStates, setPlatformStates] = useState<Record<PlatformKey, PlatformLeaderboardState>>(platformStateDefaults);
   const [limit] = useState(10);
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [sortBy, setSortBy] = useState("overallScore");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const currentState = platformStates[activeTab];
+  const {
+    search,
+    selectedDepts,
+    selectedYears,
+    selectedStars,
+    ccRatingMin,
+    ccRatingMax,
+    ccContestsMin,
+    lcRatingMin,
+    lcRatingMax,
+    lcEasyMin,
+    lcMediumMin,
+    lcHardMin,
+    ghFollowersMin,
+    ghStarsMin,
+    ghReposMin,
+    page,
+    sortBy,
+    sortOrder,
+  } = currentState;
 
   const departments = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
   const years = [1, 2, 3, 4];
   const starsList = [0, 1, 2, 3, 4, 5, 6, 7];
 
+  const updatePlatformState = (patch: Partial<PlatformLeaderboardState>) => {
+    setPlatformStates((prev) => ({
+      ...prev,
+      [activeTab]: {
+        ...prev[activeTab],
+        ...patch,
+      },
+    }));
+  };
+
+  const setSearch = (value: string) => updatePlatformState({ search: value, page: 1 });
+  const setCcRatingMin = (value: string) => updatePlatformState({ ccRatingMin: value, page: 1 });
+  const setCcRatingMax = (value: string) => updatePlatformState({ ccRatingMax: value, page: 1 });
+  const setCcContestsMin = (value: string) => updatePlatformState({ ccContestsMin: value, page: 1 });
+  const setLcRatingMin = (value: string) => updatePlatformState({ lcRatingMin: value, page: 1 });
+  const setLcRatingMax = (value: string) => updatePlatformState({ lcRatingMax: value, page: 1 });
+  const setLcEasyMin = (value: string) => updatePlatformState({ lcEasyMin: value, page: 1 });
+  const setLcMediumMin = (value: string) => updatePlatformState({ lcMediumMin: value, page: 1 });
+  const setLcHardMin = (value: string) => updatePlatformState({ lcHardMin: value, page: 1 });
+  const setGhFollowersMin = (value: string) => updatePlatformState({ ghFollowersMin: value, page: 1 });
+  const setGhStarsMin = (value: string) => updatePlatformState({ ghStarsMin: value, page: 1 });
+  const setGhReposMin = (value: string) => updatePlatformState({ ghReposMin: value, page: 1 });
+  const setPage = (value: React.SetStateAction<number>) => {
+    setPlatformStates((prev) => {
+      const activeState = prev[activeTab];
+      const nextPage = typeof value === "function" ? value(activeState.page) : value;
+      return {
+        ...prev,
+        [activeTab]: {
+          ...activeState,
+          page: nextPage,
+        },
+      };
+    });
+  };
+
   const fetchStandings = async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
+      params.set("platform", activeTab);
       if (search) params.set("search", search);
       if (selectedDepts.length > 0) params.set("departments", selectedDepts.join(","));
       if (selectedYears.length > 0) params.set("years", selectedYears.join(","));
-      if (selectedStars.length > 0) params.set("stars", selectedStars.join(","));
+      if (activeTab === "codechef" && selectedStars.length > 0) params.set("stars", selectedStars.join(","));
 
-      if (ccRatingMin) params.set("ccRatingMin", ccRatingMin);
-      if (ccRatingMax) params.set("ccRatingMax", ccRatingMax);
-      if (ccContestsMin) params.set("ccContestsMin", ccContestsMin);
+      if (activeTab === "codechef") {
+        if (ccRatingMin) params.set("ccRatingMin", ccRatingMin);
+        if (ccRatingMax) params.set("ccRatingMax", ccRatingMax);
+        if (ccContestsMin) params.set("ccContestsMin", ccContestsMin);
+      }
 
-      if (lcRatingMin) params.set("lcRatingMin", lcRatingMin);
-      if (lcRatingMax) params.set("lcRatingMax", lcRatingMax);
-      if (lcEasyMin) params.set("lcEasyMin", lcEasyMin);
-      if (lcMediumMin) params.set("lcMediumMin", lcMediumMin);
-      if (lcHardMin) params.set("lcHardMin", lcHardMin);
+      if (activeTab === "leetcode") {
+        if (lcRatingMin) params.set("lcRatingMin", lcRatingMin);
+        if (lcRatingMax) params.set("lcRatingMax", lcRatingMax);
+        if (lcEasyMin) params.set("lcEasyMin", lcEasyMin);
+        if (lcMediumMin) params.set("lcMediumMin", lcMediumMin);
+        if (lcHardMin) params.set("lcHardMin", lcHardMin);
+      }
 
-      if (ghFollowersMin) params.set("ghFollowersMin", ghFollowersMin);
-      if (ghStarsMin) params.set("ghStarsMin", ghStarsMin);
-      if (ghReposMin) params.set("ghReposMin", ghReposMin);
+      if (activeTab === "github") {
+        if (ghFollowersMin) params.set("ghFollowersMin", ghFollowersMin);
+        if (ghStarsMin) params.set("ghStarsMin", ghStarsMin);
+        if (ghReposMin) params.set("ghReposMin", ghReposMin);
+      }
 
       params.set("page", page.toString());
       params.set("limit", limit.toString());
@@ -280,60 +379,44 @@ function LeaderboardContent() {
 
     return () => clearTimeout(delayDebounce);
   }, [
-    search, selectedDepts, selectedYears, selectedStars, page, sortBy, sortOrder,
-    ccRatingMin, ccRatingMax, ccContestsMin,
-    lcRatingMin, lcRatingMax, lcEasyMin, lcMediumMin, lcHardMin,
-    ghFollowersMin, ghStarsMin, ghReposMin
+    activeTab,
+    currentState,
   ]);
 
   const toggleDept = (dept: string) => {
-    setSelectedDepts((prev) =>
-      prev.includes(dept) ? prev.filter((d) => d !== dept) : [...prev, dept]
-    );
-    setPage(1);
+    updatePlatformState({
+      selectedDepts: selectedDepts.includes(dept) ? selectedDepts.filter((d) => d !== dept) : [...selectedDepts, dept],
+      page: 1,
+    });
   };
 
   const toggleYear = (year: number) => {
-    setSelectedYears((prev) =>
-      prev.includes(year) ? prev.filter((y) => y !== year) : [...prev, year]
-    );
-    setPage(1);
+    updatePlatformState({
+      selectedYears: selectedYears.includes(year) ? selectedYears.filter((y) => y !== year) : [...selectedYears, year],
+      page: 1,
+    });
   };
 
   const toggleStars = (star: number) => {
-    setSelectedStars((prev) =>
-      prev.includes(star) ? prev.filter((s) => s !== star) : [...prev, star]
-    );
-    setPage(1);
+    updatePlatformState({
+      selectedStars: selectedStars.includes(star) ? selectedStars.filter((s) => s !== star) : [...selectedStars, star],
+      page: 1,
+    });
   };
 
   const clearFilters = () => {
-    setSelectedDepts([]);
-    setSelectedYears([]);
-    setSelectedStars([]);
-    setSearch("");
-    setCcRatingMin("");
-    setCcRatingMax("");
-    setCcContestsMin("");
-    setLcRatingMin("");
-    setLcRatingMax("");
-    setLcEasyMin("");
-    setLcMediumMin("");
-    setLcHardMin("");
-    setGhFollowersMin("");
-    setGhStarsMin("");
-    setGhReposMin("");
-    setPage(1);
+    setPlatformStates((prev) => ({
+      ...prev,
+      [activeTab]: platformStateDefaults[activeTab],
+    }));
   };
 
   const handleSort = (field: string) => {
     if (sortBy === field) {
-      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+      updatePlatformState({ sortOrder: sortOrder === "asc" ? "desc" : "asc", page: 1 });
     } else {
-      setSortBy(field);
-      setSortOrder("desc");
+      updatePlatformState({ sortBy: field, sortOrder: field === "lcRank" ? "asc" : "desc", page: 1 });
     }
-    setPage(1);
   };
 
   const renderSortIcon = (field: string) => {
@@ -345,24 +428,43 @@ function LeaderboardContent() {
     );
   };
 
+  const displayMetric = (value: unknown): string | number => {
+    if (value === null || value === undefined || value === "") return notLinkedLabel;
+    if (typeof value === "number" || typeof value === "string") return value;
+    return String(value);
+  };
+
+  const displayPercent = (value: unknown): string => {
+    if (typeof value !== "number") return notLinkedLabel;
+    return `${Math.round(value)}%`;
+  };
+
+  const displayDate = (value: unknown): string => {
+    if (!value) return notLinkedLabel;
+    return new Date(value as string).toLocaleDateString();
+  };
+
+  const getJsonArrayLength = (value: unknown) => Array.isArray(value) ? value.length : null;
+
   const getExportUrl = () => {
     const params = new URLSearchParams();
     params.set("export", "true");
+    params.set("platform", activeTab);
     if (search) params.set("search", search);
     if (selectedDepts.length > 0) params.set("departments", selectedDepts.join(","));
     if (selectedYears.length > 0) params.set("years", selectedYears.join(","));
-    if (selectedStars.length > 0) params.set("stars", selectedStars.join(","));
-    if (ccRatingMin) params.set("ccRatingMin", ccRatingMin);
-    if (ccRatingMax) params.set("ccRatingMax", ccRatingMax);
-    if (ccContestsMin) params.set("ccContestsMin", ccContestsMin);
-    if (lcRatingMin) params.set("lcRatingMin", lcRatingMin);
-    if (lcRatingMax) params.set("lcRatingMax", lcRatingMax);
-    if (lcEasyMin) params.set("lcEasyMin", lcEasyMin);
-    if (lcMediumMin) params.set("lcMediumMin", lcMediumMin);
-    if (lcHardMin) params.set("lcHardMin", lcHardMin);
-    if (ghFollowersMin) params.set("ghFollowersMin", ghFollowersMin);
-    if (ghStarsMin) params.set("ghStarsMin", ghStarsMin);
-    if (ghReposMin) params.set("ghReposMin", ghReposMin);
+    if (activeTab === "codechef" && selectedStars.length > 0) params.set("stars", selectedStars.join(","));
+    if (activeTab === "codechef" && ccRatingMin) params.set("ccRatingMin", ccRatingMin);
+    if (activeTab === "codechef" && ccRatingMax) params.set("ccRatingMax", ccRatingMax);
+    if (activeTab === "codechef" && ccContestsMin) params.set("ccContestsMin", ccContestsMin);
+    if (activeTab === "leetcode" && lcRatingMin) params.set("lcRatingMin", lcRatingMin);
+    if (activeTab === "leetcode" && lcRatingMax) params.set("lcRatingMax", lcRatingMax);
+    if (activeTab === "leetcode" && lcEasyMin) params.set("lcEasyMin", lcEasyMin);
+    if (activeTab === "leetcode" && lcMediumMin) params.set("lcMediumMin", lcMediumMin);
+    if (activeTab === "leetcode" && lcHardMin) params.set("lcHardMin", lcHardMin);
+    if (activeTab === "github" && ghFollowersMin) params.set("ghFollowersMin", ghFollowersMin);
+    if (activeTab === "github" && ghStarsMin) params.set("ghStarsMin", ghStarsMin);
+    if (activeTab === "github" && ghReposMin) params.set("ghReposMin", ghReposMin);
     params.set("sortBy", sortBy);
     params.set("sortOrder", sortOrder);
     return `/api/dashboard/leaderboard-cache?${params.toString()}`;
@@ -406,9 +508,9 @@ function LeaderboardContent() {
 
   const getColSpan = () => {
     if (activeTab === "overall") return 6;
-    if (activeTab === "codechef") return 7;
-    if (activeTab === "leetcode") return 7;
-    if (activeTab === "github") return 5;
+    if (activeTab === "codechef") return 12;
+    if (activeTab === "leetcode") return 13;
+    if (activeTab === "github") return 9;
     return 7;
   };
 
@@ -462,21 +564,13 @@ function LeaderboardContent() {
 
       {/* Segmented Platform Filters */}
       <div className="flex border border-brand-border bg-[#111111]/45 p-1 rounded-2xl gap-1 w-full max-w-md relative z-10">
-        {[
-          { name: "Overall", value: "overall", defaultSort: "overallScore" },
-          { name: "CodeChef", value: "codechef", defaultSort: "ccHighestRating" },
-          { name: "LeetCode", value: "leetcode", defaultSort: "lcRank" },
-          { name: "GitHub", value: "github", defaultSort: "ghActivity" }
-        ].map((tab) => {
+        {platformTabs.map((tab) => {
           const active = activeTab === tab.value;
           return (
             <button
               key={tab.value}
               onClick={() => {
-                setActiveTab(tab.value as any);
-                setSortBy(tab.defaultSort);
-                setSortOrder(tab.value === "leetcode" ? "asc" : "desc");
-                setPage(1);
+                setActiveTab(tab.value);
               }}
               className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
                 active
@@ -788,31 +882,50 @@ function LeaderboardContent() {
                     {activeTab === "codechef" && (
                       <>
                         <th onClick={() => handleSort("ccRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Rating {renderSortIcon("ccRating")}
+                          Current Rating {renderSortIcon("ccRating")}
                         </th>
-                        <th className="py-4.5 px-3 text-center select-none">Stars</th>
                         <th onClick={() => handleSort("ccHighestRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
                           Highest Rating {renderSortIcon("ccHighestRating")}
                         </th>
-                        <th onClick={() => handleSort("codechefScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          CodeChef Score {renderSortIcon("codechefScore")}
+                        <th onClick={() => handleSort("stars")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Stars {renderSortIcon("stars")}
                         </th>
+                        <th onClick={() => handleSort("ccGlobalRank")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Global Rank {renderSortIcon("ccGlobalRank")}
+                        </th>
+                        <th className="py-4.5 px-3 text-center select-none">Country Rank</th>
                         <th onClick={() => handleSort("ccContests")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
                           Contests {renderSortIcon("ccContests")}
                         </th>
+                        <th onClick={() => handleSort("ccRatingGrowth")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Growth {renderSortIcon("ccRatingGrowth")}
+                        </th>
+                        <th onClick={() => handleSort("codechefScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Competitive Score {renderSortIcon("codechefScore")}
+                        </th>
+                        <th className="py-4.5 px-3 text-center select-none">Last Active</th>
                       </>
                     )}
                     {activeTab === "leetcode" && (
                       <>
                         <th onClick={() => handleSort("lcRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Rating {renderSortIcon("lcRating")}
+                          Contest Rating {renderSortIcon("lcRating")}
                         </th>
-                        <th onClick={() => handleSort("lcSolved")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Solved {renderSortIcon("lcSolved")}
-                        </th>
-                        <th className="py-4.5 px-3 text-center select-none">E / M / H</th>
                         <th onClick={() => handleSort("lcRank")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
                           Global Rank {renderSortIcon("lcRank")}
+                        </th>
+                        <th onClick={() => handleSort("lcSolved")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Problems {renderSortIcon("lcSolved")}
+                        </th>
+                        <th className="py-4.5 px-3 text-center select-none">Easy</th>
+                        <th className="py-4.5 px-3 text-center select-none">Medium</th>
+                        <th className="py-4.5 px-3 text-center select-none">Hard</th>
+                        <th onClick={() => handleSort("lcAcceptance")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Acceptance {renderSortIcon("lcAcceptance")}
+                        </th>
+                        <th className="py-4.5 px-3 text-center select-none">Contests</th>
+                        <th onClick={() => handleSort("lcInterviewReadiness")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Readiness {renderSortIcon("lcInterviewReadiness")}
                         </th>
                         <th onClick={() => handleSort("leetcodeScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
                           LeetCode Score {renderSortIcon("leetcodeScore")}
@@ -821,14 +934,24 @@ function LeaderboardContent() {
                     )}
                     {activeTab === "github" && (
                       <>
+                        <th onClick={() => handleSort("ghFollowers")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Followers {renderSortIcon("ghFollowers")}
+                        </th>
                         <th onClick={() => handleSort("ghRepos")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
                           Repos {renderSortIcon("ghRepos")}
                         </th>
-                        <th onClick={() => handleSort("ghActivity")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Activity Score {renderSortIcon("ghActivity")}
+                        <th onClick={() => handleSort("ghStars")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Stars {renderSortIcon("ghStars")}
+                        </th>
+                        <th className="py-4.5 px-3 text-center select-none">Languages</th>
+                        <th onClick={() => handleSort("githubScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Portfolio Score {renderSortIcon("githubScore")}
                         </th>
                         <th onClick={() => handleSort("githubScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          GitHub Score {renderSortIcon("githubScore")}
+                          Activity Score {renderSortIcon("githubScore")}
+                        </th>
+                        <th onClick={() => handleSort("ghOpenSource")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Open Source {renderSortIcon("ghOpenSource")}
                         </th>
                       </>
                     )}
@@ -974,29 +1097,44 @@ function LeaderboardContent() {
                             </td>
 
                             <td className="py-4 px-4 text-center font-extrabold text-sm text-zinc-300">
-                              {(entry.student as any).normalizedProfile?.consistencyScore || entry.leetcodeScore || 0}%
+                              {displayPercent((entry.student as any).normalizedProfile?.consistencyScore)}
                             </td>
                           </>
                         )}
 
                         {activeTab === "codechef" && (() => {
                           const cc = (entry.student as any).codechefProfile;
+                          const ratingGrowth = cc?.highestRating != null && cc?.currentRating != null
+                            ? cc.highestRating - cc.currentRating
+                            : null;
                           return (
                             <>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {cc ? cc.currentRating : "N/A"}
+                                {cc ? displayMetric(cc.currentRating) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {cc ? displayMetric(cc.highestRating) : notLinkedLabel}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
-                                {cc ? `${cc.stars}★` : "N/A"}
+                                {cc && cc.stars != null ? `${cc.stars}★` : notLinkedLabel}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {cc ? cc.highestRating : "N/A"}
+                                {cc && cc.globalRank != null ? `#${cc.globalRank}` : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {cc && cc.countryRank != null ? `#${cc.countryRank}` : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {cc ? displayMetric(cc.contestCount) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {ratingGrowth != null ? `+${ratingGrowth}` : notLinkedLabel}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
-                                {entry.codechefScore}
+                                {cc ? displayMetric(entry.codechefScore) : notLinkedLabel}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {cc ? cc.contestCount : "N/A"}
+                                {cc ? displayDate(cc.lastActive) : notLinkedLabel}
                               </td>
                             </>
                           );
@@ -1004,22 +1142,38 @@ function LeaderboardContent() {
 
                         {activeTab === "leetcode" && (() => {
                           const lc = (entry.student as any).leetcodeProfile;
+                          const contestCount = getJsonArrayLength(lc?.contestHistory);
                           return (
                             <>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc && lc.contestRating > 0 ? Math.round(lc.contestRating) : "N/A"}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc ? lc.problemsSolved : "N/A"}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
-                                {lc ? `${lc.easySolvedCount}/${lc.mediumSolvedCount}/${lc.hardSolvedCount}` : "N/A"}
+                                {lc && lc.contestRating != null ? Math.round(lc.contestRating) : notLinkedLabel}
                               </td>
                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc && lc.contestRank > 0 ? `#${lc.contestRank}` : "N/A"}
+                                {lc && lc.contestRank != null ? `#${lc.contestRank}` : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {lc ? displayMetric(lc.problemsSolved) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                                {lc ? displayMetric(lc.easySolvedCount) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                                {lc ? displayMetric(lc.mediumSolvedCount) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                                {lc ? displayMetric(lc.hardSolvedCount) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {lc ? displayPercent(lc.acceptanceRate) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {contestCount ?? notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {lc ? displayMetric((entry.student as any).aiAnalysis?.placementReadiness) : notLinkedLabel}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
-                                {entry.leetcodeScore}
+                                {lc ? displayMetric(entry.leetcodeScore) : notLinkedLabel}
                               </td>
                             </>
                           );
@@ -1027,16 +1181,31 @@ function LeaderboardContent() {
 
                         {activeTab === "github" && (() => {
                           const gh = (entry.student as any).githubProfile;
+                          const languages = Array.isArray(gh?.languages)
+                            ? gh.languages.map((language: any) => language.name || language.language || language).filter(Boolean).slice(0, 2).join(", ")
+                            : "";
                           return (
                             <>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {gh ? gh.totalRepositories : "N/A"}
+                                {gh ? displayMetric(gh.followers) : notLinkedLabel}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {gh ? `${gh.openSourceScore}%` : "N/A"}
+                                {gh ? displayMetric(gh.totalRepositories) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {gh ? displayMetric(gh.totalStars) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {languages || notLinkedLabel}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
-                                {entry.githubScore}
+                                {gh ? displayMetric(entry.githubScore) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {gh ? displayPercent(gh.openSourceScore) : notLinkedLabel}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {gh ? displayPercent(gh.openSourceScore) : notLinkedLabel}
                               </td>
                             </>
                           );

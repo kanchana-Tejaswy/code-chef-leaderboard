@@ -89,6 +89,8 @@ interface StatsData {
   averageStars?: SparklineData;
   averageOpenSourceScore?: SparklineData;
   averageAcceptanceRate?: SparklineData;
+  averageCodechefRating?: SparklineData;
+  averageCodechefStars?: SparklineData;
   activeLeetcode?: SparklineData;
   activeGithub?: SparklineData;
   activeOverall?: SparklineData;
@@ -645,10 +647,12 @@ export default function LandingPage() {
     setIsLeaderboardLoading(true);
     try {
       const params = new URLSearchParams();
+      const platform = leaderboardFilter === "codechefScore" ? "codechef" : leaderboardFilter === "leetcodeScore" ? "leetcode" : leaderboardFilter === "githubScore" ? "github" : "overall";
+      params.set("platform", platform);
       if (search) params.set("search", search);
       if (selectedDepts.length > 0) params.set("departments", selectedDepts.join(","));
       if (selectedYears.length > 0) params.set("years", selectedYears.join(","));
-      if (selectedStars.length > 0) params.set("stars", selectedStars.join(","));
+      if (platform === "codechef" && selectedStars.length > 0) params.set("stars", selectedStars.join(","));
 
       params.set("page", page.toString());
       params.set("limit", limit.toString());
@@ -874,7 +878,7 @@ export default function LandingPage() {
       fetchLeaderboard();
     }, 300);
     return () => clearTimeout(delayDebounce);
-  }, [search, selectedDepts, selectedYears, selectedStars, page, sortBy, sortOrder]);
+  }, [leaderboardFilter, search, selectedDepts, selectedYears, selectedStars, page, sortBy, sortOrder]);
 
   // Handle student select for modal details
   useEffect(() => {
@@ -938,11 +942,13 @@ export default function LandingPage() {
   // Helper: Export spreadsheet
   const getExportUrl = () => {
     const params = new URLSearchParams();
+    const platform = leaderboardFilter === "codechefScore" ? "codechef" : leaderboardFilter === "leetcodeScore" ? "leetcode" : leaderboardFilter === "githubScore" ? "github" : "overall";
     params.set("export", "true");
+    params.set("platform", platform);
     if (search) params.set("search", search);
     if (selectedDepts.length > 0) params.set("departments", selectedDepts.join(","));
     if (selectedYears.length > 0) params.set("years", selectedYears.join(","));
-    if (selectedStars.length > 0) params.set("stars", selectedStars.join(","));
+    if (platform === "codechef" && selectedStars.length > 0) params.set("stars", selectedStars.join(","));
     return `/api/dashboard/leaderboard-cache?${params.toString()}`;
   };
 
@@ -1292,14 +1298,14 @@ export default function LandingPage() {
                         CodeChef Students
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.totalStudents.value}
+                        {stats.activeCodechef.value}
                       </span>
                     </div>
-                    {getTrendBadge(stats.totalStudents.trend)}
+                    {getTrendBadge(stats.activeCodechef.trend)}
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
                     <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.totalStudents.sparkline} color="#8B5CF6" />
+                    <Sparkline data={stats.activeCodechef.sparkline} color="#8B5CF6" />
                   </div>
                 </div>
 
@@ -1312,14 +1318,14 @@ export default function LandingPage() {
                         Avg CP Rating
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {Math.round(stats.averageRating.value * 1.4)}
+                        {stats.averageCodechefRating?.value || 0}
                       </span>
                     </div>
-                    {getTrendBadge(stats.averageRating.trend)}
+                    {getTrendBadge(stats.averageCodechefRating?.trend || "")}
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
                     <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.averageRating.sparkline.map(x => Math.round(x * 1.4))} color="#8B5CF6" />
+                    <Sparkline data={stats.averageCodechefRating?.sparkline || [0, 0, 0, 0, 0, 0]} color="#8B5CF6" />
                   </div>
                 </div>
 
@@ -1332,7 +1338,7 @@ export default function LandingPage() {
                         Average Stars
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {Math.round(stats.averageRating.value / 20) || 1}★
+                        {stats.averageCodechefStars?.value || 0}★
                       </span>
                     </div>
                     <span className="text-[10px] font-bold text-[#EAB308] bg-[#EAB308]/5 px-2 py-0.5 rounded-full border border-[#EAB308]/15">
@@ -1341,7 +1347,7 @@ export default function LandingPage() {
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
                     <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={[1, 2, 2, 3, 3, 3]} color="#EAB308" />
+                    <Sparkline data={stats.averageCodechefStars?.sparkline || [0, 0, 0, 0, 0, 0]} color="#EAB308" />
                   </div>
                 </div>
 

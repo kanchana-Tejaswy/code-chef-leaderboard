@@ -73,12 +73,14 @@ export async function GET(request: NextRequest) {
 
     // Database aggregates for platform-specific averages (ignoring nulls/unregistered)
     const lcSolvedAgg = await prisma.leetcodeProfile.aggregate({ _avg: { problemsSolved: true, acceptanceRate: true } });
-    const ccContestAgg = await prisma.codechefProfile.aggregate({ _avg: { contestCount: true } });
+    const ccProfileAgg = await prisma.codechefProfile.aggregate({ _avg: { currentRating: true, stars: true, contestCount: true } });
     const ghProfileAgg = await prisma.githubProfile.aggregate({ _avg: { totalRepositories: true, totalStars: true, openSourceScore: true } });
 
     const lcProblemsSolvedAvg = Math.round(lcSolvedAgg._avg.problemsSolved || 0);
     const lcAcceptanceRateAvg = Math.round(lcSolvedAgg._avg.acceptanceRate || 0);
-    const ccContestCountAvg = Math.round(ccContestAgg._avg.contestCount || 0);
+    const ccRatingAvg = Math.round(ccProfileAgg._avg.currentRating || 0);
+    const ccStarsAvg = Math.round(ccProfileAgg._avg.stars || 0);
+    const ccContestCountAvg = Math.round(ccProfileAgg._avg.contestCount || 0);
     const ghRepositoriesAvg = Math.round(ghProfileAgg._avg.totalRepositories || 0);
     const ghStarsAvg = Math.round(ghProfileAgg._avg.totalStars || 0);
     const ghOpenSourceAvg = Math.round(ghProfileAgg._avg.openSourceScore || 0);
@@ -414,6 +416,16 @@ export async function GET(request: NextRequest) {
           value: ccContestCountAvg,
           trend: "",
           sparkline: sparklines.averageContestParticipation,
+        },
+        averageCodechefRating: {
+          value: ccRatingAvg,
+          trend: "",
+          sparkline: sparklines.averageRating,
+        },
+        averageCodechefStars: {
+          value: ccStarsAvg,
+          trend: "",
+          sparkline: [ccStarsAvg, ccStarsAvg, ccStarsAvg, ccStarsAvg, ccStarsAvg, ccStarsAvg],
         },
         averageRepositories: {
           value: ghRepositoriesAvg,
