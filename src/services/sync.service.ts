@@ -410,16 +410,20 @@ export class SyncService {
       const normalizedProfile = await NormalizationService.normalizeStudent(studentId);
 
       // 5. AI Insights & Rating Phase: Execute AI engines strictly on normalized DB data
-      const overallAi = await AiEngineService.runAnalysisForStudent(studentId);
+      const analysisResult = await AiEngineService.runAnalysisForStudent(studentId);
+      const overallAi = analysisResult.overall;
+      const codechefAi = analysisResult.codechef;
+      const leetcodeAi = analysisResult.leetcode;
+      const githubAi = analysisResult.github;
 
       // Fetch the updated profiles to calculate the overall rating cache
       const codechefProfile = await prisma.codechefProfile.findUnique({ where: { studentId } });
       const leetcodeProfile = await prisma.leetcodeProfile.findUnique({ where: { studentId } });
       const githubProfile = await prisma.githubProfile.findUnique({ where: { studentId } });
 
-      const ccScore = normalizedProfile.ratingScore;
-      const lcScore = normalizedProfile.consistencyScore;
-      const ghScore = normalizedProfile.problemSolvingScore;
+      const ccScore = codechefAi ? codechefAi.talentScore : 0;
+      const lcScore = leetcodeAi ? leetcodeAi.talentScore : 0;
+      const ghScore = githubAi ? githubAi.talentScore : 0;
 
       const active = {
         codechef: !!codechefProfile,

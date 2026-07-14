@@ -62,13 +62,23 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    let needsOnboarding = false;
+    if (profile.role === "STUDENT") {
+      const studentProfile = await prisma.studentProfile.findUnique({
+        where: { id: user.id },
+      });
+      if (!studentProfile) {
+        needsOnboarding = true;
+      }
+    }
+
     // Return mapped object for UI backward compatibility
     const uiProfile = {
       ...profile,
       profileImage: profile.avatarUrl,
     };
 
-    return NextResponse.json({ profile: uiProfile });
+    return NextResponse.json({ profile: uiProfile, needsOnboarding });
   } catch (err: any) {
     console.error("Error in GET /api/auth/me:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

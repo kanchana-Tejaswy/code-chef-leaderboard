@@ -979,15 +979,39 @@ function LeaderboardContent() {
                       </td>
                     </tr>
                   ) : (
-                    entries.map((entry) => (
-                      <tr
-                        key={entry.id}
-                        className="hover:bg-white/[0.01] transition-all group"
-                      >
-                        {/* Rank */}
-                        <td className="py-4 px-6 text-center font-extrabold text-sm text-brand-muted">
-                          {getRankBadge(entry.rank, entry.student.verificationStatus)}
-                        </td>
+                    entries.map((entry, index) => {
+                      const isFiltered =
+                        activeTab !== "overall" ||
+                        search.trim() !== "" ||
+                        selectedDepts.length > 0 ||
+                        selectedYears.length > 0 ||
+                        selectedStars.length > 0 ||
+                        ccRatingMin !== "" ||
+                        ccRatingMax !== "" ||
+                        ccContestsMin !== "" ||
+                        lcRatingMin !== "" ||
+                        lcRatingMax !== "" ||
+                        lcEasyMin !== "" ||
+                        lcMediumMin !== "" ||
+                        lcHardMin !== "" ||
+                        ghFollowersMin !== "" ||
+                        ghStarsMin !== "" ||
+                        ghReposMin !== "" ||
+                        (sortBy && sortBy !== "overallScore" && sortBy !== "rank");
+
+                      const displayRank = isFiltered
+                        ? (page - 1) * limit + index + 1
+                        : entry.rank;
+
+                      return (
+                        <tr
+                          key={entry.id}
+                          className="hover:bg-white/[0.01] transition-all group"
+                        >
+                          {/* Rank */}
+                          <td className="py-4 px-6 text-center font-extrabold text-sm text-brand-muted">
+                            {getRankBadge(displayRank, entry.student.verificationStatus)}
+                          </td>
 
                         {/* Student Info */}
                         <td className="py-4 px-4">
@@ -1222,7 +1246,8 @@ function LeaderboardContent() {
                           </Link>
                         </td>
                       </tr>
-                    ))
+                    );
+                  })
                   )}
                 </tbody>
               </table>

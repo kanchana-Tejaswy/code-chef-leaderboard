@@ -10,6 +10,7 @@ const PROTECTED_ROUTES = [
   "/insights",
   "/student",
   "/settings",
+  "/onboarding",
 ];
 
 // Routes for guests only (redirect to dashboard if logged in)
@@ -58,7 +59,10 @@ export async function proxy(request: NextRequest) {
   }
 
   const isAuthenticated = isDemoMode || !!user;
-  const userRole = (user?.user_metadata?.role || "STUDENT").toUpperCase();
+  const email = user?.email || "";
+  const lowerEmail = email.toLowerCase();
+  const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir") || lowerEmail === "demo-admin@college.edu" || lowerEmail === "demo@college.edu";
+  const userRole = isGK ? "ADMIN" : (user?.user_metadata?.role || "STUDENT").toUpperCase();
 
   console.log(`[Proxy] Auth Status:`);
   console.log(`  - Authenticated: ${isAuthenticated}`);

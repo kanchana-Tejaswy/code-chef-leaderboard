@@ -13,6 +13,10 @@ export default function StudentProfileRedirect() {
         const res = await fetch("/api/auth/me");
         if (res.ok) {
           const data = await res.json();
+          if (data.needsOnboarding) {
+            router.replace("/onboarding");
+            return;
+          }
           if (data.profile?.id) {
             router.replace(`/student/${data.profile.id}`);
             return;

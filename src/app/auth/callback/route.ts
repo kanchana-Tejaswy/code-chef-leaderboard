@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
         if (user) {
           const email = user.email || "";
           const lowerEmail = email.toLowerCase();
-          const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir") || lowerEmail === "demo-admin@college.edu";
+          const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir") || lowerEmail === "demo-admin@college.edu" || lowerEmail === "demo@college.edu";
           const role = isGK ? "ADMIN" : "STUDENT";
 
           console.log(`[Auth Callback] Authenticated User details:`);
@@ -68,22 +68,12 @@ export async function GET(request: NextRequest) {
           console.log(`  - Raw Metadata Role: ${user.user_metadata?.role || "none"}`);
           console.log(`  - Assigned System Role: ${role}`);
 
-          // Update Supabase Auth user metadata
-          if (user.user_metadata?.role !== role) {
-            console.log(`[Auth Callback] Updating user metadata role to: ${role}`);
-            const updateResult = await supabase.auth.updateUser({
-              data: { role },
-            });
-            if (updateResult.error) {
-              console.error(`[Auth Callback] Error updating user metadata role:`, updateResult.error.message);
-            } else {
-              console.log(`[Auth Callback] Metadata role updated successfully!`);
-            }
-          }
+          // Update Supabase Auth user metadata bypassed to prevent webhook timeouts
+          console.log(`[Auth Callback] Role assignment set dynamically. Server updateUser call bypassed.`);
 
           // Create database profile if missing
           const prisma = (await import("@/lib/prisma")).default;
-          let profile = await prisma.profile.findUnique({
+          const profile = await prisma.profile.findUnique({
             where: { id: user.id },
           });
 
