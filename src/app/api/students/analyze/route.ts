@@ -3,13 +3,11 @@ import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
 import { CodechefScraper, LeetcodeScraper, GithubScraper } from "@/services/scraper.service";
 import { ActivityService } from "@/services/activity.service";
+import { canPerformWrite } from "@/lib/write-access";
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get("authorization");
-    const cronSecret = process.env.CRON_SECRET;
-
-    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    if (!canPerformWrite(request)) {
       return NextResponse.json(
         { error: "Student registration/analysis is restricted in public read-only mode." },
         { status: 403 }

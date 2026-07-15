@@ -5,7 +5,7 @@ export interface ContestLog {
   rank: number;
   date: string;
 }
-                         
+
 export interface ScrapedData {
   platform: "CODECHEF" | "LEETCODE" | "GITHUB" | "CODEFORCES";
   username: string;

@@ -548,6 +548,7 @@ export default function LandingPage() {
   const [topPerformers, setTopPerformers] = useState<any[]>([]);
   const [globalHeatmap, setGlobalHeatmap] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [publicDemoWriteMode, setPublicDemoWriteMode] = useState(false);
 
   // Add Student Form States
   const [formName, setFormName] = useState("");
@@ -822,6 +823,11 @@ export default function LandingPage() {
   };
 
   const handleDeleteStudent = async (studentId: string) => {
+    if (publicDemoWriteMode) {
+      alert("Deletion is disabled in public demo mode.");
+      return;
+    }
+
     if (!confirm("Are you sure you want to delete this student and all their analytics?")) {
       return;
     }
@@ -849,6 +855,16 @@ export default function LandingPage() {
   // Initial loading triggers
   useEffect(() => {
     const initData = async () => {
+      try {
+        const configRes = await fetch("/api/config/public-mode", { cache: "no-store" });
+        if (configRes.ok) {
+          const configData = await configRes.json();
+          setPublicDemoWriteMode(Boolean(configData.publicDemoWriteMode));
+        }
+      } catch (error) {
+        console.error("Failed to load public demo mode config", error);
+      }
+
       await loadDashboardData();
       setIsLoading(false);
 
@@ -1669,6 +1685,12 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+
+            {publicDemoWriteMode && (
+              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold text-amber-300">
+                Temporary demo mode is active. Student additions and updates are publicly available.
+              </div>
+            )}
 
             <form onSubmit={handleAnalyzeStudent} className="flex flex-col gap-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
