@@ -138,13 +138,13 @@ export class SyncService {
       const existingLc = await prisma.leetcodeProfile.findUnique({ where: { studentId } });
       const existingGh = await prisma.githubProfile.findUnique({ where: { studentId } });
 
-      if (student.codechefUsername && !codechefSuccess && existingCc) {
+      if (student.codechefUsername && !codechefSuccess && existingCc && existingCc.username.toLowerCase() === student.codechefUsername.toLowerCase()) {
         codechefSuccess = true;
       }
-      if (student.leetcodeUsername && !leetcodeSuccess && existingLc) {
+      if (student.leetcodeUsername && !leetcodeSuccess && existingLc && existingLc.username.toLowerCase() === student.leetcodeUsername.toLowerCase()) {
         leetcodeSuccess = true;
       }
-      if (student.githubUsername && !githubSuccess && existingGh) {
+      if (student.githubUsername && !githubSuccess && existingGh && existingGh.username.toLowerCase() === student.githubUsername.toLowerCase()) {
         githubSuccess = true;
       }
 

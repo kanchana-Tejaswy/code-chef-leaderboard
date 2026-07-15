@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
 import { ActivityService } from "@/services/activity.service";
-import { canPerformWrite } from "@/lib/write-access";
+import crypto from "crypto";
+import { canPerformWrite, canPerformDelete } from "@/lib/write-access";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -43,18 +44,52 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, name, rollNumber, department, year, codechefUsername, leetcodeUsername, githubUsername, profilePictureUrl } = body;
+    const {
+      id,
+      name,
+      rollNumber,
+      roll_number,
+      department,
+      year,
+      branch,
+      section,
+      codechefUsername,
+      codechef_username,
+      leetcodeUsername,
+      leetcode_username,
+      githubUsername,
+      github_username,
+      profilePictureUrl,
+      profile_picture_url
+    } = body;
 
-    if (!id || !name) {
-      return NextResponse.json({ error: "id and name are required fields" }, { status: 400 });
+    const normalizedName = name ? String(name).trim() : null;
+    const normalizedRollNumber = (rollNumber || roll_number) ? String(rollNumber || roll_number).trim().toUpperCase() : null;
+    const normalizedDepartment = department ? String(department).trim() : "CSE";
+    const normalizedYear = year ? parseInt(String(year), 10) : 3;
+    const normalizedBranch = branch ? String(branch).trim() : normalizedDepartment;
+    const normalizedSection = section ? String(section).trim().toUpperCase() : "A";
+    const normalizedCodechef = (codechefUsername || codechef_username) ? String(codechefUsername || codechef_username).trim() : null;
+    const normalizedLeetcode = (leetcodeUsername || leetcode_username) ? String(leetcodeUsername || leetcode_username).trim() : null;
+    const normalizedGithub = (githubUsername || github_username) ? String(githubUsername || github_username).trim() : null;
+    const normalizedPicUrl = (profilePictureUrl || profile_picture_url) ? String(profilePictureUrl || profile_picture_url).trim() : null;
+
+    if (!normalizedName) {
+      return NextResponse.json({ error: "Student Name is required." }, { status: 400 });
     }
 
-    // Check if roll number is taken by another student
-    if (rollNumber) {
+    if (isNaN(normalizedYear) || normalizedYear < 1 || normalizedYear > 4) {
+      return NextResponse.json({ error: "Academic year must be between 1 and 4." }, { status: 400 });
+    }
+
+    const targetId = id || crypto.randomUUID();
+
+    // Check unique constraints
+    if (normalizedRollNumber) {
       const existingRoll = await prisma.studentProfile.findFirst({
         where: {
-          rollNumber: { equals: rollNumber },
-          id: { not: id },
+          rollNumber: { equals: normalizedRollNumber },
+          id: { not: targetId },
         },
       });
 
@@ -66,16 +101,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if CodeChef username is already linked to another profile
-    if (codechefUsername) {
-      const existingUsername = await prisma.studentProfile.findFirst({
+    if (normalizedCodechef) {
+      const existingCC = await prisma.studentProfile.findFirst({
         where: {
-          codechefUsername: { equals: codechefUsername },
-          id: { not: id },
+          codechefUsername: { equals: normalizedCodechef },
+          id: { not: targetId },
         },
       });
 
-      if (existingUsername) {
+      if (existingCC) {
         return NextResponse.json(
           { error: "CodeChef username is already linked to another student." },
           { status: 400 }
@@ -83,16 +117,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if LeetCode username is already linked to another profile
-    if (leetcodeUsername) {
-      const existingUsername = await prisma.studentProfile.findFirst({
+    if (normalizedLeetcode) {
+      const existingLC = await prisma.studentProfile.findFirst({
         where: {
-          leetcodeUsername: { equals: leetcodeUsername },
-          id: { not: id },
+          leetcodeUsername: { equals: normalizedLeetcode },
+          id: { not: targetId },
         },
       });
 
-      if (existingUsername) {
+      if (existingLC) {
         return NextResponse.json(
           { error: "LeetCode username is already linked to another student." },
           { status: 400 }
@@ -100,16 +133,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Check if GitHub username is already linked to another profile
-    if (githubUsername) {
-      const existingUsername = await prisma.studentProfile.findFirst({
+    if (normalizedGithub) {
+      const existingGH = await prisma.studentProfile.findFirst({
         where: {
-          githubUsername: { equals: githubUsername },
-          id: { not: id },
+          githubUsername: { equals: normalizedGithub },
+          id: { not: targetId },
         },
       });
 
-      if (existingUsername) {
+      if (existingGH) {
         return NextResponse.json(
           { error: "GitHub username is already linked to another student." },
           { status: 400 }
@@ -117,77 +149,285 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch existing profile to check if usernames changed
-    const currentProfile = await prisma.studentProfile.findUnique({
-      where: { id },
-    });
-
-    const isCodechefNew =
-      codechefUsername &&
-      (!currentProfile || currentProfile.codechefUsername !== codechefUsername);
-
-    const isLeetcodeNew =
-      leetcodeUsername &&
-      (!currentProfile || currentProfile.leetcodeUsername !== leetcodeUsername);
-
-    const isGithubNew =
-      githubUsername &&
-      (!currentProfile || currentProfile.githubUsername !== githubUsername);
-
-    const isUsernameNew = isCodechefNew || isLeetcodeNew || isGithubNew;
-
-    // Update Student Profile directly
-    const profile = await prisma.studentProfile.upsert({
-      where: { id },
-      create: {
-        id,
-        name,
-        rollNumber,
-        department,
-        year,
-        codechefUsername: codechefUsername || null,
-        leetcodeUsername: leetcodeUsername || null,
-        githubUsername: githubUsername || null,
-        profilePictureUrl: profilePictureUrl || null,
-      },
-      update: {
-        name,
-        rollNumber,
-        department,
-        year,
-        codechefUsername: codechefUsername || null,
-        leetcodeUsername: leetcodeUsername || null,
-        githubUsername: githubUsername || null,
-        profilePictureUrl: profilePictureUrl || null,
+    const profile = await prisma.studentProfile.create({
+      data: {
+        id: targetId,
+        name: normalizedName,
+        rollNumber: normalizedRollNumber,
+        department: normalizedDepartment,
+        year: normalizedYear,
+        branch: normalizedBranch,
+        section: normalizedSection,
+        codechefUsername: normalizedCodechef,
+        leetcodeUsername: normalizedLeetcode,
+        githubUsername: normalizedGithub,
+        profilePictureUrl: normalizedPicUrl,
+        verificationStatus: "UNABLE_TO_VERIFY",
       },
     });
 
-    // If any username is new/updated, trigger a profile sync asynchronously in the background
-    if (isUsernameNew) {
-      SyncService.syncStudent(id, "USER_MANUAL")
+    await ActivityService.logEvent(
+      "STUDENT_ADD",
+      profile.id,
+      `${normalizedName} (${profile.department || "CSE"}) profile was registered.`
+    );
+
+    // Trigger sync in background if any username is set
+    if (normalizedCodechef || normalizedLeetcode || normalizedGithub) {
+      SyncService.syncStudent(profile.id, "USER_MANUAL")
         .then((syncRes) => {
           if (!syncRes.success) {
             console.error(`Background initial sync failed: ${syncRes.error}`);
           } else {
-            console.log(`Background initial sync succeeded for student ${id}`);
+            console.log(`Background initial sync succeeded for student ${profile.id}`);
           }
         })
         .catch((e) => console.error("Sync error:", e));
     }
 
-    // Recalculate ranks on the leaderboard to ensure immediate sync
+    // Recalculate ranks
     await SyncService.recalculateLeaderboardRanks();
 
     return NextResponse.json({ success: true, profile });
   } catch (err: any) {
-    console.error("Error updating profile API:", err);
+    console.error("Error creating profile API:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: NextRequest) {
+  try {
+    if (!canPerformWrite(request)) {
+      return NextResponse.json(
+        { error: "Profile modification is restricted in public read-only mode." },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const id = body.id || body.studentId || body.userId;
+
+    if (!id || typeof id !== "string") {
+      return NextResponse.json({ error: "Student ID is required." }, { status: 400 });
+    }
+
+    const currentProfile = await prisma.studentProfile.findUnique({
+      where: { id },
+    });
+
+    if (!currentProfile) {
+      return NextResponse.json({ error: "Student profile not found" }, { status: 404 });
+    }
+
+    const updateData: any = {};
+
+    // Validate and sanitize modifiable fields if they are in the body
+    if (body.hasOwnProperty("name")) {
+      const name = body.name ? String(body.name).trim() : "";
+      if (!name) {
+        return NextResponse.json({ error: "Student Name is required." }, { status: 400 });
+      }
+      updateData.name = name;
+    }
+
+    if (body.hasOwnProperty("rollNumber") || body.hasOwnProperty("roll_number")) {
+      const rawRoll = body.hasOwnProperty("rollNumber") ? body.rollNumber : body.roll_number;
+      const roll = rawRoll ? String(rawRoll).trim().toUpperCase() : null;
+      
+      if (roll) {
+        const existingRoll = await prisma.studentProfile.findFirst({
+          where: {
+            rollNumber: { equals: roll },
+            id: { not: id },
+          },
+        });
+        if (existingRoll) {
+          return NextResponse.json({ error: "Roll number is already registered by another student." }, { status: 400 });
+        }
+      }
+      updateData.rollNumber = roll;
+    }
+
+    if (body.hasOwnProperty("department")) {
+      updateData.department = body.department ? String(body.department).trim() : "CSE";
+    }
+
+    if (body.hasOwnProperty("year")) {
+      const year = parseInt(String(body.year), 10);
+      if (isNaN(year) || year < 1 || year > 4) {
+        return NextResponse.json({ error: "Academic year must be between 1 and 4." }, { status: 400 });
+      }
+      updateData.year = year;
+    }
+
+    if (body.hasOwnProperty("branch")) {
+      updateData.branch = body.branch ? String(body.branch).trim() : null;
+    }
+
+    if (body.hasOwnProperty("section")) {
+      updateData.section = body.section ? String(body.section).trim().toUpperCase() : null;
+    }
+
+    if (body.hasOwnProperty("profilePictureUrl") || body.hasOwnProperty("profile_picture_url")) {
+      const pic = body.hasOwnProperty("profilePictureUrl") ? body.profilePictureUrl : body.profile_picture_url;
+      updateData.profilePictureUrl = pic ? String(pic).trim() : null;
+    }
+
+    let usernamesChanged = false;
+
+    if (body.hasOwnProperty("codechefUsername") || body.hasOwnProperty("codechef_username")) {
+      const cc = body.hasOwnProperty("codechefUsername") ? body.codechefUsername : body.codechef_username;
+      const ccUser = cc ? String(cc).trim() : null;
+      if (ccUser) {
+        const existingCC = await prisma.studentProfile.findFirst({
+          where: { codechefUsername: { equals: ccUser }, id: { not: id } },
+        });
+        if (existingCC) {
+          return NextResponse.json({ error: "CodeChef username is already linked to another student." }, { status: 400 });
+        }
+      }
+      if (ccUser !== currentProfile.codechefUsername) {
+        usernamesChanged = true;
+      }
+      updateData.codechefUsername = ccUser;
+    }
+
+    if (body.hasOwnProperty("leetcodeUsername") || body.hasOwnProperty("leetcode_username")) {
+      const lc = body.hasOwnProperty("leetcodeUsername") ? body.leetcodeUsername : body.leetcode_username;
+      const lcUser = lc ? String(lc).trim() : null;
+      if (lcUser) {
+        const existingLC = await prisma.studentProfile.findFirst({
+          where: { leetcodeUsername: { equals: lcUser }, id: { not: id } },
+        });
+        if (existingLC) {
+          return NextResponse.json({ error: "LeetCode username is already linked to another student." }, { status: 400 });
+        }
+      }
+      if (lcUser !== currentProfile.leetcodeUsername) {
+        usernamesChanged = true;
+      }
+      updateData.leetcodeUsername = lcUser;
+    }
+
+    if (body.hasOwnProperty("githubUsername") || body.hasOwnProperty("github_username")) {
+      const gh = body.hasOwnProperty("githubUsername") ? body.githubUsername : body.github_username;
+      const ghUser = gh ? String(gh).trim() : null;
+      if (ghUser) {
+        const existingGH = await prisma.studentProfile.findFirst({
+          where: { githubUsername: { equals: ghUser }, id: { not: id } },
+        });
+        if (existingGH) {
+          return NextResponse.json({ error: "GitHub username is already linked to another student." }, { status: 400 });
+        }
+      }
+      if (ghUser !== currentProfile.githubUsername) {
+        usernamesChanged = true;
+      }
+      updateData.githubUsername = ghUser;
+    }
+
+    // Ignore calculated fields directly
+    const ignoredFields = ["rank", "rating", "stars", "talentScore", "talent_score", "overallScore", "overall_score", "codechefScore", "codechef_score", "leetcodeScore", "leetcode_score", "githubScore", "github_score"];
+    ignoredFields.forEach((field) => {
+      delete updateData[field];
+    });
+
+    // Mark verificationStatus appropriately if usernames changed
+    if (usernamesChanged) {
+      const existingCc = await prisma.codechefProfile.findUnique({ where: { studentId: id } });
+      const existingLc = await prisma.leetcodeProfile.findUnique({ where: { studentId: id } });
+      const existingGh = await prisma.githubProfile.findUnique({ where: { studentId: id } });
+
+      const finalCodechef = updateData.hasOwnProperty("codechefUsername") ? updateData.codechefUsername : currentProfile.codechefUsername;
+      const finalLeetcode = updateData.hasOwnProperty("leetcodeUsername") ? updateData.leetcodeUsername : currentProfile.leetcodeUsername;
+      const finalGithub = updateData.hasOwnProperty("githubUsername") ? updateData.githubUsername : currentProfile.githubUsername;
+
+      const ccVerified = finalCodechef && existingCc && existingCc.username.toLowerCase() === finalCodechef.toLowerCase();
+      const lcVerified = finalLeetcode && existingLc && existingLc.username.toLowerCase() === finalLeetcode.toLowerCase();
+      const ghVerified = finalGithub && existingGh && existingGh.username.toLowerCase() === finalGithub.toLowerCase();
+
+      const configuredCount = [finalCodechef, finalLeetcode, finalGithub].filter(Boolean).length;
+      const verifiedCount = [ccVerified, lcVerified, ghVerified].filter(Boolean).length;
+
+      let newStatus = "UNABLE_TO_VERIFY";
+      if (configuredCount > 0) {
+        if (verifiedCount === configuredCount) {
+          newStatus = "VERIFIED";
+        } else if (verifiedCount > 0) {
+          newStatus = "PARTIAL";
+        } else {
+          newStatus = "UNABLE_TO_VERIFY";
+        }
+      }
+      updateData.verificationStatus = newStatus;
+    }
+
+    const updatedProfile = await prisma.studentProfile.update({
+      where: { id },
+      data: updateData,
+    });
+
+    await ActivityService.logEvent(
+      "STUDENT_UPDATE",
+      id,
+      `${updatedProfile.name} details were updated.`
+    );
+
+    // Trigger background sync if requested
+    const shouldSync = body.sync === true || body.autoSync === true || (usernamesChanged && (body.sync !== false && body.autoSync !== false));
+    if (shouldSync && (updatedProfile.codechefUsername || updatedProfile.leetcodeUsername || updatedProfile.githubUsername)) {
+      SyncService.syncStudent(id, "USER_MANUAL")
+        .then((syncRes) => {
+          if (!syncRes.success) {
+            console.error(`Background update sync failed: ${syncRes.error}`);
+          } else {
+            console.log(`Background update sync succeeded for student ${id}`);
+          }
+        })
+        .catch((e) => console.error("Sync error:", e));
+    }
+
+    // Recalculate ranks
+    await SyncService.recalculateLeaderboardRanks();
+
+    return NextResponse.json({ success: true, profile: updatedProfile });
+  } catch (err: any) {
+    console.error("Error updating profile API (PATCH):", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
-  return NextResponse.json(
-    { error: "Student deletion is disabled in public read-only mode." },
-    { status: 403 }
-  );
+  try {
+    if (!canPerformDelete(request)) {
+      return NextResponse.json(
+        { error: "Deletion is disabled during public demo mode." },
+        { status: 403 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const studentId = searchParams.get("id") || searchParams.get("studentId") || searchParams.get("userId");
+
+    if (!studentId) {
+      return NextResponse.json({ error: "Missing id parameter" }, { status: 400 });
+    }
+
+    const existingProfile = await prisma.studentProfile.findUnique({
+      where: { id: studentId },
+    });
+
+    if (!existingProfile) {
+      return NextResponse.json({ error: "Student profile not found" }, { status: 404 });
+    }
+
+    await prisma.studentProfile.delete({
+      where: { id: studentId },
+    });
+
+    return NextResponse.json({ success: true, deletedId: studentId });
+  } catch (err: any) {
+    console.error("Error deleting profile API:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
