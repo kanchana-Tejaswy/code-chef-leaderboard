@@ -21,6 +21,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Student Name is required" }, { status: 400 });
     }
 
+    const parsedYear = year ? parseInt(String(year), 10) : 3;
+    if (isNaN(parsedYear) || parsedYear < 1 || parsedYear > 4) {
+      return NextResponse.json({ error: "Academic year must be between 1 and 4." }, { status: 400 });
+    }
+
     // Determine URLs from request body (support original 'url' parameter as codechefUrl fallback)
     const targetCodechefUrl = codechefUrl || url;
     
@@ -108,7 +113,7 @@ export async function POST(request: NextRequest) {
           githubUsername,
           rollNumber: targetRollNumber,
           department: department ? department.trim() : "CSE",
-          year: year ? parseInt(year, 10) : 3,
+          year: parsedYear,
           branch: branch ? branch.trim() : (department ? department.trim() : "CSE"),
           section: section ? section.trim().toUpperCase() : "A",
         },
@@ -127,7 +132,7 @@ export async function POST(request: NextRequest) {
           name: name.trim(),
           rollNumber: targetRollNumber ? targetRollNumber : student.rollNumber,
           department: department ? department.trim() : student.department,
-          year: year ? parseInt(year, 10) : student.year,
+          year: body.hasOwnProperty("year") ? parsedYear : student.year,
           branch: branch ? branch.trim() : student.branch,
           section: section ? section.trim().toUpperCase() : student.section,
           codechefUsername: codechefUsername || student.codechefUsername,

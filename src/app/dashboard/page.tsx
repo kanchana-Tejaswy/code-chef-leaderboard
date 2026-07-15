@@ -35,7 +35,9 @@ import {
   RefreshCw,
   Trash2,
   UserPlus,
-  Eye
+  Eye,
+  Edit2,
+  Check
 } from "lucide-react";
 import Image from "next/image";
 import {
@@ -592,6 +594,32 @@ export default function LandingPage() {
   const [activeProfileDetails, setActiveProfileDetails] = useState<any | null>(null);
   const [isLoadingModal, setIsLoadingModal] = useState(false);
 
+  // CSV Import Modal States
+  const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
+  const [csvInput, setCsvInput] = useState("");
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewResults, setPreviewResults] = useState<any>(null);
+  const [autoSyncImport, setAutoSyncImport] = useState(false);
+  const [isImportLoading, setIsImportLoading] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState<any>(null);
+
+  // Edit Student Modal States
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editStudentId, setEditStudentId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRollNumber, setEditRollNumber] = useState("");
+  const [editDepartment, setEditDepartment] = useState("CSE");
+  const [editYear, setEditYear] = useState(3);
+  const [editSection, setEditSection] = useState("A");
+  const [editBranch, setEditBranch] = useState("CSE");
+  const [editCodechefUsername, setEditCodechefUsername] = useState("");
+  const [editLeetcodeUsername, setEditLeetcodeUsername] = useState("");
+  const [editGithubUsername, setEditGithubUsername] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   // Dropdown lists
   const departments = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
   const years = [1, 2, 3, 4];
@@ -823,32 +851,198 @@ export default function LandingPage() {
   };
 
   const handleDeleteStudent = async (studentId: string) => {
-    if (publicDemoWriteMode) {
-      alert("Deletion is disabled in public demo mode.");
-      return;
-    }
+    alert("Deletion is disabled during public demo mode.");
+  };
 
-    if (!confirm("Are you sure you want to delete this student and all their analytics?")) {
+  const parseCSV = (text: string) => {
+    const lines = text.split(/\r?\n/);
+    if (lines.length === 0) return [];
+    
+    const headers = lines[0].split(',').map(h => h.trim().replace(/^["']|["']$/g, '').toLowerCase());
+    
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      const values = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map(v => v.trim().replace(/^["']|["']$/g, ''));
+      
+      const row: any = {};
+      headers.forEach((header, idx) => {
+        let stdHeader = header;
+        if (header === "roll_number" || header === "rollnumber") stdHeader = "roll_number";
+        if (header === "codechef_username" || header === "codechefusername" || header === "codechef_handle") stdHeader = "codechef_username";
+        if (header === "leetcode_username" || header === "leetcodeusername" || header === "leetcode_handle") stdHeader = "leetcode_username";
+        if (header === "github_username" || header === "githubusername" || header === "github_handle") stdHeader = "github_username";
+        
+        row[stdHeader] = values[idx] !== undefined ? values[idx] : "";
+      });
+      rows.push(row);
+    }
+    return rows;
+  };
+
+  const handleOpenEditModal = async (studentId: string) => {
+    setEditError(null);
+    setEditStudentId(studentId);
+    setIsSavingEdit(true);
+    setIsEditModalOpen(true);
+    try {
+      const res = await fetch(`/api/profile?id=${studentId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const profile = data.profile;
+        setEditName(profile.name || "");
+        setEditRollNumber(profile.rollNumber || "");
+        setEditDepartment(profile.department || "CSE");
+        setEditYear(profile.year || 3);
+        setEditBranch(profile.branch || profile.department || "CSE");
+        setEditSection(profile.section || "A");
+        setEditCodechefUsername(profile.codechefUsername || "");
+        setEditLeetcodeUsername(profile.leetcodeUsername || "");
+        setEditGithubUsername(profile.githubUsername || "");
+      } else {
+        setEditError("Failed to fetch student details.");
+      }
+    } catch (e) {
+      console.error(e);
+      setEditError("Failed to fetch student details due to a network error.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editName.trim()) {
+      setEditError("Student Name is required.");
       return;
     }
-    setIsDeletingId(studentId);
+    setIsSavingEdit(true);
+    setEditError(null);
     try {
-      const res = await fetch(`/api/profile?id=${studentId}`, {
-        method: "DELETE",
+      const res = await fetch("/api/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: editStudentId,
+          name: editName,
+          rollNumber: editRollNumber,
+          department: editDepartment,
+          year: editYear,
+          branch: editBranch,
+          section: editSection,
+          codechefUsername: editCodechefUsername,
+          leetcodeUsername: editLeetcodeUsername,
+          githubUsername: editGithubUsername,
+          autoSync: true,
+        }),
       });
       if (res.ok) {
-        alert("Student profile deleted successfully.");
+        setIsEditModalOpen(false);
+        setEditStudentId(null);
         await fetchLeaderboard();
         await loadDashboardData();
       } else {
         const errorData = await res.json().catch(() => ({}));
-        alert(errorData.error || "Failed to delete student.");
+        setEditError(errorData.error || "Failed to update profile.");
       }
     } catch (e) {
-      console.error("Error deleting student:", e);
-      alert("Failed to delete student due to a network error.");
+      console.error(e);
+      setEditError("Failed to save changes due to a network error.");
     } finally {
-      setIsDeletingId(null);
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleCsvPreview = async () => {
+    if (!csvInput.trim()) {
+      setImportError("Please enter or paste CSV data first.");
+      return;
+    }
+    setIsPreviewLoading(true);
+    setImportError(null);
+    setPreviewResults(null);
+    try {
+      const rows = parseCSV(csvInput);
+      if (rows.length === 0) {
+        setImportError("No rows could be parsed. Verify the CSV format.");
+        setIsPreviewLoading(false);
+        return;
+      }
+      const res = await fetch("/api/students/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "preview",
+          rows,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPreviewResults(data);
+        setIsPreviewing(true);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setImportError(errorData.error || "Failed to preview CSV rows.");
+      }
+    } catch (e) {
+      console.error(e);
+      setImportError("Failed to parse or preview CSV due to a network error.");
+    } finally {
+      setIsPreviewLoading(false);
+    }
+  };
+
+  const handleCsvImport = async () => {
+    if (!previewResults || !previewResults.rows) {
+      return;
+    }
+    setIsImportLoading(true);
+    setImportError(null);
+    setImportSuccess(null);
+    try {
+      const rows = previewResults.rows.map((r: any) => ({
+        name: r.name,
+        roll_number: r.rollNumber,
+        department: r.department,
+        year: String(r.year),
+        branch: r.branch,
+        section: r.section,
+        codechef_username: r.codechefUsername,
+        leetcode_username: r.leetcodeUsername,
+        github_username: r.githubUsername,
+      }));
+      const res = await fetch("/api/students/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "import",
+          rows,
+          autoSync: autoSyncImport,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setImportSuccess(data.summary);
+        setCsvInput("");
+        setPreviewResults(null);
+        setIsPreviewing(false);
+        await fetchLeaderboard();
+        await loadDashboardData();
+        setTimeout(() => {
+          setIsCsvModalOpen(false);
+          setImportSuccess(null);
+        }, 3000);
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setImportError(errorData.error || "Failed to import CSV rows.");
+      }
+    } catch (e) {
+      console.error(e);
+      setImportError("Failed to import CSV due to a network error.");
+    } finally {
+      setIsImportLoading(false);
     }
   };
 
@@ -1686,7 +1880,11 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {publicDemoWriteMode && (
+            {!publicDemoWriteMode ? (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-[11px] font-semibold text-red-400">
+                Student registration/analysis is restricted in public read-only mode.
+              </div>
+            ) : (
               <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold text-amber-300">
                 Temporary demo mode is active. Student additions and updates are publicly available.
               </div>
@@ -1704,7 +1902,7 @@ export default function LandingPage() {
                     required
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || !publicDemoWriteMode}
                     placeholder="Name"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
@@ -1720,7 +1918,7 @@ export default function LandingPage() {
                     required
                     value={formRollNumber}
                     onChange={(e) => setFormRollNumber(e.target.value)}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || !publicDemoWriteMode}
                     placeholder="roll number "
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 uppercase"
                   />
@@ -1734,7 +1932,7 @@ export default function LandingPage() {
                   <select
                     value={formDepartment}
                     onChange={(e) => setFormDepartment(e.target.value)}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || !publicDemoWriteMode}
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
                   >
                     <option value="CSE">CSE - Computer Science</option>
@@ -1756,7 +1954,7 @@ export default function LandingPage() {
                   <select
                     value={formYear}
                     onChange={(e) => setFormYear(Number(e.target.value))}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || !publicDemoWriteMode}
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
                   >
                     <option value={1}>1st Year</option>
@@ -1774,7 +1972,7 @@ export default function LandingPage() {
                   <select
                     value={formSection}
                     onChange={(e) => setFormSection(e.target.value)}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || !publicDemoWriteMode}
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
                   >
                     <option value="A">Section A</option>
@@ -1801,7 +1999,7 @@ export default function LandingPage() {
                     type="text"
                     value={formCodechefUrl}
                     onChange={(e) => setFormCodechefUrl(e.target.value)}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || !publicDemoWriteMode}
                     placeholder="https://www.codechef.com/users/username"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
@@ -1816,7 +2014,7 @@ export default function LandingPage() {
                     type="text"
                     value={formLeetcodeUrl}
                     onChange={(e) => setFormLeetcodeUrl(e.target.value)}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || !publicDemoWriteMode}
                     placeholder="https://leetcode.com/username"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
@@ -1831,7 +2029,7 @@ export default function LandingPage() {
                     type="text"
                     value={formGithubUrl}
                     onChange={(e) => setFormGithubUrl(e.target.value)}
-                    disabled={isAnalyzing}
+                    disabled={isAnalyzing || !publicDemoWriteMode}
                     placeholder="https://github.com/username"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
@@ -1902,14 +2100,14 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={handleClearForm}
-                  disabled={isAnalyzing}
+                  disabled={isAnalyzing || !publicDemoWriteMode}
                   className="px-4 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-brand-muted hover:text-white text-xs font-bold transition-all disabled:opacity-50"
                 >
                   Clear Form
                 </button>
                 <button
                   type="submit"
-                  disabled={isAnalyzing}
+                  disabled={isAnalyzing || !publicDemoWriteMode}
                   className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all shadow-[0_4px_15px_rgba(234,179,8,0.25)] hover:shadow-[0_4px_20px_rgba(250,204,21,0.4)] disabled:opacity-50"
                 >
                   {isAnalyzing ? (
@@ -1945,6 +2143,15 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex gap-2">
+                {publicDemoWriteMode && (
+                  <button
+                    onClick={() => setIsCsvModalOpen(true)}
+                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-bg border border-brand-border hover:border-[#EAB308]/30 hover:text-white text-xs font-bold text-brand-muted transition-all shadow-sm shrink-0"
+                  >
+                    <UserPlus className="h-3.5 w-3.5 text-[#EAB308]" />
+                    CSV Import
+                  </button>
+                )}
                 <a
                   href={getExportUrl()}
                   download
@@ -2388,12 +2595,24 @@ export default function LandingPage() {
                                 <span className="hidden md:inline">View</span>
                               </Link>
 
+                              {/* Edit Student */}
+                              {publicDemoWriteMode && (
+                                <button
+                                  onClick={() => handleOpenEditModal(entry.student.id)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#EAB308]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white transition-all shadow-sm"
+                                  title="Edit student profile"
+                                >
+                                  <Edit2 className="h-3 w-3 text-zinc-500" />
+                                  <span className="hidden md:inline">Edit</span>
+                                </button>
+                              )}
+
                               {/* Refresh Data */}
                               <button
                                 onClick={() => handleRefreshStudent(entry.student.id)}
-                                disabled={isRefreshingId === entry.student.id}
+                                disabled={isRefreshingId === entry.student.id || !publicDemoWriteMode}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#22C55E]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                                title="Refresh metrics"
+                                title={publicDemoWriteMode ? "Refresh metrics" : "Refreshing metrics is disabled in read-only mode"}
                               >
                                 {isRefreshingId === entry.student.id ? (
                                   <Loader2 className="h-3 w-3 animate-spin text-[#22C55E]" />
@@ -2406,16 +2625,12 @@ export default function LandingPage() {
                               {/* Delete Student */}
                               <button
                                 onClick={() => handleDeleteStudent(entry.student.id)}
-                                disabled={isDeletingId === entry.student.id}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-red-500/30 bg-zinc-950 text-[9px] font-extrabold text-red-500/80 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                                title="Delete student profile"
+                                disabled={true}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border bg-zinc-950 text-[9px] font-extrabold text-zinc-650 cursor-not-allowed transition-all shadow-sm"
+                                title="Deletion is disabled during public demo mode."
                               >
-                                {isDeletingId === entry.student.id ? (
-                                  <Loader2 className="h-3 w-3 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-3 w-3" />
-                                )}
-                                <span className="hidden md:inline">Delete</span>
+                                <Trash2 className="h-3 w-3 text-zinc-600" />
+                                <span className="hidden md:inline text-zinc-600">Delete</span>
                               </button>
                             </div>
                           </td>
@@ -3204,6 +3419,399 @@ export default function LandingPage() {
 
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* CSV Import Modal */}
+      {isCsvModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="relative w-full max-w-4xl bg-brand-card border border-brand-border rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-2xl animate-fade-in my-8 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => {
+                setIsCsvModalOpen(false);
+                setCsvInput("");
+                setPreviewResults(null);
+                setIsPreviewing(false);
+                setImportError(null);
+              }}
+              className="absolute top-4 right-4 p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div>
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <UserPlus className="h-5 w-5 text-[#EAB308]" />
+                CSV STUDENT IMPORT
+              </h3>
+              <p className="text-xs text-brand-muted mt-1">
+                Paste comma-separated data to bulk-import student profiles. Required headers: <code className="text-zinc-300 font-mono">name</code>, <code className="text-zinc-300 font-mono">roll_number</code>, <code className="text-zinc-300 font-mono">department</code>, <code className="text-zinc-300 font-mono">year</code>. Optional: <code className="text-zinc-300 font-mono">branch</code>, <code className="text-zinc-300 font-mono">section</code>, <code className="text-zinc-300 font-mono">codechef_username</code>, <code className="text-zinc-300 font-mono">leetcode_username</code>, <code className="text-zinc-300 font-mono">github_username</code>.
+              </p>
+            </div>
+
+            {importError && (
+              <div className="p-4 rounded-2xl border border-red-500/20 bg-red-500/5 text-red-500 text-xs font-semibold leading-relaxed">
+                {importError}
+              </div>
+            )}
+
+            {importSuccess && (
+              <div className="p-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-xs font-semibold leading-relaxed">
+                Import completed successfully! Total imported: {importSuccess.total}, Created: {importSuccess.created}, Updated: {importSuccess.updated}, Failed: {importSuccess.failed}.
+              </div>
+            )}
+
+            {!isPreviewing ? (
+              <div className="flex flex-col gap-4">
+                <textarea
+                  value={csvInput}
+                  onChange={(e) => setCsvInput(e.target.value)}
+                  placeholder="name,roll_number,department,year,codechef_username&#10;John Doe,21CS101,CSE,3,johndoe_cc&#10;Jane Smith,21IT202,IT,3,janesmith_cc"
+                  className="w-full h-64 px-4 py-3 rounded-2xl border border-brand-border bg-brand-bg/50 text-xs font-mono text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50"
+                />
+                
+                <div className="flex justify-end gap-3">
+                  <button
+                    onClick={() => setIsCsvModalOpen(false)}
+                    className="px-4 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-brand-muted hover:text-white text-xs font-bold transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleCsvPreview}
+                    disabled={isPreviewLoading || !csvInput.trim()}
+                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all disabled:opacity-50"
+                  >
+                    {isPreviewLoading ? (
+                      <>
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        Parsing CSV...
+                      </>
+                    ) : (
+                      <>
+                        <Zap className="h-3.5 w-3.5" />
+                        Preview Import
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-5">
+                <div className="flex items-center justify-between border-b border-brand-border pb-3">
+                  <span className="text-xs font-bold text-brand-muted">
+                    Total Rows: {previewResults?.summary?.total} | Ready: {previewResults?.summary?.valid} | Rejected: {previewResults?.summary?.invalid}
+                  </span>
+                  <button
+                    onClick={() => setIsPreviewing(false)}
+                    className="text-xs font-bold text-[#EAB308] hover:underline"
+                  >
+                    ← Edit CSV Data
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto max-h-64 border border-brand-border rounded-2xl bg-zinc-950/20">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-brand-border bg-zinc-900/40 text-[9px] font-black uppercase text-brand-muted tracking-wider">
+                        <th className="py-2.5 px-4">Row</th>
+                        <th className="py-2.5 px-3">Roll Number</th>
+                        <th className="py-2.5 px-3">Name</th>
+                        <th className="py-2.5 px-3">Department</th>
+                        <th className="py-2.5 px-3 text-center">Class</th>
+                        <th className="py-2.5 px-4">Details / Errors</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewResults?.rows?.map((row: any, idx: number) => {
+                        const bgClass =
+                          row.classification === "CREATE"
+                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
+                            : row.classification === "UPDATE"
+                            ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
+                            : row.classification === "REVIEW"
+                            ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
+                            : "bg-red-500/10 border-red-500/30 text-red-400";
+                        return (
+                          <tr key={idx} className="border-b border-brand-border/40 text-xs hover:bg-zinc-900/10">
+                            <td className="py-2 px-4 font-mono text-[10px] text-zinc-500">{row.index + 2}</td>
+                            <td className="py-2 px-3 font-semibold text-white">{row.rollNumber || "—"}</td>
+                            <td className="py-2 px-3 font-semibold text-white">{row.name || "—"}</td>
+                            <td className="py-2 px-3 text-zinc-400">{row.department} {row.year ? `${row.year}Yr` : ""}</td>
+                            <td className="py-2 px-3 text-center">
+                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black border ${bgClass}`}>
+                                {row.classification}
+                              </span>
+                            </td>
+                            <td className="py-2 px-4 text-[10px] font-medium text-zinc-400 max-w-[250px] truncate" title={row.errors?.join(", ")}>
+                              {row.errors && row.errors.length > 0 ? (
+                                <span className="text-red-400">{row.errors.join(", ")}</span>
+                              ) : (
+                                <span className="text-zinc-550">Validated</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-brand-border pt-4">
+                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-brand-muted select-none">
+                    <input
+                      type="checkbox"
+                      checked={autoSyncImport}
+                      onChange={(e) => setAutoSyncImport(e.target.checked)}
+                      className="rounded border-zinc-700 bg-zinc-900 text-[#EAB308] focus:ring-[#EAB308]/30 h-4 w-4 cursor-pointer"
+                    />
+                    Auto-Sync platform profiles in the background (sequential sync)
+                  </label>
+
+                  <div className="flex gap-3 justify-end">
+                    <button
+                      onClick={() => setIsPreviewing(false)}
+                      className="px-4 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-brand-muted hover:text-white text-xs font-bold transition-all"
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={handleCsvImport}
+                      disabled={isImportLoading || previewResults?.summary?.valid === 0}
+                      className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all disabled:opacity-50"
+                    >
+                      {isImportLoading ? (
+                        <>
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          Importing...
+                        </>
+                      ) : (
+                        <>
+                          <Check className="h-3.5 w-3.5" />
+                          Confirm Import ({previewResults?.summary?.valid} Rows)
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Student Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="relative w-full max-w-3xl bg-brand-card border border-brand-border rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-2xl animate-fade-in my-8 max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => {
+                setIsEditModalOpen(false);
+                setEditStudentId(null);
+              }}
+              className="absolute top-4 right-4 p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div>
+              <h3 className="text-lg font-black text-white flex items-center gap-2">
+                <Edit2 className="h-5 w-5 text-[#EAB308]" />
+                EDIT STUDENT PROFILE
+              </h3>
+              <p className="text-xs text-brand-muted mt-1">
+                Modify student institutional details and competitive coding profiles. Ranks are recalculated upon save.
+              </p>
+            </div>
+
+            {editError && (
+              <div className="p-4 rounded-2xl border border-red-500/20 bg-red-500/5 text-red-500 text-xs font-semibold leading-relaxed">
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveEdit} className="flex flex-col gap-5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* Name */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    Student Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    disabled={isSavingEdit}
+                    placeholder="Name"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50"
+                  />
+                </div>
+
+                {/* Roll Number */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    Roll Number
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={editRollNumber}
+                    onChange={(e) => setEditRollNumber(e.target.value)}
+                    disabled={isSavingEdit}
+                    placeholder="Roll Number"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 uppercase"
+                  />
+                </div>
+
+                {/* Department */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    Branch / Department
+                  </label>
+                  <select
+                    value={editDepartment}
+                    onChange={(e) => setEditDepartment(e.target.value)}
+                    disabled={isSavingEdit}
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 cursor-pointer"
+                  >
+                    <option value="CSE">CSE - Computer Science</option>
+                    <option value="IT">IT - Information Technology</option>
+                    <option value="CSM">CSM - AI & Machine Learning</option>
+                    <option value="CSD">CSD - Data Science</option>
+                    <option value="ECE">ECE - Electronics & Comm</option>
+                    <option value="EEE">EEE - Electrical & Electronics</option>
+                    <option value="ME">ME - Mechanical Eng</option>
+                    <option value="CE">CE - Civil Eng</option>
+                  </select>
+                </div>
+
+                {/* Academic Year */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    Academic Year
+                  </label>
+                  <select
+                    value={editYear}
+                    onChange={(e) => setEditYear(Number(e.target.value))}
+                    disabled={isSavingEdit}
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 cursor-pointer"
+                  >
+                    <option value={1}>1st Year</option>
+                    <option value={2}>2nd Year</option>
+                    <option value={3}>3rd Year</option>
+                    <option value={4}>4th Year</option>
+                  </select>
+                </div>
+
+                {/* Branch */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    Branch Spec
+                  </label>
+                  <input
+                    type="text"
+                    value={editBranch}
+                    onChange={(e) => setEditBranch(e.target.value)}
+                    disabled={isSavingEdit}
+                    placeholder="Branch"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50"
+                  />
+                </div>
+
+                {/* Section */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    Section
+                  </label>
+                  <input
+                    type="text"
+                    value={editSection}
+                    onChange={(e) => setEditSection(e.target.value)}
+                    disabled={isSavingEdit}
+                    placeholder="A"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 uppercase"
+                  />
+                </div>
+
+                {/* CodeChef Username */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    CodeChef Username
+                  </label>
+                  <input
+                    type="text"
+                    value={editCodechefUsername}
+                    onChange={(e) => setEditCodechefUsername(e.target.value)}
+                    disabled={isSavingEdit}
+                    placeholder="Username"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50"
+                  />
+                </div>
+
+                {/* LeetCode Username */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    LeetCode Username
+                  </label>
+                  <input
+                    type="text"
+                    value={editLeetcodeUsername}
+                    onChange={(e) => setEditLeetcodeUsername(e.target.value)}
+                    disabled={isSavingEdit}
+                    placeholder="Username"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50"
+                  />
+                </div>
+
+                {/* GitHub Username */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    GitHub Username
+                  </label>
+                  <input
+                    type="text"
+                    value={editGithubUsername}
+                    onChange={(e) => setEditGithubUsername(e.target.value)}
+                    disabled={isSavingEdit}
+                    placeholder="Username"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 border-t border-brand-border pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditModalOpen(false);
+                    setEditStudentId(null);
+                  }}
+                  disabled={isSavingEdit}
+                  className="px-4 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-brand-muted hover:text-white text-xs font-bold transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingEdit}
+                  className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all disabled:opacity-50"
+                >
+                  {isSavingEdit ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-3.5 w-3.5" />
+                      Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

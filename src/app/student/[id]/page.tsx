@@ -94,6 +94,7 @@ export default function StudentProfileDashboard() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingName, setEditingName] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
+  const [publicDemoWriteMode, setPublicDemoWriteMode] = useState(false);
 
   const handleSaveName = async () => {
     if (!editingName.trim()) return;
@@ -154,6 +155,12 @@ export default function StudentProfileDashboard() {
 
   useEffect(() => {
     setMounted(true);
+    fetch("/api/config/public-mode", { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        setPublicDemoWriteMode(Boolean(data.publicDemoWriteMode));
+      })
+      .catch((e) => console.error("Error fetching config:", e));
   }, []);
 
   useEffect(() => {
@@ -329,16 +336,18 @@ export default function StudentProfileDashboard() {
             ) : (
               <h1 className="text-xl sm:text-2xl font-black tracking-tight text-[#FAFAFA] flex items-center gap-2 group/title">
                 <span>{student.name}</span>
-                <button
-                  onClick={() => {
-                    setIsEditingName(true);
-                    setEditingName(student.name);
-                  }}
-                  className="opacity-0 group-hover/title:opacity-100 p-1 text-zinc-500 hover:text-[#EAB308] transition-all"
-                  title="Edit name"
-                >
-                  <Edit2 className="h-4 w-4" />
-                </button>
+                {publicDemoWriteMode && (
+                  <button
+                    onClick={() => {
+                      setIsEditingName(true);
+                      setEditingName(student.name);
+                    }}
+                    className="opacity-0 group-hover/title:opacity-100 p-1 text-zinc-500 hover:text-[#EAB308] transition-all"
+                    title="Edit name"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                )}
               </h1>
             )}
             <div className="flex items-center gap-2 mt-1">
