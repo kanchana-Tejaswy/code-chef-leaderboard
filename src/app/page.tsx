@@ -39,31 +39,13 @@ export default function LandingPage() {
             </p>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
-              {user ? (
-                <Link
-                  href="/dashboard"
-                  className="px-8 py-4 rounded-xl font-bold text-sm tracking-wide bg-[#EAB308] text-[#0A0A0A] hover:bg-[#FACC15] hover:scale-[1.02] shadow-[0_4px_20px_rgba(234,179,8,0.25)] transition-all duration-300 flex items-center justify-center gap-2 group"
-                >
-                  Go to Dashboard
-                  <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    href="/login"
-                    className="px-8 py-4 rounded-xl font-bold text-sm tracking-wide bg-[#EAB308] text-[#0A0A0A] hover:bg-[#FACC15] hover:scale-[1.02] shadow-[0_4px_20px_rgba(234,179,8,0.25)] transition-all duration-300 flex items-center justify-center gap-2 group"
-                  >
-                    Access Platform
-                    <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                  <Link
-                    href="/signup"
-                    className="px-8 py-4 rounded-xl font-bold text-sm tracking-wide border border-brand-border bg-brand-card hover:bg-brand-card/80 hover:text-brand-text transition-all duration-300 flex items-center justify-center gap-2"
-                  >
-                    Student Signup
-                  </Link>
-                </>
-              )}
+              <Link
+                href="/dashboard"
+                className="px-8 py-4 rounded-xl font-bold text-sm tracking-wide bg-[#EAB308] text-[#0A0A0A] hover:bg-[#FACC15] hover:scale-[1.02] shadow-[0_4px_20px_rgba(234,179,8,0.25)] transition-all duration-300 flex items-center justify-center gap-2 group"
+              >
+                Access Platform
+                <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition-transform" />
+              </Link>
             </div>
 
             {/* Micro highlights */}

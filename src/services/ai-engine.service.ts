@@ -91,6 +91,22 @@ export class CodechefAiEngine {
       weaknesses.push("Relatively low problem library count.");
     }
 
+    let careerRecommendation = "Software Engineer / CP Beginner";
+    let suggestedCompanies = ["TCS", "Infosys", "Cognizant", "Accenture"];
+    let recommendedLearningPath = ["Basic Data Structures", "Greedy & Sorting Techniques", "Binary Search Applications"];
+
+    if (currentRating >= 1800) {
+      careerRecommendation = "Competitive Programmer / Algorithms Specialist";
+      suggestedCompanies = ["Google", "Directi", "CodeNation", "Uber"];
+      recommendedLearningPath = ["Advanced Graph Algorithms", "Segment Trees & Fenwick Trees", "Centroid Decomposition"];
+    } else if (currentRating >= 1500) {
+      careerRecommendation = "Backend Engineer / Problem Solver";
+      suggestedCompanies = ["Amazon", "Microsoft", "Flipkart", "Razorpay"];
+      recommendedLearningPath = ["Dynamic Programming Optimizations", "Number Theory in CP", "Tries & Suffix Automata"];
+    }
+
+    const expectedRating6Months = currentRating > 0 ? Math.round(currentRating * 1.1) : 1200;
+
     return {
       talentScore,
       consistencyScore,
@@ -102,13 +118,13 @@ export class CodechefAiEngine {
       disciplineScore,
       overallPotential,
       placementReadiness,
-      expectedRating6Months: 0,
-      strengths: [],
-      weaknesses: [],
-      improvementAreas: [],
-      careerRecommendation: "",
-      suggestedCompanies: [],
-      recommendedLearningPath: []
+      expectedRating6Months,
+      strengths,
+      weaknesses,
+      improvementAreas,
+      careerRecommendation,
+      suggestedCompanies,
+      recommendedLearningPath
     };
   }
 }
@@ -175,6 +191,22 @@ export class LeetcodeAiEngine {
       strengths.push("Advanced mathematical & tree structures understanding.");
     }
 
+    let careerRecommendation = "Associate Software Engineer";
+    let suggestedCompanies = ["Wipro", "TCS", "Capgemini", "LTI"];
+    let recommendedLearningPath = ["Data Structures Fundamentals", "Array & String Manipulation", "Basic Recursion"];
+
+    if (contestRating >= 1800) {
+      careerRecommendation = "Algorithms Engineer / Product Engineer";
+      suggestedCompanies = ["Google", "Uber", "Atlassian", "Adobe"];
+      recommendedLearningPath = ["Hard Dynamic Programming", "Advanced Graph & Network Flow", "Design Patterns & System Design"];
+    } else if (problemsSolved >= 200) {
+      careerRecommendation = "Software Development Engineer (SDE)";
+      suggestedCompanies = ["Amazon", "Microsoft", "Salesforce", "Intuit"];
+      recommendedLearningPath = ["LeetCode Medium Topic-wise Mastery", "Recursion & Backtracking", "Sliding Window & Two Pointer Techniques"];
+    }
+
+    const expectedRating6Months = contestRating > 0 ? Math.round(contestRating * 1.1) : 1500;
+
     return {
       talentScore,
       consistencyScore,
@@ -186,13 +218,13 @@ export class LeetcodeAiEngine {
       disciplineScore,
       overallPotential,
       placementReadiness,
-      expectedRating6Months: 0,
-      strengths: [],
-      weaknesses: [],
-      improvementAreas: [],
-      careerRecommendation: "",
-      suggestedCompanies: [],
-      recommendedLearningPath: []
+      expectedRating6Months,
+      strengths,
+      weaknesses,
+      improvementAreas,
+      careerRecommendation,
+      suggestedCompanies,
+      recommendedLearningPath
     };
   }
 }
@@ -223,6 +255,29 @@ export class GithubAiEngine {
 
     const rating = analytics.developerScore.score;
 
+    let overallPotential = "Emerging Technology Engineer";
+    if (rating >= 80) overallPotential = "Elite Open Source Builder";
+    else if (rating >= 60) overallPotential = "Capable Full-Stack Developer";
+
+    let placementReadiness = "Standard SDE Ready";
+    if (rating >= 80) placementReadiness = "Immediate Product SDE Ready";
+
+    const strengths = analytics.careerInsights?.strongestSkills || ["Open Source Contributor"];
+    const weaknesses = analytics.careerInsights?.weaknesses || ["Documentation coverage"];
+    const improvementAreas = analytics.careerInsights?.recommendedLearningPath || ["Write more unit tests"];
+    const careerRecommendation = analytics.careerInsights?.hiringReadiness || "Full Stack Developer / Open Source Engineer";
+
+    let suggestedCompanies = ["ServiceNow", "Cognizant", "TCS"];
+    let recommendedLearningPath = ["Git Branching & Collaboration Workflow", "Building Personal Project Portfolio", "Markdown Documentation & Readmes"];
+
+    if (rating >= 80) {
+      suggestedCompanies = ["GitHub", "Vercel", "Stripe", "RedHat"];
+      recommendedLearningPath = ["Advanced CI/CD & Devops Pipelines", "Kubernetes & Cloud Infrastructure", "Contributing to Major OSS Projects"];
+    } else if (rating >= 50) {
+      suggestedCompanies = ["HashiCorp", "Postman", "GitLab", "Razorpay"];
+      recommendedLearningPath = ["Clean Code & Refactoring", "API Design Best Practices", "Database Migration & Schema Design"];
+    }
+
     return {
       talentScore: rating,
       consistencyScore: analytics.developerScore.consistency,
@@ -232,15 +287,15 @@ export class GithubAiEngine {
       learningScore: analytics.developerScore.documentation,
       growthScore: rating,
       disciplineScore: analytics.developerScore.consistency,
-      overallPotential: "",
-      placementReadiness: "",
+      overallPotential,
+      placementReadiness,
       expectedRating6Months: 0,
-      strengths: [],
-      weaknesses: [],
-      improvementAreas: [],
-      careerRecommendation: "",
-      suggestedCompanies: [],
-      recommendedLearningPath: []
+      strengths,
+      weaknesses,
+      improvementAreas,
+      careerRecommendation,
+      suggestedCompanies,
+      recommendedLearningPath
     };
   }
 }
@@ -534,6 +589,11 @@ export class AiEngineService {
       },
     });
 
-    return overallAi;
+    return {
+      overall: overallAi,
+      codechef: codechefAi,
+      leetcode: leetcodeAi,
+      github: githubAi,
+    };
   }
 }

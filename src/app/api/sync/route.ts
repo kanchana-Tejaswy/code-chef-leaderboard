@@ -4,6 +4,16 @@ import { SyncService } from "@/services/sync.service";
 
 export async function POST(request: NextRequest) {
   try {
+    const authHeader = request.headers.get("authorization");
+    const cronSecret = process.env.CRON_SECRET;
+
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json(
+        { error: "Synchronization is restricted in public read-only mode." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const studentId = body.studentId;
 

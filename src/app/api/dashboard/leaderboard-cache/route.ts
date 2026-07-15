@@ -30,7 +30,30 @@ const nestedOrder = (relation: string, field: string, sort: SortOrder) => ({
   },
 }) as unknown as Prisma.LeaderboardEntryOrderByWithRelationInput;
 
-const withRankTieBreaker = (orders: Prisma.LeaderboardEntryOrderByWithRelationInput[]) => [...orders, { rank: "asc" as const }];
+const withCanonicalTieBreaker = (
+  platform: PlatformKey,
+  sortBy: string,
+  orders: Prisma.LeaderboardEntryOrderByWithRelationInput[]
+): Prisma.LeaderboardEntryOrderByWithRelationInput[] => {
+  const result = [...orders];
+  
+  if (platform === "codechef" && sortBy !== "ccRating" && sortBy !== "ccHighestRating") {
+    result.push(nestedOrder("codechefProfile", "currentRating", "desc"));
+  } else if (platform === "leetcode" && sortBy !== "lcRating" && sortBy !== "lcRank") {
+    result.push(nestedOrder("leetcodeProfile", "contestRating", "desc"));
+  } else if (platform === "github" && sortBy !== "ghStars" && sortBy !== "githubScore") {
+    result.push(nestedOrder("githubProfile", "totalStars", "desc"));
+  }
+
+  if (sortBy !== "overallScore") {
+    result.push({ overallScore: "desc" });
+  }
+
+  result.push({ student: { name: "asc" } } as any);
+  result.push({ student: { id: "asc" } } as any);
+
+  return result;
+};
 
 const platformConfigs: Record<PlatformKey, PlatformConfig> = {
   overall: {
@@ -166,7 +189,7 @@ const buildOrderBy = (platform: PlatformKey, searchParams: URLSearchParams) => {
   const requestedSort = searchParams.get("sortBy") || config.defaultSort;
   const requestedOrder = (searchParams.get("sortOrder") || config.defaultOrder).toLowerCase() === "asc" ? "asc" : "desc";
   const sortFactory = config.sortFields[requestedSort] || config.sortFields[config.defaultSort];
-  return withRankTieBreaker(sortFactory(requestedOrder));
+  return withCanonicalTieBreaker(platform, requestedSort, sortFactory(requestedOrder));
 };
 
 const studentSelect = {
