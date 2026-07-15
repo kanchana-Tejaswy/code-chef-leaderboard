@@ -34,6 +34,16 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const authHeader = request.headers.get("authorization");
+    const cronSecret = process.env.CRON_SECRET;
+
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json(
+        { error: "Profile modification is restricted in public read-only mode." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const { id, name, rollNumber, department, year, codechefUsername, leetcodeUsername, githubUsername, profilePictureUrl } = body;
 

@@ -6,6 +6,16 @@ import { ActivityService } from "@/services/activity.service";
 
 export async function POST(request: NextRequest) {
   try {
+    const authHeader = request.headers.get("authorization");
+    const cronSecret = process.env.CRON_SECRET;
+
+    if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+      return NextResponse.json(
+        { error: "Student registration/analysis is restricted in public read-only mode." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json().catch(() => ({}));
     const { name, url, codechefUrl, leetcodeUrl, githubUrl, rollNumber, department, year, branch, section } = body;
 
