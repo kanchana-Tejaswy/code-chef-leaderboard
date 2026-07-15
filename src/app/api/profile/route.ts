@@ -178,39 +178,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const studentId = searchParams.get("id") || searchParams.get("studentId");
-
-    if (!studentId) {
-      return NextResponse.json({ error: "Missing student id parameter" }, { status: 400 });
-    }
-
-    // Fetch student info first to construct message
-    const student = await prisma.studentProfile.findUnique({
-      where: { id: studentId },
-    });
-
-    if (student) {
-      // Log Student Delete Event
-      await ActivityService.logEvent(
-        "STUDENT_DELETE",
-        null,
-        `${student.name} (${student.department || "CSE"}) profile was removed from standings.`
-      );
-    }
-
-    // Delete student profile (foreign keys cascade and delete related tables)
-    await prisma.studentProfile.delete({
-      where: { id: studentId },
-    });
-
-    // Recalculate ranks on the leaderboard
-    await SyncService.recalculateLeaderboardRanks();
-
-    return NextResponse.json({ success: true, message: "Student deleted successfully." });
-  } catch (err: any) {
-    console.error("Error in delete profile API:", err);
-    return NextResponse.json({ error: err.message || "Failed to delete student profile." }, { status: 500 });
-  }
+  return NextResponse.json(
+    { error: "Student deletion is disabled in public read-only mode." },
+    { status: 403 }
+  );
 }

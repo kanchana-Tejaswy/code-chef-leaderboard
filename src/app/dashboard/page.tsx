@@ -57,6 +57,7 @@ import {
 import { RatingChart } from "@/components/dashboard/rating-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { SkillRadar } from "@/components/dashboard/skill-radar";
+import { getDisplayRank } from "@/utils/ranking";
 
 // 1. Interfaces
 interface SparklineData {
@@ -2174,12 +2175,21 @@ export default function LandingPage() {
                       </td>
                     </tr>
                   ) : (
-                    entries.map((entry) => {
+                    entries.map((entry, index) => {
+                      const isFiltered =
+                        leaderboardFilter !== "overallScore" ||
+                        search.trim() !== "" ||
+                        selectedDepts.length > 0 ||
+                        selectedYears.length > 0 ||
+                        ((leaderboardFilter as string) === "codechefScore" && selectedStars.length > 0) ||
+                        !!(sortBy && sortBy !== "overallScore" && sortBy !== "rank");
+
+                      const displayRank = getDisplayRank(entry.rank, index, page, limit, isFiltered);
                       return (
                         <tr key={entry.id} className="hover:bg-white/[0.008] transition-colors group">
                           {/* Rank */}
                           <td className="py-4 px-6 text-center text-xs font-black">
-                            {getRankBadge(entry.rank)}
+                            {getRankBadge(displayRank)}
                           </td>
 
                           {/* Student profile details */}

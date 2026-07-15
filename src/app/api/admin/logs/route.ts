@@ -1,27 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { createClient } from "@/utils/supabase/server";
-
-async function checkAdmin() {
-  try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return false;
-    const email = user.email || "";
-    const lowerEmail = email.toLowerCase();
-    const isGK = lowerEmail === "gk@college.edu" || lowerEmail.includes("gksir") || lowerEmail === "demo-admin@college.edu" || lowerEmail === "demo@college.edu";
-    const role = isGK ? "ADMIN" : (user.user_metadata?.role || "STUDENT").toUpperCase();
-    return role === "ADMIN";
-  } catch {
-    return false;
-  }
-}
 
 export async function GET(request: NextRequest) {
   try {
-    if (!(await checkAdmin())) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
     // Fetch recent 25 sync logs
     const logs = await prisma.syncLog.findMany({
       take: 25,

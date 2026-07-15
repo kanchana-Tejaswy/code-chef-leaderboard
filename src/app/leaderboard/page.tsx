@@ -20,6 +20,7 @@ import {
   X
 } from "lucide-react";
 import ContestPlatformCard from "../../components/leaderboard/ContestPlatformCard";
+import { getDisplayRank } from "@/utils/ranking";
 
 interface LeaderboardEntry {
   id: string;
@@ -147,8 +148,8 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
           <div className="w-full h-24 sm:h-28 bg-gradient-to-t from-zinc-950/80 to-zinc-900/30 border-t border-x border-zinc-800/40 rounded-t-2xl flex flex-col justify-center items-center shadow-[0_-4px_30px_rgba(0,0,0,0.4)]">
             <span className="text-3xl font-black text-zinc-650 mb-1">2</span>
             <div className="flex flex-col items-center">
-              <span className="text-xs font-extrabold text-zinc-300">{second.rating}</span>
-              <span className="text-[8px] text-zinc-550 uppercase tracking-widest font-bold">Rating</span>
+              <span className="text-xs font-extrabold text-zinc-300">{second.overallScore}</span>
+              <span className="text-[8px] text-zinc-550 uppercase tracking-widest font-bold">Score</span>
             </div>
           </div>
         </div>
@@ -178,8 +179,8 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
             <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-amber-500/0 via-[#EAB308]/40 to-amber-500/0" />
             <span className="text-4xl font-black text-[#EAB308]/70 mb-1">1</span>
             <div className="flex flex-col items-center">
-              <span className="text-sm font-black text-white">{first.rating}</span>
-              <span className="text-[8px] text-[#EAB308]/60 uppercase tracking-widest font-bold">Rating</span>
+              <span className="text-sm font-black text-white">{first.overallScore}</span>
+              <span className="text-[8px] text-[#EAB308]/60 uppercase tracking-widest font-bold">Score</span>
             </div>
           </div>
         </div>
@@ -207,8 +208,8 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
           <div className="w-full h-20 sm:h-24 bg-gradient-to-t from-zinc-950/80 to-zinc-900/30 border-t border-x border-zinc-800/40 rounded-t-2xl flex flex-col justify-center items-center shadow-[0_-4px_30px_rgba(0,0,0,0.4)]">
             <span className="text-3xl font-black text-amber-700/60 mb-1">3</span>
             <div className="flex flex-col items-center">
-              <span className="text-xs font-extrabold text-zinc-300">{third.rating}</span>
-              <span className="text-[8px] text-zinc-550 uppercase tracking-widest font-bold">Rating</span>
+              <span className="text-xs font-extrabold text-zinc-300">{third.overallScore}</span>
+              <span className="text-[8px] text-zinc-550 uppercase tracking-widest font-bold">Score</span>
             </div>
           </div>
         </div>
@@ -997,11 +998,9 @@ function LeaderboardContent() {
                         ghFollowersMin !== "" ||
                         ghStarsMin !== "" ||
                         ghReposMin !== "" ||
-                        (sortBy && sortBy !== "overallScore" && sortBy !== "rank");
+                        !!(sortBy && sortBy !== "overallScore" && sortBy !== "rank");
 
-                      const displayRank = isFiltered
-                        ? (page - 1) * limit + index + 1
-                        : entry.rank;
+                      const displayRank = getDisplayRank(entry.rank, index, page, limit, isFiltered);
 
                       return (
                         <tr
