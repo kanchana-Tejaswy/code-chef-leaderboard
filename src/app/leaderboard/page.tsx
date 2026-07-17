@@ -222,6 +222,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
 function LeaderboardContent() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PlatformKey>("overall");
 
   // Editing Student Name State
@@ -326,6 +327,7 @@ function LeaderboardContent() {
 
   const fetchStandings = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams();
       params.set("platform", activeTab);
@@ -365,9 +367,12 @@ function LeaderboardContent() {
         setEntries(data.entries || []);
         setTotal(data.pagination?.total || 0);
         setTotalPages(data.pagination?.totalPages || 1);
+      } else {
+        setError("Unable to load student data. Please try again.");
       }
     } catch (e) {
       console.error("Failed to load standings:", e);
+      setError("Unable to load student data. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -966,6 +971,16 @@ function LeaderboardContent() {
                         <div className="flex flex-col items-center gap-3">
                           <Loader2 className="h-8 w-8 animate-spin text-[#EAB308]" />
                           <span className="text-xs text-brand-muted font-semibold">Loading standings...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : error ? (
+                    <tr>
+                      <td colSpan={getColSpan()} className="py-24 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                          <X className="h-8 w-8 text-red-500/80" />
+                          <span className="text-sm text-red-400 font-bold">{error}</span>
+                          <span className="text-xs text-zinc-650">Please verify your database connection or try again later.</span>
                         </div>
                       </td>
                     </tr>

@@ -588,6 +588,7 @@ export default function LandingPage() {
   const [sortBy, setSortBy] = useState("overallScore");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [isLeaderboardLoading, setIsLeaderboardLoading] = useState(false);
+  const [leaderboardError, setLeaderboardError] = useState<string | null>(null);
 
   // Student Profile Popup States
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -675,6 +676,7 @@ export default function LandingPage() {
   // Fetch paginated & filtered leaderboard entries
   const fetchLeaderboard = async () => {
     setIsLeaderboardLoading(true);
+    setLeaderboardError(null);
     try {
       const params = new URLSearchParams();
       const platform = leaderboardFilter === "codechefScore" ? "codechef" : leaderboardFilter === "leetcodeScore" ? "leetcode" : leaderboardFilter === "githubScore" ? "github" : "overall";
@@ -695,9 +697,12 @@ export default function LandingPage() {
         setEntries(data.entries || []);
         setTotal(data.pagination?.total || 0);
         setTotalPages(data.pagination?.totalPages || 1);
+      } else {
+        setLeaderboardError("Unable to load student data. Please try again.");
       }
     } catch (e) {
       console.error("Failed to fetch leaderboard standings:", e);
+      setLeaderboardError("Unable to load student data. Please try again.");
     } finally {
       setIsLeaderboardLoading(false);
     }
@@ -2396,6 +2401,16 @@ export default function LandingPage() {
                         <div className="flex flex-col items-center gap-3">
                           <Loader2 className="h-7 w-7 animate-spin text-[#EAB308]" />
                           <span className="text-xs text-brand-muted font-bold">Querying ACE Student archives...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : leaderboardError ? (
+                    <tr>
+                      <td colSpan={9} className="py-24 text-center">
+                        <div className="flex flex-col items-center gap-3">
+                          <X className="h-8 w-8 text-red-500/80" />
+                          <span className="text-sm font-bold text-red-400">{leaderboardError}</span>
+                          <span className="text-xs text-zinc-650">Please verify your database connection or try again later.</span>
                         </div>
                       </td>
                     </tr>
