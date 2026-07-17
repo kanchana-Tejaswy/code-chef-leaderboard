@@ -1279,8 +1279,14 @@ export default function LandingPage() {
 
   const insights = getAIInsights();
 
-  // Helper for rank rendering
   const getRankBadge = (pos: number) => {
+    if (pos === 0) {
+      return (
+        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
+          Unranked
+        </span>
+      );
+    }
     if (pos === 1) {
       return (
         <span className="inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-black bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/30 shadow-[0_0_10px_rgba(255,215,0,0.15)]">

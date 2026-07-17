@@ -45,7 +45,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const {
-      id,
       name,
       rollNumber,
       roll_number,
@@ -82,7 +81,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Academic year must be between 1 and 4." }, { status: 400 });
     }
 
-    const targetId = id || crypto.randomUUID();
+    const targetId = crypto.randomUUID();
+    const isCloudTest = normalizedRollNumber === "CLOUDTEST001";
 
     // Check unique constraints
     if (normalizedRollNumber) {
@@ -166,29 +166,45 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    if (isCloudTest) {
+      console.log(`[Sanitized Log] [CLOUDTEST001] Student profile created in DB. ID: ${profile.id}`);
+    }
+
     await ActivityService.logEvent(
       "STUDENT_ADD",
       profile.id,
       `${normalizedName} (${profile.department || "CSE"}) profile was registered.`
     );
 
-    // Trigger sync in background if any username is set
-    if (normalizedCodechef || normalizedLeetcode || normalizedGithub) {
-      SyncService.syncStudent(profile.id, "USER_MANUAL")
-        .then((syncRes) => {
-          if (!syncRes.success) {
-            console.error(`Background initial sync failed: ${syncRes.error}`);
-          } else {
-            console.log(`Background initial sync succeeded for student ${profile.id}`);
-          }
-        })
-        .catch((e) => console.error("Sync error:", e));
+    // Sync synchronously - Do not rely on unawaited background promises
+    if (isCloudTest) {
+      console.log(`[Sanitized Log] [CLOUDTEST001] Synchronous sync starting...`);
+    }
+    const syncRes = await SyncService.syncStudent(profile.id, "USER_MANUAL");
+    if (isCloudTest) {
+      console.log(`[Sanitized Log] [CLOUDTEST001] Synchronous sync ended. Success: ${syncRes.success}, Error: ${syncRes.error || "None"}`);
     }
 
     // Recalculate ranks
     await SyncService.recalculateLeaderboardRanks();
 
-    return NextResponse.json({ success: true, profile });
+    // Reread saved row from DB before returning success
+    const finalProfile = await prisma.studentProfile.findUnique({
+      where: { id: profile.id },
+      include: {
+        codechefProfile: true,
+        leetcodeProfile: true,
+        githubProfile: true,
+        aiAnalysis: true,
+        leaderboardEntry: true,
+      },
+    });
+
+    if (isCloudTest) {
+      console.log(`[Sanitized Log] [CLOUDTEST001] Reread profile successfully: ${finalProfile ? "YES" : "NO"}`);
+    }
+
+    return NextResponse.json({ success: true, profile: finalProfile });
   } catch (err: any) {
     console.error("Error creating profile API:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

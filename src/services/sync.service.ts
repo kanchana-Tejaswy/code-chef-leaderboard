@@ -78,8 +78,9 @@ export class SyncService {
       return { success: false, error: "Student profile not found." };
     }
 
-    if (!student.codechefUsername && !student.leetcodeUsername && !student.githubUsername) {
-      return { success: false, error: "No profile usernames configured for this student." };
+    const isCloudTest = student.rollNumber === "CLOUDTEST001";
+    if (isCloudTest) {
+      console.log(`[Sanitized Log] [CLOUDTEST001] Sync started. Initiated by: ${initiatedBy}`);
     }
 
     // Create or update SyncJob
@@ -89,6 +90,52 @@ export class SyncService {
         status: "RUNNING",
       },
     });
+
+    if (!student.codechefUsername && !student.leetcodeUsername && !student.githubUsername) {
+      if (isCloudTest) {
+        console.log(`[Sanitized Log] [CLOUDTEST001] No usernames configured. Creating unranked LeaderboardEntry.`);
+      }
+
+      await prisma.leaderboardEntry.upsert({
+        where: { studentId },
+        create: {
+          studentId,
+          rating: 0,
+          stars: 0,
+          talentScore: 0,
+          overallScore: 0,
+          codechefScore: 0,
+          leetcodeScore: 0,
+          githubScore: 0,
+          trendDirection: "NEUTRAL",
+          rank: 0,
+        },
+        update: {
+          rating: 0,
+          stars: 0,
+          talentScore: 0,
+          overallScore: 0,
+          codechefScore: 0,
+          leetcodeScore: 0,
+          githubScore: 0,
+          trendDirection: "NEUTRAL",
+          rank: 0,
+        },
+      });
+
+      await prisma.syncJob.update({
+        where: { id: syncJob.id },
+        data: {
+          status: "COMPLETED",
+        },
+      });
+
+      if (isCloudTest) {
+        console.log(`[Sanitized Log] [CLOUDTEST001] Created unranked LeaderboardEntry and completed sync job.`);
+      }
+
+      return { success: true };
+    }
 
     try {
       // 2. Collector Phase: Scrape platforms in parallel
@@ -117,6 +164,10 @@ export class SyncService {
       ];
 
       const [codechefData, leetcodeData, githubData] = await Promise.all(scrapePromises);
+
+      if (isCloudTest) {
+        console.log(`[Sanitized Log] [CLOUDTEST001] Platform fetch results: CodeChef success: ${codechefData !== null}, LeetCode success: ${leetcodeData !== null}, GitHub success: ${githubData !== null}`);
+      }
 
       // Validate all successfully scraped data prior to database writes
       if (student.codechefUsername && codechefData) {
@@ -409,9 +460,17 @@ export class SyncService {
       // 4. Normalization Phase: Unify and validate platform data
       const normalizedProfile = await NormalizationService.normalizeStudent(studentId);
 
+      if (isCloudTest) {
+        console.log(`[Sanitized Log] [CLOUDTEST001] Normalized profile created. Rating score: ${normalizedProfile?.ratingScore || 0}`);
+      }
+
       // 5. AI Insights & Rating Phase: Execute AI engines strictly on normalized DB data
       const analysisResult = await AiEngineService.runAnalysisForStudent(studentId);
       const overallAi = analysisResult.overall;
+
+      if (isCloudTest) {
+        console.log(`[Sanitized Log] [CLOUDTEST001] AI analysis completed. Overall talent score: ${overallAi?.talentScore}`);
+      }
       const codechefAi = analysisResult.codechef;
       const leetcodeAi = analysisResult.leetcode;
       const githubAi = analysisResult.github;
@@ -475,6 +534,10 @@ export class SyncService {
         },
       });
 
+      if (isCloudTest) {
+        console.log(`[Sanitized Log] [CLOUDTEST001] Leaderboard entry created/updated. Overall score: ${overallScore}, Rank trend: ${trendDirection}`);
+      }
+
       // Recalculate ranks on the leaderboard
       await this.recalculateLeaderboardRanks();
 
@@ -515,9 +578,16 @@ export class SyncService {
         },
       });
 
+      if (isCloudTest) {
+        console.log("[Sanitized Log] [CLOUDTEST001] Sync completed successfully.");
+      }
+
       return { success: true };
     } catch (err: any) {
       console.error(`Sync failed for student ${studentId}:`, err);
+      if (student && student.rollNumber === "CLOUDTEST001") {
+        console.log(`[Sanitized Log] [CLOUDTEST001] Sync failed: ${err.message || "Unknown error"}`);
+      }
 
       try {
         await prisma.syncLog.create({
@@ -556,10 +626,18 @@ export class SyncService {
 
   static async recalculateLeaderboardRanks(): Promise<void> {
     try {
+      // First reset all ranks to 0
+      await prisma.$executeRawUnsafe(`
+        UPDATE leaderboard_entries SET rank = 0
+      `);
+
+      // Then calculate ranks only for active students who have at least one platform profile
       await prisma.$executeRawUnsafe(`
         WITH ranked AS (
-          SELECT id, ROW_NUMBER() OVER (ORDER BY overall_score DESC, rating DESC, talent_score DESC) as new_rank
-          FROM leaderboard_entries
+          SELECT le.id, ROW_NUMBER() OVER (ORDER BY le.overall_score DESC, le.rating DESC, le.talent_score DESC) as new_rank
+          FROM leaderboard_entries le
+          JOIN student_profiles sp ON le.student_id = sp.id
+          WHERE sp.codechef_username IS NOT NULL OR sp.leetcode_username IS NOT NULL OR sp.github_username IS NOT NULL
         )
         UPDATE leaderboard_entries le
         SET rank = r.new_rank
@@ -570,6 +648,9 @@ export class SyncService {
       console.error("Failed to recalculate leaderboard ranks via raw SQL, executing transaction fallback:", err);
       
       const entries = await prisma.leaderboardEntry.findMany({
+        include: {
+          student: true,
+        },
         orderBy: [
           { overallScore: "desc" },
           { rating: "desc" },
@@ -578,13 +659,16 @@ export class SyncService {
       });
 
       if (entries.length > 0) {
+        let rankCounter = 1;
         await prisma.$transaction(
-          entries.map((entry, index) =>
-            prisma.leaderboardEntry.update({
+          entries.map((entry) => {
+            const hasUsername = entry.student.codechefUsername || entry.student.leetcodeUsername || entry.student.githubUsername;
+            const newRank = hasUsername ? rankCounter++ : 0;
+            return prisma.leaderboardEntry.update({
               where: { id: entry.id },
-              data: { rank: index + 1 },
-            })
-          )
+              data: { rank: newRank },
+            });
+          })
         );
       }
     }
