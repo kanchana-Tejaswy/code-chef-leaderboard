@@ -9,5 +9,6 @@ export function getDisplayRank(
   limit: number,
   hasFiltersOrCustomSort: boolean
 ): number {
+  if (entryRank === 0) return 0;
   return hasFiltersOrCustomSort ? (page - 1) * limit + index + 1 : entryRank;
 }
