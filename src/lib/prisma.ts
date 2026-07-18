@@ -11,13 +11,13 @@ function getClient(): PrismaClient {
     return globalForPrisma.prisma;
   }
   
-  const databaseUrl = process.env.POSTGRES_PRISMA_URL ?? process.env.DATABASE_URL;
+  const databaseUrl = process.env.POSTGRES_PRISMA_URL || process.env.POSTGRES_URL;
   
   if (!databaseUrl) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("POSTGRES_PRISMA_URL or DATABASE_URL is not set. Please configure it in Vercel settings.");
+      throw new Error("Database URL is not configured. Missing POSTGRES_PRISMA_URL or POSTGRES_URL.");
     }
-    console.warn("POSTGRES_PRISMA_URL and DATABASE_URL are not set, falling back to localhost.");
+    console.warn("Database URL is not configured, falling back to localhost.");
   }
 
   const pool = new Pool({

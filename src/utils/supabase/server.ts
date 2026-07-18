@@ -3,10 +3,10 @@ import { cookies } from "next/headers";
 
 export async function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!url || !key) {
-    console.error("[Supabase Server Client] Missing credentials! NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY must be defined.");
+    console.error("[Supabase Server Client] Missing credentials! NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY must be defined.");
     throw new Error("Supabase Server credentials missing");
   }
 
@@ -33,4 +33,22 @@ export async function createClient() {
       },
     }
   );
+}
+
+export function createAdminClient() {
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SECRET_KEY;
+
+  if (!url || !key) {
+    console.error("[Supabase Admin Client] Missing credentials! SUPABASE_URL and SUPABASE_SECRET_KEY must be defined.");
+    throw new Error("Supabase Admin credentials missing");
+  }
+
+  // The admin client should not use cookies and ignores RLS.
+  return createServerClient(url, key, {
+    cookies: {
+      getAll() { return []; },
+      setAll() {}
+    }
+  });
 }
