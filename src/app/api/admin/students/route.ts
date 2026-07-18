@@ -31,13 +31,6 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!canPerformWrite(request)) {
-    return NextResponse.json(
-      { error: "Student modifications are disabled in public read-only mode." },
-      { status: 403 }
-    );
-  }
-
   try {
     const body = await request.json().catch(() => ({}));
     const { id, name } = body;

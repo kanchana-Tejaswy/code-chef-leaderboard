@@ -19,13 +19,6 @@ interface ImportRow {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!canPerformWrite(request)) {
-      return NextResponse.json(
-        { error: "CSV import is restricted in public read-only mode." },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json().catch(() => ({}));
     const { action, rows, autoSync } = body;
 

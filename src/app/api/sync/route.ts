@@ -5,13 +5,6 @@ import { canPerformWrite } from "@/lib/write-access";
 
 export async function POST(request: NextRequest) {
   try {
-    if (!canPerformWrite(request)) {
-      return NextResponse.json(
-        { error: "Synchronization is restricted in public read-only mode." },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json().catch(() => ({}));
     const studentId = body.studentId;
 

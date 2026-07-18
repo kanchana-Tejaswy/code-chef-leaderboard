@@ -550,7 +550,7 @@ export default function LandingPage() {
   const [topPerformers, setTopPerformers] = useState<any[]>([]);
   const [globalHeatmap, setGlobalHeatmap] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
-  const [publicDemoWriteMode, setPublicDemoWriteMode] = useState(false);
+  const [publicDemoWriteMode, setPublicDemoWriteMode] = useState(true);
 
   // Add Student Form States
   const [formName, setFormName] = useState("");
@@ -856,7 +856,24 @@ export default function LandingPage() {
   };
 
   const handleDeleteStudent = async (studentId: string) => {
-    alert("Deletion is disabled during public demo mode.");
+    if (!confirm("Are you sure you want to delete this student profile?")) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/profile?id=${studentId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        await fetchLeaderboard();
+        await loadDashboardData();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to delete student profile.");
+      }
+    } catch (e) {
+      console.error("Error deleting student:", e);
+      alert("Failed to delete student due to a network error.");
+    }
   };
 
   const parseCSV = (text: string) => {
@@ -1891,15 +1908,7 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {!publicDemoWriteMode ? (
-              <div className="rounded-xl border border-red-500/20 bg-red-500/5 px-3 py-2 text-[11px] font-semibold text-red-400">
-                Student registration/analysis is restricted in public read-only mode.
-              </div>
-            ) : (
-              <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold text-amber-300">
-                Temporary demo mode is active. Student additions and updates are publicly available.
-              </div>
-            )}
+            {/* Warning banners removed for fully open public write access */}
 
             <form onSubmit={handleAnalyzeStudent} className="flex flex-col gap-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1913,7 +1922,7 @@ export default function LandingPage() {
                     required
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    disabled={isAnalyzing || !publicDemoWriteMode}
+                    disabled={isAnalyzing}
                     placeholder="Name"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
@@ -1929,7 +1938,7 @@ export default function LandingPage() {
                     required
                     value={formRollNumber}
                     onChange={(e) => setFormRollNumber(e.target.value)}
-                    disabled={isAnalyzing || !publicDemoWriteMode}
+                    disabled={isAnalyzing}
                     placeholder="roll number "
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 uppercase"
                   />
@@ -1943,7 +1952,7 @@ export default function LandingPage() {
                   <select
                     value={formDepartment}
                     onChange={(e) => setFormDepartment(e.target.value)}
-                    disabled={isAnalyzing || !publicDemoWriteMode}
+                    disabled={isAnalyzing}
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
                   >
                     <option value="CSE">CSE - Computer Science</option>
@@ -1965,7 +1974,7 @@ export default function LandingPage() {
                   <select
                     value={formYear}
                     onChange={(e) => setFormYear(Number(e.target.value))}
-                    disabled={isAnalyzing || !publicDemoWriteMode}
+                    disabled={isAnalyzing}
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
                   >
                     <option value={1}>1st Year</option>
@@ -1983,7 +1992,7 @@ export default function LandingPage() {
                   <select
                     value={formSection}
                     onChange={(e) => setFormSection(e.target.value)}
-                    disabled={isAnalyzing || !publicDemoWriteMode}
+                    disabled={isAnalyzing}
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200 cursor-pointer"
                   >
                     <option value="A">Section A</option>
@@ -2010,7 +2019,7 @@ export default function LandingPage() {
                     type="text"
                     value={formCodechefUrl}
                     onChange={(e) => setFormCodechefUrl(e.target.value)}
-                    disabled={isAnalyzing || !publicDemoWriteMode}
+                    disabled={isAnalyzing}
                     placeholder="https://www.codechef.com/users/username"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
@@ -2025,7 +2034,7 @@ export default function LandingPage() {
                     type="text"
                     value={formLeetcodeUrl}
                     onChange={(e) => setFormLeetcodeUrl(e.target.value)}
-                    disabled={isAnalyzing || !publicDemoWriteMode}
+                    disabled={isAnalyzing}
                     placeholder="https://leetcode.com/username"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
@@ -2040,7 +2049,7 @@ export default function LandingPage() {
                     type="text"
                     value={formGithubUrl}
                     onChange={(e) => setFormGithubUrl(e.target.value)}
-                    disabled={isAnalyzing || !publicDemoWriteMode}
+                    disabled={isAnalyzing}
                     placeholder="https://github.com/username"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
@@ -2111,14 +2120,14 @@ export default function LandingPage() {
                 <button
                   type="button"
                   onClick={handleClearForm}
-                  disabled={isAnalyzing || !publicDemoWriteMode}
+                  disabled={isAnalyzing}
                   className="px-4 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-brand-muted hover:text-white text-xs font-bold transition-all disabled:opacity-50"
                 >
                   Clear Form
                 </button>
                 <button
                   type="submit"
-                  disabled={isAnalyzing || !publicDemoWriteMode}
+                  disabled={isAnalyzing}
                   className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all shadow-[0_4px_15px_rgba(234,179,8,0.25)] hover:shadow-[0_4px_20px_rgba(250,204,21,0.4)] disabled:opacity-50"
                 >
                   {isAnalyzing ? (
@@ -2154,15 +2163,13 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex gap-2">
-                {publicDemoWriteMode && (
-                  <button
-                    onClick={() => setIsCsvModalOpen(true)}
-                    className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-bg border border-brand-border hover:border-[#EAB308]/30 hover:text-white text-xs font-bold text-brand-muted transition-all shadow-sm shrink-0"
-                  >
-                    <UserPlus className="h-3.5 w-3.5 text-[#EAB308]" />
-                    CSV Import
-                  </button>
-                )}
+                <button
+                  onClick={() => setIsCsvModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-brand-bg border border-brand-border hover:border-[#EAB308]/30 hover:text-white text-xs font-bold text-brand-muted transition-all shadow-sm shrink-0"
+                >
+                  <UserPlus className="h-3.5 w-3.5 text-[#EAB308]" />
+                  CSV Import
+                </button>
                 <a
                   href={getExportUrl()}
                   download
@@ -2617,23 +2624,21 @@ export default function LandingPage() {
                               </Link>
 
                               {/* Edit Student */}
-                              {publicDemoWriteMode && (
-                                <button
-                                  onClick={() => handleOpenEditModal(entry.student.id)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#EAB308]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white transition-all shadow-sm"
-                                  title="Edit student profile"
-                                >
-                                  <Edit2 className="h-3 w-3 text-zinc-500" />
-                                  <span className="hidden md:inline">Edit</span>
-                                </button>
-                              )}
+                              <button
+                                onClick={() => handleOpenEditModal(entry.student.id)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#EAB308]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white transition-all shadow-sm"
+                                title="Edit student profile"
+                              >
+                                <Edit2 className="h-3 w-3 text-zinc-500" />
+                                <span className="hidden md:inline">Edit</span>
+                              </button>
 
                               {/* Refresh Data */}
                               <button
                                 onClick={() => handleRefreshStudent(entry.student.id)}
-                                disabled={isRefreshingId === entry.student.id || !publicDemoWriteMode}
+                                disabled={isRefreshingId === entry.student.id}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#22C55E]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
-                                title={publicDemoWriteMode ? "Refresh metrics" : "Refreshing metrics is disabled in read-only mode"}
+                                title="Refresh metrics"
                               >
                                 {isRefreshingId === entry.student.id ? (
                                   <Loader2 className="h-3 w-3 animate-spin text-[#22C55E]" />
@@ -2646,12 +2651,11 @@ export default function LandingPage() {
                               {/* Delete Student */}
                               <button
                                 onClick={() => handleDeleteStudent(entry.student.id)}
-                                disabled={true}
-                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border bg-zinc-950 text-[9px] font-extrabold text-zinc-650 cursor-not-allowed transition-all shadow-sm"
-                                title="Deletion is disabled during public demo mode."
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-red-500/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white transition-all shadow-sm"
+                                title="Delete student profile"
                               >
-                                <Trash2 className="h-3 w-3 text-zinc-600" />
-                                <span className="hidden md:inline text-zinc-600">Delete</span>
+                                <Trash2 className="h-3 w-3 text-red-500" />
+                                <span className="hidden md:inline text-red-500">Delete</span>
                               </button>
                             </div>
                           </td>

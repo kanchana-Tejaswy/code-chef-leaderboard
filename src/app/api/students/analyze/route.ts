@@ -7,13 +7,6 @@ import { canPerformWrite } from "@/lib/write-access";
 
 export async function POST(request: NextRequest) {
   try {
-    if (!canPerformWrite(request)) {
-      return NextResponse.json(
-        { error: "Student registration/analysis is restricted in public read-only mode." },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json().catch(() => ({}));
     const { name, url, codechefUrl, leetcodeUrl, githubUrl, rollNumber, department, year, branch, section } = body;
 

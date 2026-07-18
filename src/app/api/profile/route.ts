@@ -36,13 +36,6 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    if (!canPerformWrite(request)) {
-      return NextResponse.json(
-        { error: "Profile modification is restricted in public read-only mode." },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
     const {
       name,
@@ -213,13 +206,6 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    if (!canPerformWrite(request)) {
-      return NextResponse.json(
-        { error: "Profile modification is restricted in public read-only mode." },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
     const id = body.id || body.studentId || body.userId;
 
@@ -415,13 +401,6 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    if (!canPerformDelete(request)) {
-      return NextResponse.json(
-        { error: "Deletion is disabled during public demo mode." },
-        { status: 403 }
-      );
-    }
-
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("id") || searchParams.get("studentId") || searchParams.get("userId");
 
