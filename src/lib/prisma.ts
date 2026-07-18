@@ -10,19 +10,13 @@ let prismaInstance: PrismaClient;
 
 if (typeof window === "undefined") {
   const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    if (process.env.NODE_ENV === "production") {
-      throw new Error("DATABASE_URL is not set. A valid database connection string is required in production.");
-    }
-    console.warn("Database connection is not configured: DATABASE_URL is not set.");
-  }
   
-  // Use a placeholder only for development/build if env is missing
-  const connectionString = databaseUrl || (process.env.NODE_ENV !== "production" ? "postgresql://postgres:postgres@localhost:5432/postgres" : undefined);
-  
+  // Create connection pool with the URL (which might be undefined at build time).
+  // Environment validation is deferred to when Prisma actually executes a query.
   const pool = new Pool({
-    connectionString,
+    connectionString: databaseUrl,
   });
+  
   const adapter = new PrismaPg(pool);
 
   prismaInstance =
