@@ -20,10 +20,39 @@ function getClient(): PrismaClient {
     console.warn("Database URL is not configured, falling back to localhost.");
   }
 
+  const databaseUrlStr = process.env.NODE_ENV === "production" 
+    ? databaseUrl 
+    : (databaseUrl || "postgresql://postgres:postgres@localhost:5432/postgres");
+    
+  let connectionString: string | undefined = databaseUrlStr;
+  try {
+    if (connectionString) {
+      const url = new URL(connectionString);
+      if (url.searchParams.has('sslmode')) url.searchParams.delete('sslmode');
+      if (url.searchParams.has('ssl')) url.searchParams.delete('ssl');
+      connectionString = url.toString();
+    }
+  } catch (e) {
+    // If URL parsing fails, we proceed with the raw string
+  }
+
+
+  let sslConfig: any = undefined;
+  if (process.env.SUPABASE_DB_CA_CERT) {
+    const normalizedCert = process.env.SUPABASE_DB_CA_CERT.replace(/\\n/g, '\n');
+    sslConfig = {
+      ca: normalizedCert,
+      rejectUnauthorized: true,
+    };
+  } else if (process.env.NODE_ENV === "production") {
+    sslConfig = {
+      rejectUnauthorized: false,
+    };
+  }
+
   const pool = new Pool({
-    connectionString: process.env.NODE_ENV === "production" 
-      ? databaseUrl 
-      : (databaseUrl || "postgresql://postgres:postgres@localhost:5432/postgres"),
+    connectionString,
+    ssl: sslConfig,
   });
   const adapter = new PrismaPg(pool);
   
