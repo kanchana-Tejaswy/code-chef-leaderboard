@@ -5,9 +5,9 @@ export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    if (!process.env.DATABASE_URL) {
+    if (!(process.env.POSTGRES_PRISMA_URL ?? process.env.DATABASE_URL)) {
       return NextResponse.json(
-        { error: "DATABASE_URL is not configured" },
+        { error: "POSTGRES_PRISMA_URL or DATABASE_URL is not configured" },
         { status: 503 }
       );
     }

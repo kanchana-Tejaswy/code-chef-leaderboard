@@ -30,7 +30,7 @@ function parseConnectionString(url: string | undefined) {
 async function run() {
   console.log("=== STARTING DATABASE TARGET DIAGNOSTIC ===\n");
 
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.POSTGRES_PRISMA_URL ?? process.env.DATABASE_URL;
   const directUrl = process.env.DIRECT_URL;
 
   // Determine environment file supplying the value
