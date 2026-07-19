@@ -1,21 +1,20 @@
 export class OverallScoreService {
   /**
-   * Loads configured weights from process.env, defaulting to 35% CodeChef, 35% LeetCode, 30% GitHub.
+   * Loads configured weights from process.env, defaulting to equal weights (50/50).
+   * It reads the original weights, ignoring GitHub, and normalizes CodeChef and LeetCode so their combined total is 100%.
    */
-  static getWeights(): { codechef: number; leetcode: number; github: number } {
+  static getWeights(): { codechef: number; leetcode: number } {
     const codechefRaw = parseFloat(process.env.WEIGHT_CODECHEF || "35");
     const leetcodeRaw = parseFloat(process.env.WEIGHT_LEETCODE || "35");
-    const githubRaw = parseFloat(process.env.WEIGHT_GITHUB || "30");
 
-    const sum = codechefRaw + leetcodeRaw + githubRaw;
+    const sum = codechefRaw + leetcodeRaw;
     if (sum === 0) {
-      return { codechef: 0.35, leetcode: 0.35, github: 0.3 };
+      return { codechef: 0.5, leetcode: 0.5 };
     }
 
     return {
       codechef: codechefRaw / sum,
       leetcode: leetcodeRaw / sum,
-      github: githubRaw / sum,
     };
   }
 
@@ -23,10 +22,11 @@ export class OverallScoreService {
    * Calculates overall score dynamically.
    * Only aggregates platforms that are active for this student.
    * Normalizes remaining weights if some platforms are missing.
+   * Excludes GitHub entirely.
    */
   static calculate(
-    scores: { codechef: number; leetcode: number; github: number },
-    active: { codechef: boolean; leetcode: boolean; github: boolean }
+    scores: { codechef: number; leetcode: number },
+    active: { codechef: boolean; leetcode: boolean }
   ): number {
     const weights = this.getWeights();
     
@@ -40,10 +40,6 @@ export class OverallScoreService {
     if (active.leetcode) {
       weightedSum += scores.leetcode * weights.leetcode;
       totalWeight += weights.leetcode;
-    }
-    if (active.github) {
-      weightedSum += scores.github * weights.github;
-      totalWeight += weights.github;
     }
 
     if (totalWeight === 0) {

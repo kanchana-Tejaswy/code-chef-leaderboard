@@ -97,10 +97,10 @@ export class AnalyticsService {
       github: !!githubResult,
     };
 
-    // Calculate Overall Weighted Score
+    // Calculate Overall Weighted Score (excluding GitHub for competitive scoring)
     const overallScore = OverallScoreService.calculate(
-      { codechef: codechefScore, leetcode: leetcodeScore, github: githubScore },
-      active
+      { codechef: codechefScore, leetcode: leetcodeScore },
+      { codechef: active.codechef, leetcode: active.leetcode }
     );
 
     // Compute Overall Unified AI Report

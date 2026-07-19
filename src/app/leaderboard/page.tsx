@@ -45,7 +45,7 @@ interface LeaderboardEntry {
   };
 }
 
-type PlatformKey = "overall" | "codechef" | "leetcode" | "github";
+type PlatformKey = "overall" | "codechef" | "leetcode";
 type SortOrder = "asc" | "desc";
 
 interface PlatformLeaderboardState {
@@ -94,14 +94,13 @@ const platformStateDefaults: Record<PlatformKey, PlatformLeaderboardState> = {
   overall: createPlatformState("overallScore"),
   codechef: createPlatformState("ccRating"),
   leetcode: createPlatformState("lcRank", "asc"),
-  github: createPlatformState("githubScore"),
 };
 
 const platformTabs: { name: string; value: PlatformKey }[] = [
   { name: "Overall", value: "overall" },
   { name: "CodeChef", value: "codechef" },
   { name: "LeetCode", value: "leetcode" },
-  { name: "GitHub", value: "github" },
+
 ];
 
 const notLinkedLabel = "Not Linked";
@@ -350,12 +349,6 @@ function LeaderboardContent() {
         if (lcHardMin) params.set("lcHardMin", lcHardMin);
       }
 
-      if (activeTab === "github") {
-        if (ghFollowersMin) params.set("ghFollowersMin", ghFollowersMin);
-        if (ghStarsMin) params.set("ghStarsMin", ghStarsMin);
-        if (ghReposMin) params.set("ghReposMin", ghReposMin);
-      }
-
       params.set("page", page.toString());
       params.set("limit", limit.toString());
       params.set("sortBy", sortBy);
@@ -468,9 +461,7 @@ function LeaderboardContent() {
     if (activeTab === "leetcode" && lcEasyMin) params.set("lcEasyMin", lcEasyMin);
     if (activeTab === "leetcode" && lcMediumMin) params.set("lcMediumMin", lcMediumMin);
     if (activeTab === "leetcode" && lcHardMin) params.set("lcHardMin", lcHardMin);
-    if (activeTab === "github" && ghFollowersMin) params.set("ghFollowersMin", ghFollowersMin);
-    if (activeTab === "github" && ghStarsMin) params.set("ghStarsMin", ghStarsMin);
-    if (activeTab === "github" && ghReposMin) params.set("ghReposMin", ghReposMin);
+
     params.set("sortBy", sortBy);
     params.set("sortOrder", sortOrder);
     return `/api/dashboard/leaderboard-cache?${params.toString()}`;
@@ -516,7 +507,7 @@ function LeaderboardContent() {
     if (activeTab === "overall") return 6;
     if (activeTab === "codechef") return 12;
     if (activeTab === "leetcode") return 13;
-    if (activeTab === "github") return 9;
+
     return 7;
   };
 
@@ -531,7 +522,7 @@ function LeaderboardContent() {
             </div>
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-white">ACE Leaderboard</h1>
-              <p className="text-sm text-brand-muted mt-1">Real-time student placement readiness rankings across CodeChef, LeetCode, and GitHub</p>
+              <p className="text-sm text-brand-muted mt-1">Real-time student placement readiness rankings across CodeChef and LeetCode</p>
             </div>
           </div>
 
@@ -794,53 +785,6 @@ function LeaderboardContent() {
               </div>
             </div>
           )}
-
-          {/* GitHub Specific Filters */}
-          {activeTab === "github" && (
-            <div className="flex flex-col gap-5 border-t border-brand-border/40 pt-5 animate-fade-in">
-              {/* Followers Min */}
-              <div>
-                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
-                  Min Followers
-                </span>
-                <input
-                  type="number"
-                  value={ghFollowersMin}
-                  onChange={(e) => { setGhFollowersMin(e.target.value); setPage(1); }}
-                  placeholder="Min followers"
-                  className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
-                />
-              </div>
-
-              {/* Stars Min */}
-              <div>
-                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
-                  Min Total Stars
-                </span>
-                <input
-                  type="number"
-                  value={ghStarsMin}
-                  onChange={(e) => { setGhStarsMin(e.target.value); setPage(1); }}
-                  placeholder="Min stars"
-                  className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
-                />
-              </div>
-
-              {/* Repository Count Min */}
-              <div>
-                <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
-                  Min Repositories
-                </span>
-                <input
-                  type="number"
-                  value={ghReposMin}
-                  onChange={(e) => { setGhReposMin(e.target.value); setPage(1); }}
-                  placeholder="Min repos"
-                  className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Standings Grid Column */}
@@ -938,29 +882,6 @@ function LeaderboardContent() {
                         </th>
                       </>
                     )}
-                    {activeTab === "github" && (
-                      <>
-                        <th onClick={() => handleSort("ghFollowers")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Followers {renderSortIcon("ghFollowers")}
-                        </th>
-                        <th onClick={() => handleSort("ghRepos")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Repos {renderSortIcon("ghRepos")}
-                        </th>
-                        <th onClick={() => handleSort("ghStars")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Stars {renderSortIcon("ghStars")}
-                        </th>
-                        <th className="py-4.5 px-3 text-center select-none">Languages</th>
-                        <th onClick={() => handleSort("githubScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Portfolio Score {renderSortIcon("githubScore")}
-                        </th>
-                        <th onClick={() => handleSort("githubScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Activity Score {renderSortIcon("githubScore")}
-                        </th>
-                        <th onClick={() => handleSort("ghOpenSource")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Open Source {renderSortIcon("ghOpenSource")}
-                        </th>
-                      </>
-                    )}
                     <th className="py-4.5 px-6 text-center w-24 select-none">Portfolio</th>
                   </tr>
                 </thead>
@@ -1010,9 +931,6 @@ function LeaderboardContent() {
                         lcEasyMin !== "" ||
                         lcMediumMin !== "" ||
                         lcHardMin !== "" ||
-                        ghFollowersMin !== "" ||
-                        ghStarsMin !== "" ||
-                        ghReposMin !== "" ||
                         !!(sortBy && sortBy !== "overallScore" && sortBy !== "rank");
 
                       const displayRank = getDisplayRank(entry.rank, index, page, limit, isFiltered);
@@ -1212,38 +1130,6 @@ function LeaderboardContent() {
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
                                 {lc ? displayMetric(entry.leetcodeScore) : notLinkedLabel}
-                              </td>
-                            </>
-                          );
-                        })()}
-
-                        {activeTab === "github" && (() => {
-                          const gh = (entry.student as any).githubProfile;
-                          const languages = Array.isArray(gh?.languages)
-                            ? gh.languages.map((language: any) => language.name || language.language || language).filter(Boolean).slice(0, 2).join(", ")
-                            : "";
-                          return (
-                            <>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {gh ? displayMetric(gh.followers) : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {gh ? displayMetric(gh.totalRepositories) : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {gh ? displayMetric(gh.totalStars) : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {languages || notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
-                                {gh ? displayMetric(entry.githubScore) : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {gh ? displayPercent(gh.openSourceScore) : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {gh ? displayPercent(gh.openSourceScore) : notLinkedLabel}
                               </td>
                             </>
                           );

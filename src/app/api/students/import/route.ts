@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canPerformWrite } from "@/lib/write-access";
 import { SyncService } from "@/services/sync.service";
@@ -225,11 +226,10 @@ export async function POST(request: NextRequest) {
     console.log(`Rebuilding leaderboard ranks for ${importedIds.length} imported students...`);
     await SyncService.recalculateLeaderboardRanks();
 
-    // Trigger background sync if requested
+    // Trigger background sync safely using after()
     if (autoSync && importedIds.length > 0) {
       console.log(`AutoSync requested. Syncing ${importedIds.length} profiles...`);
-      // Trigger background sync sequentially
-      (async () => {
+      after(async () => {
         for (const id of importedIds) {
           try {
             await SyncService.syncStudent(id, "USER_MANUAL");
@@ -241,7 +241,7 @@ export async function POST(request: NextRequest) {
         }
         // Recalculate ranks one final time after all profiles are synced
         await SyncService.recalculateLeaderboardRanks();
-      })().catch(e => console.error("AutoSync batch execution error:", e));
+      });
     }
 
     return NextResponse.json({
