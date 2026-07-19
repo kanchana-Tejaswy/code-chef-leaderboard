@@ -1,6 +1,7 @@
 export const revalidate = 60;
 
 import { NextRequest, NextResponse } from "next/server";
+import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
@@ -279,22 +280,31 @@ export async function GET(request: NextRequest) {
     const limit = Math.max(1, parseInt(searchParams.get("limit") || "10", 10));
     const skip = (page - 1) * limit;
 
-    const [entries, total] = await Promise.all([
-      prisma.leaderboardEntry.findMany({
-        where: whereClause,
-        include: {
-          student: {
-            select: studentSelect,
-          },
-        },
-        orderBy,
-        skip,
-        take: limit,
-      }),
-      prisma.leaderboardEntry.count({
-        where: whereClause,
-      }),
-    ]);
+    const getLeaderboardData = unstable_cache(
+      async (wClause, oBy, s, l) => {
+        const [entries, total] = await Promise.all([
+          prisma.leaderboardEntry.findMany({
+            where: wClause,
+            include: {
+              student: {
+                select: studentSelect,
+              },
+            },
+            orderBy: oBy,
+            skip: s,
+            take: l,
+          }),
+          prisma.leaderboardEntry.count({
+            where: wClause,
+          }),
+        ]);
+        return { entries, total };
+      },
+      ["leaderboard-cache-data"],
+      { revalidate: 60 }
+    );
+
+    const { entries, total } = await getLeaderboardData(whereClause, orderBy, skip, limit);
 
     return NextResponse.json({
       entries,

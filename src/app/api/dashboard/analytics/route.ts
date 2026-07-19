@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { unstable_cache } from "next/cache";
 
 export const revalidate = 60;
 
-export async function GET(request: NextRequest) {
-  try {
+const getCachedAnalytics = unstable_cache(
+  async () => {
     const students = await prisma.studentProfile.findMany({
       select: {
         department: true,
@@ -260,7 +261,7 @@ export async function GET(request: NextRequest) {
     });
     const ghDistribution = Object.entries(ghDistBands).map(([range, count]) => ({ range, count }));
 
-    return NextResponse.json({
+    return {
       departmentPerformance,
       ratingDistribution,
       talentScoreDistribution,
@@ -289,7 +290,16 @@ export async function GET(request: NextRequest) {
           growth: monthlyGrowth.map((g) => ({ ...g, count: Math.round(g.count * 2.1) })),
         }
       }
-    });
+    };
+  },
+  ["dashboard-analytics-cache"],
+  { revalidate: 60 }
+);
+
+export async function GET(request: NextRequest) {
+  try {
+    const data = await getCachedAnalytics();
+    return NextResponse.json(data);
   } catch (err: any) {
     console.error("Error in analytics api:", err);
     return NextResponse.json({ error: "Failed to load analytics details" }, { status: 500 });

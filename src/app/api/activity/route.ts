@@ -3,6 +3,8 @@ export const revalidate = 60;
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+import { unstable_cache } from "next/cache";
+
 interface ActivityItem {
   id: string;
   message: string;
@@ -10,8 +12,8 @@ interface ActivityItem {
   type: "problem" | "rating" | "star" | "system" | "department";
 }
 
-export async function GET(request: NextRequest) {
-  try {
+const getCachedActivities = unstable_cache(
+  async () => {
     const logs = await prisma.activityLog.findMany({
       take: 15,
       orderBy: { createdAt: "desc" },
@@ -49,7 +51,15 @@ export async function GET(request: NextRequest) {
         type,
       };
     });
+    return activities;
+  },
+  ["dashboard-activity-cache"],
+  { revalidate: 60 }
+);
 
+export async function GET(request: NextRequest) {
+  try {
+    const activities = await getCachedActivities();
     return NextResponse.json({ activities });
   } catch (err: any) {
     console.error("Error in activity API:", err);

@@ -1,26 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { unstable_cache } from "next/cache";
 
-export const dynamic = "force-dynamic";
 export const revalidate = 60;
 
-export async function GET(request: NextRequest) {
-  try {
-    const t0 = performance.now();
-
+const getCachedStats = unstable_cache(
+  async () => {
     // 1. Group 1: Core Aggregates
-    const [
-      totalStudents,
-      activeCodechefCount,
-      activeLeetcodeCount,
-      activeGithubCount,
-      activeOverallCount,
-      ratingAgg,
-    ] = await Promise.all([
+    const [totalStudents, activeCodechefCount] = await Promise.all([
       prisma.studentProfile.count(),
       prisma.codechefProfile.count({ where: { username: { not: "" }, currentRating: { not: null } } }),
+    ]);
+
+    const [activeLeetcodeCount, activeGithubCount] = await Promise.all([
       prisma.leetcodeProfile.count({ where: { username: { not: "" }, problemsSolved: { not: null } } }),
       prisma.githubProfile.count({ where: { username: { not: "" }, totalRepositories: { not: null } } }),
+    ]);
+
+    const [activeOverallCount, ratingAgg] = await Promise.all([
       prisma.studentProfile.count({
         where: { OR: [{ codechefProfile: { isNot: null } }, { leetcodeProfile: { isNot: null } }, { githubProfile: { isNot: null } }] }
       }),
@@ -30,55 +27,48 @@ export async function GET(request: NextRequest) {
       })
     ]);
 
-    const [
-      leetcodeAgg,
-      githubAgg,
-      codechefAgg,
-      lcSolvedAgg,
-      ccProfileAgg,
-      ghProfileAgg,
-    ] = await Promise.all([
+    const [leetcodeAgg, githubAgg] = await Promise.all([
       prisma.leaderboardEntry.aggregate({ where: { student: { leetcodeUsername: { not: null } } }, _avg: { leetcodeScore: true } }),
       prisma.leaderboardEntry.aggregate({ where: { student: { githubUsername: { not: null } } }, _avg: { githubScore: true } }),
+    ]);
+
+    const [codechefAgg, lcSolvedAgg] = await Promise.all([
       prisma.leaderboardEntry.aggregate({ where: { student: { codechefUsername: { not: null } } }, _avg: { codechefScore: true } }),
       prisma.leetcodeProfile.aggregate({ _avg: { problemsSolved: true, acceptanceRate: true } }),
+    ]);
+
+    const [ccProfileAgg, ghProfileAgg] = await Promise.all([
       prisma.codechefProfile.aggregate({ _avg: { currentRating: true, stars: true, contestCount: true } }),
       prisma.githubProfile.aggregate({ _avg: { totalRepositories: true, totalStars: true, openSourceScore: true } })
     ]);
 
-    const [
-      activeContestParticipants,
-      fourStarCoders,
-      fiveStarCoders,
-      deptCounts,
-      activeStudents,
-    ] = await Promise.all([
+    const [activeContestParticipants, fourStarCoders] = await Promise.all([
       prisma.leaderboardEntry.count({ where: { OR: [{ rating: { gt: 0 } }, { leetcodeScore: { gt: 0 } }] } }),
       prisma.leaderboardEntry.count({ where: { overallScore: { gte: 70, lt: 85 } } }),
+    ]);
+
+    const [fiveStarCoders, deptCounts] = await Promise.all([
       prisma.leaderboardEntry.count({ where: { overallScore: { gte: 85 } } }),
       prisma.studentProfile.groupBy({
         by: ["department"],
         where: { OR: [{ codechefProfile: { isNot: null } }, { leetcodeProfile: { isNot: null } }, { githubProfile: { isNot: null } }] },
         _count: { id: true },
       }),
-      prisma.leaderboardEntry.findMany({
-        where: { OR: [{ student: { codechefUsername: { not: null } } }, { student: { leetcodeUsername: { not: null } } }, { student: { githubUsername: { not: null } } }] },
-        select: { overallScore: true },
-      })
     ]);
+
+    const activeStudents = await prisma.leaderboardEntry.findMany({
+      where: { OR: [{ student: { codechefUsername: { not: null } } }, { student: { leetcodeUsername: { not: null } } }, { student: { githubUsername: { not: null } } }] },
+      select: { overallScore: true },
+    });
 
     // 2. Group 2: Yesterday's Stats
     const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const [
-      yesterdayTotalStudents,
-      yesterdayActiveCodechef,
-      yesterdayRatingAgg,
-      yesterdayActiveContestParticipants,
-      yesterdayFourStar,
-      yesterdayFiveStar
-    ] = await Promise.all([
+    const [yesterdayTotalStudents, yesterdayActiveCodechef] = await Promise.all([
       prisma.studentProfile.count({ where: { createdAt: { lt: yesterdayDate } } }),
       prisma.codechefProfile.count({ where: { createdAt: { lt: yesterdayDate } } }),
+    ]);
+
+    const [yesterdayRatingAgg, yesterdayActiveContestParticipants] = await Promise.all([
       prisma.leaderboardEntry.aggregate({
         where: {
           OR: [{ student: { codechefUsername: { not: null } } }, { student: { leetcodeUsername: { not: null } } }, { student: { githubUsername: { not: null } } }],
@@ -87,6 +77,9 @@ export async function GET(request: NextRequest) {
         _avg: { overallScore: true },
       }),
       prisma.codechefProfile.count({ where: { createdAt: { lt: yesterdayDate } } }),
+    ]);
+
+    const [yesterdayFourStar, yesterdayFiveStar] = await Promise.all([
       prisma.leaderboardEntry.count({ where: { overallScore: { gte: 70, lt: 85 }, updatedAt: { lt: yesterdayDate } } }),
       prisma.leaderboardEntry.count({ where: { overallScore: { gte: 85 }, updatedAt: { lt: yesterdayDate } } })
     ]);
@@ -173,15 +166,23 @@ export async function GET(request: NextRequest) {
       dateLimit.setDate(dateLimit.getDate() - i);
       dateLimit.setHours(23, 59, 59, 999);
 
-      const [sCount, ccCount, rAggLimit, talentS, cpS, consS, f4Count, f5Count, tdCount, hrAggLimit] = await Promise.all([
+      const [sCount, ccCount] = await Promise.all([
         prisma.studentProfile.count({ where: { createdAt: { lt: dateLimit } } }),
         prisma.codechefProfile.count({ where: { createdAt: { lt: dateLimit } } }),
+      ]);
+      const [rAggLimit, talentS] = await Promise.all([
         prisma.leaderboardEntry.aggregate({ where: { updatedAt: { lt: dateLimit } }, _avg: { overallScore: true } }),
         prisma.leaderboardEntry.aggregate({ where: { student: { codechefUsername: { not: null } }, updatedAt: { lt: dateLimit } }, _avg: { codechefScore: true } }),
+      ]);
+      const [cpS, consS] = await Promise.all([
         prisma.leaderboardEntry.aggregate({ where: { student: { leetcodeUsername: { not: null } }, updatedAt: { lt: dateLimit } }, _avg: { leetcodeScore: true } }),
         prisma.leaderboardEntry.aggregate({ where: { student: { githubUsername: { not: null } }, updatedAt: { lt: dateLimit } }, _avg: { githubScore: true } }),
+      ]);
+      const [f4Count, f5Count] = await Promise.all([
         prisma.leaderboardEntry.count({ where: { overallScore: { gte: 70, lt: 85 }, updatedAt: { lt: dateLimit } } }),
         prisma.leaderboardEntry.count({ where: { overallScore: { gte: 85 }, updatedAt: { lt: dateLimit } } }),
+      ]);
+      const [tdCount, hrAggLimit] = await Promise.all([
         topDepartment !== "Unknown" ? prisma.studentProfile.count({ where: { department: topDepartment, createdAt: { lt: dateLimit } } }) : Promise.resolve(0),
         prisma.leaderboardEntry.aggregate({ where: { updatedAt: { lt: dateLimit } }, _max: { overallScore: true } })
       ]);
@@ -231,11 +232,8 @@ export async function GET(request: NextRequest) {
         },
       },
     });
-    
-    const t1 = performance.now();
-    console.log(`[Dashboard Stats API] Completed in ${(t1 - t0).toFixed(2)}ms`);
 
-    return NextResponse.json({
+    return {
       stats: {
         totalStudents: { value: totalStudents, trend: formatPctTrend(totalStudents, yesterdayTotalStudents), sparkline: sparklines.totalStudents },
         activeCodechef: { value: activeCodechefCount, trend: formatPctTrend(activeCodechefCount, yesterdayActiveCodechef), sparkline: sparklines.activeProfiles },
@@ -265,7 +263,16 @@ export async function GET(request: NextRequest) {
       departmentDistribution,
       topPerformers,
       globalActivityHeatmap: {},
-    });
+    };
+  },
+  ["dashboard-stats-cache"],
+  { revalidate: 60 }
+);
+
+export async function GET(request: NextRequest) {
+  try {
+    const data = await getCachedStats();
+    return NextResponse.json(data);
   } catch (err: any) {
     console.error("Error in stats api:", err);
     return NextResponse.json({ error: "Failed to load stats details" }, { status: 500 });

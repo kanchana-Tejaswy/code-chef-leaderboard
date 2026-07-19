@@ -53,7 +53,7 @@ function getClient(): PrismaClient {
   const pool = new Pool({
     connectionString,
     ssl: sslConfig,
-    max: 2,
+    max: 1,
     connectionTimeoutMillis: 5000,
   });
   const adapter = new PrismaPg(pool);
