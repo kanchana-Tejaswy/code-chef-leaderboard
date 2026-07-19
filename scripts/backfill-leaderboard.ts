@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma.ts";
 
 async function main() {
   console.log("Starting backfill for missing LeaderboardEntry records...");
@@ -48,6 +46,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
     console.log("Backfill completed.");
   });
