@@ -63,7 +63,6 @@ export async function GET(request: NextRequest) {
       prisma.leaderboardEntry.count({ where: { overallScore: { gte: 85 } } }),
       prisma.studentProfile.groupBy({
         by: ["department"],
-        where: { OR: [{ codechefProfile: { isNot: null } }, { leetcodeProfile: { isNot: null } }, { githubProfile: { isNot: null } }] },
         _count: { id: true },
       })
     ]);

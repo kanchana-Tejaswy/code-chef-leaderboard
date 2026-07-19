@@ -4,6 +4,7 @@ import { SyncService } from "@/services/sync.service";
 import { ActivityService } from "@/services/activity.service";
 import crypto from "crypto";
 import { canPerformWrite, canPerformDelete } from "@/lib/write-access";
+import { revalidatePath } from "next/cache";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -156,6 +157,19 @@ export async function POST(request: NextRequest) {
         githubUsername: normalizedGithub,
         profilePictureUrl: normalizedPicUrl,
         verificationStatus: "UNABLE_TO_VERIFY",
+        leaderboardEntry: {
+          create: {
+            rank: 0,
+            rating: 0,
+            stars: 1,
+            talentScore: 0,
+            overallScore: 0,
+            codechefScore: 0,
+            leetcodeScore: 0,
+            githubScore: 0,
+            trendDirection: "UP",
+          }
+        }
       },
     });
 
@@ -196,6 +210,14 @@ export async function POST(request: NextRequest) {
     if (isCloudTest) {
       console.log(`[Sanitized Log] [CLOUDTEST001] Reread profile successfully: ${finalProfile ? "YES" : "NO"}`);
     }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/leaderboard");
+    revalidatePath("/analytics");
+    revalidatePath("/departments");
+    revalidatePath("/api/dashboard/stats");
+    revalidatePath("/api/dashboard/leaderboard-cache");
+    revalidatePath("/api/leaderboard");
 
     return NextResponse.json({ success: true, profile: finalProfile });
   } catch (err: any) {
@@ -391,6 +413,14 @@ export async function PATCH(request: NextRequest) {
 
     // Recalculate ranks
     await SyncService.recalculateLeaderboardRanks();
+
+    revalidatePath("/dashboard");
+    revalidatePath("/leaderboard");
+    revalidatePath("/analytics");
+    revalidatePath("/departments");
+    revalidatePath("/api/dashboard/stats");
+    revalidatePath("/api/dashboard/leaderboard-cache");
+    revalidatePath("/api/leaderboard");
 
     return NextResponse.json({ success: true, profile: updatedProfile });
   } catch (err: any) {
