@@ -626,51 +626,54 @@ export class SyncService {
 
   static async recalculateLeaderboardRanks(): Promise<void> {
     try {
-      // First reset all ranks to 0
-      await prisma.$executeRawUnsafe(`
-        UPDATE leaderboard_entries SET rank = 0
-      `);
+      console.log("[SyncService] Fetching active leaderboard entries for rank recalculation...");
+      const { calculateCompetitionRank, getCompetitiveSortOrder } = await import("@/lib/ranking");
 
-      // Then calculate ranks only for active students who have at least one platform profile
-      await prisma.$executeRawUnsafe(`
-        WITH ranked AS (
-          SELECT le.id, ROW_NUMBER() OVER (ORDER BY le.overall_score DESC, le.rating DESC, le.talent_score DESC) as new_rank
-          FROM leaderboard_entries le
-          JOIN student_profiles sp ON le.student_id = sp.id
-          WHERE sp.codechef_username IS NOT NULL OR sp.leetcode_username IS NOT NULL OR sp.github_username IS NOT NULL
-        )
-        UPDATE leaderboard_entries le
-        SET rank = r.new_rank
-        FROM ranked r
-        WHERE le.id = r.id
-      `);
-    } catch (err) {
-      console.error("Failed to recalculate leaderboard ranks via raw SQL, executing transaction fallback:", err);
-      
+      // Fetch all active leaderboard entries, pre-sorted deterministically using our competitive ranking order
       const entries = await prisma.leaderboardEntry.findMany({
+        where: {
+          student: {
+            OR: [
+              { codechefUsername: { not: null } },
+              { leetcodeUsername: { not: null } },
+              { githubUsername: { not: null } }
+            ]
+          }
+        },
         include: {
           student: true,
         },
-        orderBy: [
-          { overallScore: "desc" },
-          { rating: "desc" },
-          { talentScore: "desc" },
-        ],
+        orderBy: getCompetitiveSortOrder("desc"),
       });
 
-      if (entries.length > 0) {
-        let rankCounter = 1;
+      // Calculate the standard competition ranks
+      const rankedEntries = calculateCompetitionRank(
+        entries,
+        (entry) => [entry.overallScore, entry.codechefScore, entry.leetcodeScore]
+      );
+
+      console.log(`[SyncService] Recalculating standard competition rank for ${rankedEntries.length} students...`);
+
+      // First reset all ranks to 0
+      await prisma.$executeRawUnsafe(`UPDATE leaderboard_entries SET rank = 0`);
+
+      // We process updates in batches to avoid overwhelming the database transaction pool
+      const batchSize = 100;
+      for (let i = 0; i < rankedEntries.length; i += batchSize) {
+        const batch = rankedEntries.slice(i, i + batchSize);
         await prisma.$transaction(
-          entries.map((entry) => {
-            const hasUsername = entry.student.codechefUsername || entry.student.leetcodeUsername || entry.student.githubUsername;
-            const newRank = hasUsername ? rankCounter++ : 0;
-            return prisma.leaderboardEntry.update({
+          batch.map((entry) => 
+            prisma.leaderboardEntry.update({
               where: { id: entry.id },
-              data: { rank: newRank },
-            });
-          })
+              data: { rank: entry.rank }
+            })
+          )
         );
       }
+      
+      console.log("[SyncService] Successfully rebuilt all global leaderboard competitive ranks.");
+    } catch (err) {
+      console.error("Failed to recalculate leaderboard ranks:", err);
     }
   }
 }
