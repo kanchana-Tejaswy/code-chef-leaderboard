@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
 import { ActivityService } from "@/services/activity.service";
@@ -183,17 +183,22 @@ export async function POST(request: NextRequest) {
       `${normalizedName} (${profile.department || "CSE"}) profile was registered.`
     );
 
-    // Sync synchronously - Do not rely on unawaited background promises
-    if (isCloudTest) {
-      console.log(`[Sanitized Log] [CLOUDTEST001] Synchronous sync starting...`);
-    }
-    const syncRes = await SyncService.syncStudent(profile.id, "USER_MANUAL");
-    if (isCloudTest) {
-      console.log(`[Sanitized Log] [CLOUDTEST001] Synchronous sync ended. Success: ${syncRes.success}, Error: ${syncRes.error || "None"}`);
-    }
-
-    // Recalculate ranks
-    await SyncService.recalculateLeaderboardRanks();
+    // Sync using Next.js after() to safely execute in the background without orphaning transactions
+    after(async () => {
+      if (isCloudTest) {
+        console.log(`[Sanitized Log] [CLOUDTEST001] Background sync starting...`);
+      }
+      try {
+        const syncRes = await SyncService.syncStudent(profile.id, "USER_MANUAL");
+        if (isCloudTest) {
+          console.log(`[Sanitized Log] [CLOUDTEST001] Background sync ended. Success: ${syncRes.success}, Error: ${syncRes.error || "None"}`);
+        }
+        // Recalculate ranks after sync completes
+        await SyncService.recalculateLeaderboardRanks();
+      } catch (err) {
+        console.error("Background sync error:", err);
+      }
+    });
 
     // Reread saved row from DB before returning success
     const finalProfile = await prisma.studentProfile.findUnique({
@@ -397,22 +402,27 @@ export async function PATCH(request: NextRequest) {
       `${updatedProfile.name} details were updated.`
     );
 
-    // Trigger background sync if requested
+    // Trigger background sync safely using after()
     const shouldSync = body.sync === true || body.autoSync === true || (usernamesChanged && (body.sync !== false && body.autoSync !== false));
     if (shouldSync && (updatedProfile.codechefUsername || updatedProfile.leetcodeUsername || updatedProfile.githubUsername)) {
-      SyncService.syncStudent(id, "USER_MANUAL")
-        .then((syncRes) => {
+      after(async () => {
+        try {
+          const syncRes = await SyncService.syncStudent(id, "USER_MANUAL");
           if (!syncRes.success) {
             console.error(`Background update sync failed: ${syncRes.error}`);
           } else {
             console.log(`Background update sync succeeded for student ${id}`);
           }
-        })
-        .catch((e) => console.error("Sync error:", e));
+          // Recalculate ranks after background sync
+          await SyncService.recalculateLeaderboardRanks();
+        } catch (e) {
+          console.error("Sync error:", e);
+        }
+      });
+    } else {
+      // Recalculate ranks immediately if not syncing
+      await SyncService.recalculateLeaderboardRanks();
     }
-
-    // Recalculate ranks
-    await SyncService.recalculateLeaderboardRanks();
 
     revalidatePath("/dashboard");
     revalidatePath("/leaderboard");

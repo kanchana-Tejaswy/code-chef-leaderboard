@@ -491,8 +491,8 @@ export class SyncService {
       };
 
       const overallScore = OverallScoreService.calculate(
-        { codechef: ccScore, leetcode: lcScore, github: ghScore },
-        active
+        { codechef: ccScore, leetcode: lcScore },
+        { codechef: active.codechef, leetcode: active.leetcode }
       );
 
       // Determine trend direction

@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
 import { CodechefScraper, LeetcodeScraper, GithubScraper } from "@/services/scraper.service";
@@ -141,16 +141,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Trigger scraping and AI analysis in the background asynchronously
-    SyncService.syncStudent(student.id, "USER_MANUAL")
-      .then((syncRes) => {
+    // Trigger scraping and AI analysis safely using after()
+    after(async () => {
+      try {
+        const syncRes = await SyncService.syncStudent(student.id, "USER_MANUAL");
         if (!syncRes.success) {
           console.error(`Background initial sync failed: ${syncRes.error}`);
         } else {
           console.log(`Background initial sync succeeded for student ${student.id}`);
         }
-      })
-      .catch((e) => console.error("Sync error:", e));
+      } catch (e) {
+        console.error("Sync error:", e);
+      }
+    });
 
     const finalStudent = await prisma.studentProfile.findUnique({
       where: { id: student.id },

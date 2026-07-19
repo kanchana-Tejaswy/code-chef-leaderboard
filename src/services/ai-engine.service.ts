@@ -308,7 +308,7 @@ export class OverallAiEngine {
     codechefAnalysis: AiEngineResult | null,
     leetcodeAnalysis: AiEngineResult | null,
     githubAnalysis: AiEngineResult | null,
-    weights: { codechef: number; leetcode: number; github: number }
+    weights: { codechef: number; leetcode: number }
   ): AiEngineResult {
     let talentSum = 0;
     let consistencySum = 0;
@@ -355,19 +355,11 @@ export class OverallAiEngine {
       count++;
     }
 
+    // Keep GitHub analysis for merging textual insights (strengths, weaknesses, etc.) 
+    // but exclude it from competitive numerical scoring calculation.
     if (githubAnalysis) {
       list.push(githubAnalysis);
-      talentSum += githubAnalysis.talentScore * weights.github;
-      consistencySum += githubAnalysis.consistencyScore * weights.github;
-      problemSolvingSum += githubAnalysis.problemSolvingScore * weights.github;
-      cpSum += githubAnalysis.competitiveProgrammingScore * weights.github;
-      contestSum += githubAnalysis.contestScore * weights.github;
-      learningSum += githubAnalysis.learningScore * weights.github;
-      growthSum += githubAnalysis.growthScore * weights.github;
-      disciplineSum += githubAnalysis.disciplineScore * weights.github;
-      expectedRatingSum += githubAnalysis.expectedRating6Months * weights.github;
-      totalWeight += weights.github;
-      count++;
+      // Removed Github numerical scoring contributions
     }
 
     if (totalWeight === 0) {

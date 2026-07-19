@@ -575,8 +575,8 @@ export default function LandingPage() {
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   // Centerpiece Leaderboard Filtering, Sorting & Pagination
-  const [dashboardFilter, setDashboardFilter] = useState<"overall" | "codechef" | "leetcode" | "github">("overall");
-  const [leaderboardFilter, setLeaderboardFilter] = useState<"overallScore" | "codechefScore" | "leetcodeScore" | "githubScore">("overallScore");
+  const [dashboardFilter, setDashboardFilter] = useState<"overall" | "codechef" | "leetcode">("overall");
+  const [leaderboardFilter, setLeaderboardFilter] = useState<"overallScore" | "codechefScore" | "leetcodeScore">("overallScore");
   const [search, setSearch] = useState("");
   const [selectedDepts, setSelectedDepts] = useState<string[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
@@ -679,7 +679,7 @@ export default function LandingPage() {
     setLeaderboardError(null);
     try {
       const params = new URLSearchParams();
-      const platform = leaderboardFilter === "codechefScore" ? "codechef" : leaderboardFilter === "leetcodeScore" ? "leetcode" : leaderboardFilter === "githubScore" ? "github" : "overall";
+      const platform = leaderboardFilter === "codechefScore" ? "codechef" : leaderboardFilter === "leetcodeScore" ? "leetcode" : "overall";
       params.set("platform", platform);
       if (search) params.set("search", search);
       if (selectedDepts.length > 0) params.set("departments", selectedDepts.join(","));
@@ -1175,7 +1175,7 @@ export default function LandingPage() {
   // Helper: Export spreadsheet
   const getExportUrl = () => {
     const params = new URLSearchParams();
-    const platform = leaderboardFilter === "codechefScore" ? "codechef" : leaderboardFilter === "leetcodeScore" ? "leetcode" : leaderboardFilter === "githubScore" ? "github" : "overall";
+    const platform = leaderboardFilter === "codechefScore" ? "codechef" : leaderboardFilter === "leetcodeScore" ? "leetcode" : "overall";
     params.set("export", "true");
     params.set("platform", platform);
     if (search) params.set("search", search);
@@ -1393,8 +1393,7 @@ export default function LandingPage() {
             {[
               { name: "Overall", value: "overall" },
               { name: "CodeChef", value: "codechef" },
-              { name: "LeetCode", value: "leetcode" },
-              { name: "GitHub", value: "github" }
+              { name: "LeetCode", value: "leetcode" }
             ].map((tab) => {
               const active = dashboardFilter === tab.value;
               return (
@@ -1767,118 +1766,6 @@ export default function LandingPage() {
                 </div>
               </>
             )}
-
-            {dashboardFilter === "github" && (
-              <>
-                {/* Card 1: Total Students with GitHub */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <Users className="h-3.5 w-3.5 text-cyan-400" />
-                        GitHub Students
-                      </span>
-                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.activeGithub?.value || 0}
-                      </span>
-                    </div>
-                    {getTrendBadge(stats.activeGithub?.trend || "")}
-                  </div>
-                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.activeGithub?.sparkline || [0,0,0,0,0,0]} color="#06B6D4" />
-                  </div>
-                </div>
-
-                {/* Card 2: Average GitHub Score */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <TrendingUp className="h-3.5 w-3.5 text-cyan-400" />
-                        Avg GitHub Score
-                      </span>
-                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.averageConsistencyScore.value}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/5 px-2 py-0.5 rounded-full border border-cyan-500/15">
-                      Platform score
-                    </span>
-                  </div>
-                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.averageConsistencyScore.sparkline} color="#06B6D4" />
-                  </div>
-                </div>
-
-                {/* Card 3: Average Repos */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <BookOpen className="h-3.5 w-3.5 text-cyan-400" />
-                        Avg Repositories
-                      </span>
-                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.averageRepositories?.value || 0} Repos
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-zinc-500 bg-zinc-900 px-2 py-0.5 rounded-full border border-zinc-800">
-                      Projects
-                    </span>
-                  </div>
-                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.averageRepositories?.sparkline || [0, 0, 0, 0, 0, 0]} color="#06B6D4" />
-                  </div>
-                </div>
-
-                {/* Card 4: Average Stars */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <Star className="h-3.5 w-3.5 text-cyan-400" />
-                        Avg Stars
-                      </span>
-                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        ⭐ {stats.averageStars?.value || 0}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-[#EAB308] bg-[#EAB308]/5 px-2 py-0.5 rounded-full border border-[#EAB308]/15">
-                      Fame rate
-                    </span>
-                  </div>
-                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.averageStars?.sparkline || [0, 0, 0, 0, 0, 0]} color="#06B6D4" />
-                  </div>
-                  </div>
-
-                {/* Card 6: Open Source Score */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-cyan-500/30 transition-all group duration-300">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <ShieldCheck className="h-3.5 w-3.5 text-cyan-400" />
-                        Avg OS Score
-                      </span>
-                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.averageOpenSourceScore?.value || 0}%
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-cyan-400 bg-cyan-500/5 px-2 py-0.5 rounded-full border border-cyan-500/15">
-                      OS Index
-                    </span>
-                  </div>
-                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.averageOpenSourceScore?.sparkline || [0, 0, 0, 0, 0, 0]} color="#06B6D4" />
-                  </div>
-                </div>
-              </>
-            )}
           </div>
         </div>
       )}
@@ -2192,8 +2079,7 @@ export default function LandingPage() {
               {[
                 { name: "Overall", value: "overallScore" },
                 { name: "CodeChef", value: "codechefScore" },
-                { name: "LeetCode", value: "leetcodeScore" },
-                { name: "GitHub", value: "githubScore" }
+                { name: "LeetCode", value: "leetcodeScore" }
               ].map((tab) => {
                 const active = leaderboardFilter === tab.value;
                 return (
@@ -2360,9 +2246,7 @@ export default function LandingPage() {
                         <th onClick={() => handleSort("leetcodeScore")} className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors">
                           LeetCode Score {renderSortIcon("leetcodeScore")}
                         </th>
-                        <th onClick={() => handleSort("githubScore")} className="py-4 px-4 text-center cursor-pointer select-none hover:text-brand-text transition-colors">
-                          GitHub Score {renderSortIcon("githubScore")}
-                        </th>
+
                         <th className="py-4 px-4 text-center select-none">Department</th>
                         <th className="py-4 px-4 text-center select-none">Trend</th>
                       </>
@@ -2385,17 +2269,6 @@ export default function LandingPage() {
                         <th className="py-4 px-3 text-center select-none">Acceptance</th>
                         <th className="py-4 px-3 text-center select-none">Contest Rank</th>
                         <th className="py-4 px-3 text-center select-none">LeetCode Score</th>
-                      </>
-                    )}
-                    {leaderboardFilter === "githubScore" && (
-                      <>
-                        <th className="py-4 px-3 text-center select-none">Repos</th>
-                        <th className="py-4 px-3 text-center select-none">Stars</th>
-                        <th className="py-4 px-3 text-center select-none">Followers</th>
-                        <th className="py-4 px-3 text-center select-none">Commits</th>
-                        <th className="py-4 px-3 text-center select-none">Languages</th>
-                        <th className="py-4 px-3 text-center select-none">OS Score</th>
-                        <th className="py-4 px-3 text-center select-none">GitHub Score</th>
                       </>
                     )}
                     <th className="py-4 px-4 text-center w-36 select-none">Actions</th>
@@ -2497,11 +2370,6 @@ export default function LandingPage() {
                                 {entry.leetcodeScore}
                               </td>
 
-                              {/* GitHub Score */}
-                              <td className="py-4 px-4 text-center text-xs font-black text-brand-text">
-                                {entry.githubScore}
-                              </td>
-
                               {/* Department */}
                               <td className="py-4 px-4 text-center">
                                 <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 border border-brand-border bg-brand-bg rounded-lg text-[9px] font-extrabold text-zinc-400 uppercase">
@@ -2580,35 +2448,6 @@ export default function LandingPage() {
                             );
                           })()}
 
-                          {leaderboardFilter === "githubScore" && (() => {
-                            const gh = entry.student.githubProfile;
-                            const repos = gh?.repos as any;
-                            return (
-                              <>
-                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                  {gh ? gh.totalRepositories : "Not available from platform."}
-                                </td>
-                                <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
-                                  {gh ? `⭐ ${gh.totalStars}` : "Not available from platform."}
-                                </td>
-                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                  {gh ? gh.followers : "Not available from platform."}
-                                </td>
-                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                  {repos?.commitAnalytics?.total || "Not available from platform."}
-                                </td>
-                                <td className="py-4 px-3 text-center text-[10px] font-semibold text-zinc-400 truncate max-w-[100px]" title={Array.isArray(gh?.languages) ? gh.languages.map((l: any) => l.name).join(", ") : ""}>
-                                  {Array.isArray(gh?.languages) ? gh.languages.map((l: any) => l.name).slice(0, 2).join(", ") : "Not available from platform."}
-                                </td>
-                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                  {gh ? `${gh.openSourceScore}%` : "Not available from platform."}
-                                </td>
-                                <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
-                                  {entry.githubScore}
-                                </td>
-                              </>
-                            );
-                          })()}
 
                           {/* Action Buttons */}
                           <td className="py-4 px-6 text-center whitespace-nowrap">
