@@ -4,13 +4,36 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: NextRequest) {
   try {
     const students = await prisma.studentProfile.findMany({
-      include: {
-        codechefProfile: true,
-        leetcodeProfile: true,
-        githubProfile: true,
-        aiAnalysis: true,
-        leaderboardEntry: true,
-      },
+      select: {
+        department: true,
+        createdAt: true,
+        codechefProfile: {
+          select: {
+            currentRating: true,
+            contests: true,
+          }
+        },
+        leetcodeProfile: {
+          select: {
+            problemsSolved: true,
+          }
+        },
+        githubProfile: {
+          select: {
+            openSourceScore: true,
+          }
+        },
+        aiAnalysis: {
+          select: {
+            talentScore: true,
+          }
+        },
+        leaderboardEntry: {
+          select: {
+            overallScore: true,
+          }
+        }
+      }
     });
 
     const depts = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
