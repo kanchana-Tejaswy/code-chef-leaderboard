@@ -136,10 +136,35 @@ export async function GET(request: NextRequest) {
               leetcodeUsername: true,
               githubUsername: true,
               profilePictureUrl: true,
-              codechefProfile: true,
-              leetcodeProfile: true,
-              githubProfile: true,
-              aiAnalysis: true,
+              codechefProfile: {
+                select: {
+                  currentRating: true,
+                  highestRating: true,
+                  stars: true,
+                  globalRank: true,
+                  countryRank: true,
+                }
+              },
+              leetcodeProfile: {
+                select: {
+                  problemsSolved: true,
+                  acceptanceRate: true,
+                  contestRank: true,
+                }
+              },
+              githubProfile: {
+                select: {
+                  totalRepositories: true,
+                  totalStars: true,
+                  openSourceScore: true,
+                }
+              },
+              aiAnalysis: {
+                select: {
+                  talentScore: true,
+                  consistencyScore: true,
+                }
+              },
             },
           },
         },

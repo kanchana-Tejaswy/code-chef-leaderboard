@@ -51,6 +51,8 @@ model StudentProfile {
   activityLogs     ActivityLog[]
   normalizedProfile NormalizedProfile?
 
+  @@index([department])
+  @@index([createdAt])
   @@map("student_profiles")
 }
 
@@ -97,6 +99,7 @@ model CodechefProfile {
   createdAt              DateTime       @default(now()) @map("created_at")
   updatedAt              DateTime       @updatedAt @map("updated_at")
 
+  @@index([createdAt])
   @@map("codechef_profiles")
 }
 
@@ -124,6 +127,7 @@ model LeetcodeProfile {
   createdAt              DateTime       @default(now()) @map("created_at")
   updatedAt              DateTime       @updatedAt @map("updated_at")
 
+  @@index([createdAt])
   @@map("leetcode_profiles")
 }
 
@@ -198,6 +202,9 @@ model LeaderboardEntry {
   @@index([rank])
   @@index([talentScore(sort: Desc)])
   @@index([overallScore(sort: Desc)])
+  @@index([updatedAt])
+  @@index([rating])
+  @@index([leetcodeScore])
   @@map("leaderboard_entries")
 }
 
