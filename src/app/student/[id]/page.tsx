@@ -119,6 +119,65 @@ export default function StudentProfileDashboard() {
     }
   };
 
+  // Edit Details Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    rollNumber: "",
+    department: "",
+    year: "",
+    branch: "",
+    section: "",
+    codechefUsername: "",
+    leetcodeUsername: "",
+    githubUsername: "",
+  });
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
+  const [saveDetailsError, setSaveDetailsError] = useState<string | null>(null);
+
+  const handleOpenEditModal = () => {
+    if (student) {
+      setEditFormData({
+        name: student.name || "",
+        rollNumber: student.rollNumber || "",
+        department: student.department || "",
+        year: student.year?.toString() || "",
+        branch: student.branch || "",
+        section: student.section || "",
+        codechefUsername: student.codechefUsername || "",
+        leetcodeUsername: student.leetcodeUsername || "",
+        githubUsername: student.githubUsername || "",
+      });
+      setSaveDetailsError(null);
+      setIsEditModalOpen(true);
+    }
+  };
+
+  const handleSaveDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingDetails(true);
+    setSaveDetailsError(null);
+    try {
+      const response = await fetch(`/api/admin/students/${studentId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(editFormData),
+      });
+      const data = await response.json();
+      if (response.ok && data.success) {
+        setStudent(data.student);
+        setIsEditModalOpen(false);
+      } else {
+        setSaveDetailsError(data.error || "Failed to update details.");
+      }
+    } catch (e: any) {
+      console.error(e);
+      setSaveDetailsError("Error updating student details.");
+    } finally {
+      setIsSavingDetails(false);
+    }
+  };
+
   // Repository Explorer states
   const [selectedRepo, setSelectedRepo] = useState<any | null>(null);
   const [isRepoExplorerOpen, setIsRepoExplorerOpen] = useState(false);
@@ -273,9 +332,18 @@ export default function StudentProfileDashboard() {
           <ArrowLeft className="h-3.5 w-3.5" />
           Leaderboard standing
         </Link>
-        <span className="text-[10px] text-[#A3A3A3] font-bold tracking-widest uppercase bg-[#111111] px-3 py-1 border border-[#262626] rounded-xl">
-          ID: {student.rollNumber}
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleOpenEditModal}
+            className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase bg-[#EAB308]/10 text-[#EAB308] border border-[#EAB308]/30 px-3 py-1 rounded-xl hover:bg-[#EAB308]/20 transition-all"
+          >
+            <Edit2 className="h-3 w-3" />
+            Edit Details
+          </button>
+          <span className="text-[10px] text-[#A3A3A3] font-bold tracking-widest uppercase bg-[#111111] px-3 py-1 border border-[#262626] rounded-xl">
+            ID: {student.rollNumber}
+          </span>
+        </div>
       </div>
 
       {/* TOP SECTION */}
@@ -1479,6 +1547,180 @@ export default function StudentProfileDashboard() {
 
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Edit Details Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="w-full max-w-2xl bg-[#0A0A0A] border border-[#262626] rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-[#262626] bg-[#111111]">
+              <h2 className="text-sm font-black text-[#FAFAFA] tracking-wider uppercase">Edit Student Details</h2>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-1.5 text-zinc-400 hover:text-white rounded-lg hover:bg-white/5 transition-all"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveDetails} className="flex flex-col p-6 gap-6 max-h-[75vh] overflow-y-auto">
+              {saveDetailsError && (
+                <div className="p-3 rounded-xl border border-red-500/20 bg-red-500/10 text-red-400 text-xs font-bold">
+                  {saveDetailsError}
+                </div>
+              )}
+
+              {/* Basic Details */}
+              <div className="flex flex-col gap-4">
+                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">Basic Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={editFormData.name}
+                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Roll Number</label>
+                    <input
+                      type="text"
+                      value={editFormData.rollNumber}
+                      onChange={(e) => setEditFormData({ ...editFormData, rollNumber: e.target.value })}
+                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Academic Info */}
+              <div className="flex flex-col gap-4">
+                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">Academic Info</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Department</label>
+                    <input
+                      type="text"
+                      value={editFormData.department}
+                      onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
+                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                      placeholder="e.g. CSE"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Year</label>
+                    <input
+                      type="number"
+                      value={editFormData.year}
+                      onChange={(e) => setEditFormData({ ...editFormData, year: e.target.value })}
+                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                      placeholder="1, 2, 3, 4"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Branch</label>
+                    <input
+                      type="text"
+                      value={editFormData.branch}
+                      onChange={(e) => setEditFormData({ ...editFormData, branch: e.target.value })}
+                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Section</label>
+                    <input
+                      type="text"
+                      value={editFormData.section}
+                      onChange={(e) => setEditFormData({ ...editFormData, section: e.target.value })}
+                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Platform Profiles */}
+              <div className="flex flex-col gap-4">
+                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">Platform Usernames</h3>
+                <p className="text-[10px] text-zinc-500 mb-1 leading-snug">
+                  Warning: Changing a platform username will trigger an automatic background sync. The student's scores and ranks will be recalculated. This may take up to 30 seconds.
+                </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-[#EAB308]/10 text-[#EAB308] flex items-center justify-center shrink-0 border border-[#EAB308]/20">
+                      <Trophy className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">CodeChef Username</label>
+                      <input
+                        type="text"
+                        value={editFormData.codechefUsername}
+                        onChange={(e) => setEditFormData({ ...editFormData, codechefUsername: e.target.value })}
+                        className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-[#F59E0B]/10 text-[#F59E0B] flex items-center justify-center shrink-0 border border-[#F59E0B]/20">
+                      <Code className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">LeetCode Username</label>
+                      <input
+                        type="text"
+                        value={editFormData.leetcodeUsername}
+                        onChange={(e) => setEditFormData({ ...editFormData, leetcodeUsername: e.target.value })}
+                        className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center shrink-0 border border-purple-500/20">
+                      <Github className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">GitHub Username</label>
+                      <input
+                        type="text"
+                        value={editFormData.githubUsername}
+                        onChange={(e) => setEditFormData({ ...editFormData, githubUsername: e.target.value })}
+                        className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-[#262626]">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  disabled={isSavingDetails}
+                  className="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-[#A3A3A3] hover:text-white border border-[#262626] bg-[#111111] hover:bg-[#1a1a1a] transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingDetails}
+                  className="px-5 py-2 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-950 bg-[#EAB308] hover:bg-[#FDE047] transition-all disabled:opacity-50 flex items-center gap-2"
+                >
+                  {isSavingDetails ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    "Save Details"
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
