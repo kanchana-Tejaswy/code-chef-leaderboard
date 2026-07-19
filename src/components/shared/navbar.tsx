@@ -99,19 +99,19 @@ export function Navbar() {
 
         {/* Center Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-4">
-          <Link href="/dashboard" className={navItemClass("/dashboard")}>
+          <Link href="/dashboard" prefetch={false} className={navItemClass("/dashboard")}>
             Dashboard
           </Link>
-          <Link href="/leaderboard" className={navItemClass("/leaderboard")}>
+          <Link href="/leaderboard" prefetch={false} className={navItemClass("/leaderboard")}>
             Leaderboard
           </Link>
-          <Link href="/analytics" className={navItemClass("/analytics")}>
+          <Link href="/analytics" prefetch={false} className={navItemClass("/analytics")}>
             Analytics
           </Link>
-          <Link href="/departments" className={navItemClass("/departments")}>
+          <Link href="/departments" prefetch={false} className={navItemClass("/departments")}>
             Departments
           </Link>
-          <Link href="/insights" className={navItemClass("/insights")}>
+          <Link href="/insights" prefetch={false} className={navItemClass("/insights")}>
             Insights
           </Link>
         </nav>
@@ -160,6 +160,7 @@ export function Navbar() {
         <div className="md:hidden border-t border-brand-border bg-brand-bg px-4 py-4 space-y-2">
           <Link
             href="/dashboard"
+            prefetch={false}
             onClick={() => setIsMobileMenuOpen(false)}
             className={mobileNavItemClass("/dashboard")}
           >
@@ -167,6 +168,7 @@ export function Navbar() {
           </Link>
           <Link
             href="/leaderboard"
+            prefetch={false}
             onClick={() => setIsMobileMenuOpen(false)}
             className={mobileNavItemClass("/leaderboard")}
           >
@@ -174,6 +176,7 @@ export function Navbar() {
           </Link>
           <Link
             href="/analytics"
+            prefetch={false}
             onClick={() => setIsMobileMenuOpen(false)}
             className={mobileNavItemClass("/analytics")}
           >
@@ -181,6 +184,7 @@ export function Navbar() {
           </Link>
           <Link
             href="/departments"
+            prefetch={false}
             onClick={() => setIsMobileMenuOpen(false)}
             className={mobileNavItemClass("/departments")}
           >
@@ -188,6 +192,7 @@ export function Navbar() {
           </Link>
           <Link
             href="/insights"
+            prefetch={false}
             onClick={() => setIsMobileMenuOpen(false)}
             className={mobileNavItemClass("/insights")}
           >
