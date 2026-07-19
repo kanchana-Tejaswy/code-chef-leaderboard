@@ -17,7 +17,8 @@ import {
   Edit2,
   Check,
   X,
-  Shield
+  Shield,
+  RefreshCw
 } from "lucide-react";
 
 function Github(props: React.SVGProps<SVGSVGElement>) {
@@ -175,6 +176,54 @@ export default function StudentProfileDashboard() {
       setSaveDetailsError("Error updating student details.");
     } finally {
       setIsSavingDetails(false);
+    }
+  };
+
+  const [isSyncingLeetCode, setIsSyncingLeetCode] = useState(false);
+  const [syncLeetCodeError, setSyncLeetCodeError] = useState<string | null>(null);
+
+  const handleSyncLeetCode = async () => {
+    if (!student?.id || !student.leetcodeUsername) return;
+    setIsSyncingLeetCode(true);
+    setSyncLeetCodeError(null);
+    try {
+      const response = await fetch(`/api/admin/students/${student.id}/leetcode/sync`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setSyncLeetCodeError(data.error || "Failed to synchronize LeetCode profile.");
+      } else {
+        window.location.reload();
+      }
+    } catch (e: any) {
+      setSyncLeetCodeError("Error starting synchronization.");
+    } finally {
+      setIsSyncingLeetCode(false);
+    }
+  };
+
+  const [isSyncingCodeChef, setIsSyncingCodeChef] = useState(false);
+  const [syncCodeChefError, setSyncCodeChefError] = useState<string | null>(null);
+
+  const handleSyncCodeChef = async () => {
+    if (!student?.id || !student.codechefUsername) return;
+    setIsSyncingCodeChef(true);
+    setSyncCodeChefError(null);
+    try {
+      const response = await fetch(`/api/admin/students/${student.id}/codechef/sync`, {
+        method: 'POST',
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        setSyncCodeChefError(data.error || "Failed to synchronize CodeChef profile.");
+      } else {
+        window.location.reload();
+      }
+    } catch (e: any) {
+      setSyncCodeChefError("Error starting synchronization.");
+    } finally {
+      setIsSyncingCodeChef(false);
     }
   };
 
@@ -492,7 +541,7 @@ export default function StudentProfileDashboard() {
               <div className="grid grid-cols-3 gap-2 text-center border-t border-[#262626]/60 pt-4 mt-2">
                 <div className="flex flex-col">
                   <span className="text-[8px] uppercase tracking-wider text-[#A3A3A3] font-bold">Stars</span>
-                  <span className="text-xs font-black text-[#FAFAFA] mt-1">{student.codechefProfile?.stars || 1}★</span>
+                  <span className="text-xs font-black text-[#FAFAFA] mt-1">{student.codechefProfile?.stars === 0 || !student.codechefProfile?.currentRating ? "Unrated" : `${student.codechefProfile?.stars}★`}</span>
                 </div>
                 <div className="flex flex-col">
                   <span className="text-[8px] uppercase tracking-wider text-[#A3A3A3] font-bold">Solved</span>
@@ -740,6 +789,16 @@ export default function StudentProfileDashboard() {
             return (
               <div className="flex flex-col gap-6">
                 
+                {/* Error message if sync fails */}
+                {syncCodeChefError && (
+                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-xs flex justify-between items-center">
+                    <span>{syncCodeChefError}</span>
+                    <button onClick={() => setSyncCodeChefError(null)} className="text-red-400 hover:text-red-300">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Metadata info block */}
                 <div className="border border-[#262626] bg-[#111111]/40 px-5 py-3 rounded-2xl flex flex-wrap justify-between items-center gap-4 text-[10px] font-bold text-[#A3A3A3]">
                   <div className="flex items-center gap-1.5">
@@ -754,6 +813,26 @@ export default function StudentProfileDashboard() {
                     <span>Last Updated:</span>
                     <span className="text-white">{student.codechefProfile.lastFetchedAt ? new Date(student.codechefProfile.lastFetchedAt).toLocaleString() : "N/A"}</span>
                   </div>
+                  {/* Admin Sync Button */}
+                  {(publicDemoWriteMode) && (
+                    <button
+                      onClick={handleSyncCodeChef}
+                      disabled={isSyncingCodeChef}
+                      className="ml-auto flex items-center gap-1.5 bg-[#EAB308]/10 hover:bg-[#EAB308]/20 text-[#EAB308] border border-[#EAB308]/20 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSyncingCodeChef ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Syncing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Sync CodeChef Now</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
@@ -910,6 +989,16 @@ export default function StudentProfileDashboard() {
             return (
               <div className="flex flex-col gap-6">
                 
+                {/* Error message if sync fails */}
+                {syncLeetCodeError && (
+                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-xs flex justify-between items-center">
+                    <span>{syncLeetCodeError}</span>
+                    <button onClick={() => setSyncLeetCodeError(null)} className="text-red-400 hover:text-red-300">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Metadata info block */}
                 <div className="border border-[#262626] bg-[#111111]/40 px-5 py-3 rounded-2xl flex flex-wrap justify-between items-center gap-4 text-[10px] font-bold text-[#A3A3A3]">
                   <div className="flex items-center gap-1.5">
@@ -924,9 +1013,29 @@ export default function StudentProfileDashboard() {
                     <span>Last Updated:</span>
                     <span className="text-white">{student.leetcodeProfile.lastFetchedAt ? new Date(student.leetcodeProfile.lastFetchedAt).toLocaleString() : "N/A"}</span>
                   </div>
+                  {/* Admin Sync Button */}
+                  {(publicDemoWriteMode) && (
+                    <button
+                      onClick={handleSyncLeetCode}
+                      disabled={isSyncingLeetCode}
+                      className="ml-auto flex items-center gap-1.5 bg-[#EAB308]/10 hover:bg-[#EAB308]/20 text-[#EAB308] border border-[#EAB308]/20 px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isSyncingLeetCode ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>Syncing...</span>
+                        </>
+                      ) : (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Sync LeetCode Now</span>
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
                   <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
                     <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
                       Contest Rating <VerifiedBadge />
@@ -938,6 +1047,18 @@ export default function StudentProfileDashboard() {
                       Contest Rank <VerifiedBadge />
                     </span>
                     <span className="text-2xl font-black text-[#FAFAFA] mt-1">{student.leetcodeProfile.contestRank ? `#${student.leetcodeProfile.contestRank}` : "Unavailable"}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Contests Attended <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">{formatVal((student.leetcodeProfile.verificationMetadata as any)?.contestsAttended?.value)}</span>
+                  </div>
+                  <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
+                    <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">
+                      Profile Ranking <VerifiedBadge />
+                    </span>
+                    <span className="text-2xl font-black text-[#FAFAFA] mt-1">{(student.leetcodeProfile.verificationMetadata as any)?.profileRanking?.value ? `#${(student.leetcodeProfile.verificationMetadata as any).profileRanking.value}` : "Unavailable"}</span>
                   </div>
                   <div className="border border-[#262626] bg-[#111111]/70 p-4.5 rounded-2xl flex flex-col justify-center text-center gap-1.5">
                     <span className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-widest flex items-center justify-center gap-1">

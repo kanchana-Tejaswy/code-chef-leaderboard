@@ -24,20 +24,20 @@ export class CodechefService {
     
     // Check if input is a URL and extract the username
     if (trimmed.includes("codechef.com/")) {
-      const urlMatch = trimmed.match(/(?:codechef\.com\/users\/)([a-zA-Z0-9_]+)/i);
+      const urlMatch = trimmed.match(/(?:codechef\.com\/users\/)([^/?#\s]+)/i);
       if (urlMatch && urlMatch[1]) {
         return { isValid: true, username: urlMatch[1] };
       }
       return { isValid: false, username: "", error: "Invalid CodeChef profile URL format." };
     }
 
-    // Otherwise, validate as alphanumeric username
-    const usernameRegex = /^[a-zA-Z0-9_]{3,30}$/;
+    // Otherwise, validate as alphanumeric username (allowing hyphens too)
+    const usernameRegex = /^[a-zA-Z0-9_-]{3,30}$/;
     if (!usernameRegex.test(trimmed)) {
       return { 
         isValid: false, 
         username: "", 
-        error: "CodeChef username must be 3-30 characters long and contain only letters, numbers, or underscores." 
+        error: "CodeChef username must be 3-30 characters long and contain only letters, numbers, hyphens, or underscores." 
       };
     }
 
@@ -149,13 +149,9 @@ export class CodechefService {
       if (starCount > 0) {
         stars = starCount;
       } else {
-        if (currentRating >= 2500) stars = 7;
-        else if (currentRating >= 2200) stars = 6;
-        else if (currentRating >= 2000) stars = 5;
-        else if (currentRating >= 1800) stars = 4;
-        else if (currentRating >= 1600) stars = 3;
-        else if (currentRating >= 1400) stars = 2;
-        else stars = currentRating > 0 ? 1 : 0;
+        // Remove the hardcoded `stars = currentRating > 0 ? 1 : 0` fallback.
+        // If CodeChef has no stars visible, we should not invent them.
+        stars = 0;
       }
     }
 
@@ -179,14 +175,14 @@ export class CodechefService {
     if (ranksContainer.length > 0) {
       const ranksList = ranksContainer.find("a strong");
       if (ranksList.length >= 2) {
-        globalRank = parseInt($(ranksList[0]).text().trim(), 10) || null;
-        countryRank = parseInt($(ranksList[1]).text().trim(), 10) || null;
+        globalRank = parseInt($(ranksList[0]).text().replace(/,/g, "").trim(), 10) || null;
+        countryRank = parseInt($(ranksList[1]).text().replace(/,/g, "").trim(), 10) || null;
       } else {
         const text = ranksContainer.text();
-        const globalMatch = text.match(/Global Rank\s*[:\-]?\s*(\d+)/i);
-        if (globalMatch) globalRank = parseInt(globalMatch[1], 10);
-        const countryMatch = text.match(/Country Rank\s*[:\-]?\s*(\d+)/i);
-        if (countryMatch) countryRank = parseInt(countryMatch[1], 10);
+        const globalMatch = text.match(/Global Rank\s*[:\-]?\s*([0-9,]+)/i);
+        if (globalMatch) globalRank = parseInt(globalMatch[1].replace(/,/g, ""), 10);
+        const countryMatch = text.match(/Country Rank\s*[:\-]?\s*([0-9,]+)/i);
+        if (countryMatch) countryRank = parseInt(countryMatch[1].replace(/,/g, ""), 10);
       }
     }
 

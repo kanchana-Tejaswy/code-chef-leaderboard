@@ -139,11 +139,14 @@ export class SyncService {
 
     try {
       // 2. Collector Phase: Scrape platforms in parallel
+      let codechefError: string | null = null;
+
       const scrapePromises = [
         // CodeChef Collector
         student.codechefUsername
           ? CodechefService.fetchData(student.codechefUsername).catch((err) => {
               console.error(`[Collector] CodeChef scrape failed for student ${student.name}:`, err);
+              codechefError = err.message || "Failed to fetch CodeChef profile";
               return null;
             })
           : Promise.resolve(null),
@@ -163,7 +166,7 @@ export class SyncService {
           : Promise.resolve(null),
       ];
 
-      const [codechefData, leetcodeData, githubData] = await Promise.all(scrapePromises);
+      let [codechefData, leetcodeData, githubData] = await Promise.all(scrapePromises);
 
       if (isCloudTest) {
         console.log(`[Sanitized Log] [CLOUDTEST001] Platform fetch results: CodeChef success: ${codechefData !== null}, LeetCode success: ${leetcodeData !== null}, GitHub success: ${githubData !== null}`);
@@ -171,10 +174,21 @@ export class SyncService {
 
       // Validate all successfully scraped data prior to database writes
       if (student.codechefUsername && codechefData) {
-        validateProfileData("CODECHEF", student.codechefUsername, codechefData);
+        try {
+          validateProfileData("CODECHEF", student.codechefUsername, codechefData);
+        } catch (e: any) {
+          console.error(`[SyncService] CodeChef validation failed for ${student.name}: ${e.message}`);
+          codechefError = e.message || "Validation failed";
+          codechefData = null;
+        }
       }
       if (student.leetcodeUsername && leetcodeData) {
-        validateProfileData("LEETCODE", student.leetcodeUsername, leetcodeData);
+        try {
+          validateProfileData("LEETCODE", student.leetcodeUsername, leetcodeData);
+        } catch (e: any) {
+          console.error(`[SyncService] LeetCode validation failed for ${student.name}: ${e.message}`);
+          leetcodeData = null;
+        }
       }
       if (student.githubUsername && githubData) {
         validateProfileData("GITHUB", student.githubUsername, githubData);
@@ -252,7 +266,8 @@ export class SyncService {
             bestContestRank: { value: codechefData.bestContestRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.bestContestRank !== null ? "Verified" : "Unavailable" },
             averageContestRank: { value: codechefData.averageContestRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.averageContestRank !== null ? "Verified" : "Unavailable" },
             lastActive: { value: codechefData.lastActive, source: "CodeChef", retrievedAt, verificationStatus: codechefData.lastActive ? "Verified" : "Unavailable" },
-            activeDaysCount: { value: codechefData.activeDaysCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.activeDaysCount !== null ? "Verified" : "Unavailable" }
+            activeDaysCount: { value: codechefData.activeDaysCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.activeDaysCount !== null ? "Verified" : "Unavailable" },
+            syncStatus: "SUCCESS"
           };
 
           await tx.codechefProfile.upsert({
@@ -335,6 +350,20 @@ export class SyncService {
               lastFetchedAt: new Date(),
             },
           });
+        } else if (existingCc) {
+          // If scraping failed but we have existing data, preserve it and mark status as FAILED
+          const existingMetadata = existingCc.verificationMetadata as any || {};
+          await tx.codechefProfile.update({
+            where: { studentId },
+            data: {
+              verificationMetadata: {
+                ...existingMetadata,
+                syncStatus: "FAILED",
+                error: codechefError || "Unknown error during sync",
+                lastAttemptedAt: new Date().toISOString()
+              } as any
+            }
+          });
         }
 
         // Upsert LeetCode Profile
@@ -350,7 +379,10 @@ export class SyncService {
             contestRating: { value: leetcodeData.currentRating, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.currentRating !== null ? "Verified" : "Unavailable" },
             contestRank: { value: leetcodeData.globalRank, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.globalRank !== null ? "Verified" : "Unavailable" },
             acceptanceRate: { value: metrics.acceptanceRate, source: "LeetCode", retrievedAt, verificationStatus: metrics.acceptanceRate !== null ? "Verified" : "Unavailable" },
-            consistencyScore: { value: metrics.consistencyScore, source: "LeetCode", retrievedAt, verificationStatus: metrics.consistencyScore !== null ? "Verified" : "Unavailable" }
+            consistencyScore: { value: metrics.consistencyScore, source: "LeetCode", retrievedAt, verificationStatus: metrics.consistencyScore !== null ? "Verified" : "Unavailable" },
+            profileRanking: { value: metrics.profileRanking, source: "LeetCode", retrievedAt, verificationStatus: metrics.profileRanking !== null ? "Verified" : "Unavailable" },
+            contestsAttended: { value: metrics.contestsAttended, source: "LeetCode", retrievedAt, verificationStatus: metrics.contestsAttended !== null ? "Verified" : "Unavailable" },
+            syncStatus: { value: "SUCCESS", source: "System", retrievedAt, verificationStatus: "Verified" }
           };
 
           await tx.leetcodeProfile.upsert({
@@ -363,7 +395,7 @@ export class SyncService {
               mediumSolvedCount: metrics.mediumSolvedCount,
               hardSolvedCount: metrics.hardSolvedCount,
               contestRating: leetcodeData.currentRating,
-              contestRank: leetcodeData.globalRank || 0,
+              contestRank: leetcodeData.globalRank ?? null,
               acceptanceRate: metrics.acceptanceRate || 0,
               heatmap: metrics.heatmap as any,
               weeklyActivity: metrics.weeklyActivity as any,
@@ -382,7 +414,7 @@ export class SyncService {
               mediumSolvedCount: metrics.mediumSolvedCount,
               hardSolvedCount: metrics.hardSolvedCount,
               contestRating: leetcodeData.currentRating,
-              contestRank: leetcodeData.globalRank || 0,
+              contestRank: leetcodeData.globalRank ?? null,
               acceptanceRate: metrics.acceptanceRate || 0,
               heatmap: metrics.heatmap as any,
               weeklyActivity: metrics.weeklyActivity as any,

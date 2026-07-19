@@ -14,7 +14,7 @@ export class LeetcodeService {
     
     // Check if input is a URL and extract the username
     if (trimmed.includes("leetcode.com/")) {
-      const urlMatch = trimmed.match(/(?:leetcode\.com\/(?:u\/)?)([a-zA-Z0-9_\-]+)/i);
+      const urlMatch = trimmed.match(/(?:leetcode\.com\/(?:u\/)?)([a-zA-Z0-9_\-]+)\/?/i);
       if (urlMatch && urlMatch[1]) {
         return { isValid: true, username: urlMatch[1] };
       }
@@ -182,15 +182,20 @@ export class LeetcodeService {
       try {
         console.log(`[LeetCode Scraper] Fetching LeetCode profile for ${username}. Attempt ${attemptIndex}/3`);
         
-        const [profileRes, calendarRes, tagsRes, contestRes, submissionsRes] = await Promise.all([
-          fetch(url, { method: "POST", headers, body: JSON.stringify({ query: profileQuery, variables: { username } }), next: { revalidate: 0 } }),
-          fetch(url, { method: "POST", headers, body: JSON.stringify({ query: calendarQuery, variables: { username } }), next: { revalidate: 0 } }),
-          fetch(url, { method: "POST", headers, body: JSON.stringify({ query: tagsQuery, variables: { username } }), next: { revalidate: 0 } }),
-          fetch(url, { method: "POST", headers, body: JSON.stringify({ query: contestQuery, variables: { username } }), next: { revalidate: 0 } }),
-          fetch(url, { method: "POST", headers, body: JSON.stringify({ query: submissionsQuery, variables: { username, limit: 15 } }), next: { revalidate: 0 } })
-        ]);
+        const safeFetch = async (query: string, vars: any, fallback: any = {}) => {
+          try {
+            const res = await fetch(url, { method: "POST", headers, body: JSON.stringify({ query, variables: vars }), next: { revalidate: 0 } });
+            if (!res.ok) return fallback;
+            return await res.json();
+          } catch (e) {
+            console.error(`[LeetCode Scraper] Auxiliary query failed: ${e}`);
+            return fallback;
+          }
+        };
 
-        console.log(`[LeetCode Scraper] Network request response statuses: Profile (${profileRes.status}), Calendar (${calendarRes.status}), Tags (${tagsRes.status}), Contest (${contestRes.status}), Submissions (${submissionsRes.status})`);
+        const profileRes = await fetch(url, { method: "POST", headers, body: JSON.stringify({ query: profileQuery, variables: { username } }), next: { revalidate: 0 } });
+        
+        console.log(`[LeetCode Scraper] Main profile query status: (${profileRes.status})`);
 
         if (!profileRes.ok) {
           if (profileRes.status === 404) {
@@ -198,15 +203,16 @@ export class LeetcodeService {
           }
           throw new Error(`Profile query failed with status: ${profileRes.statusText} (${profileRes.status})`);
         }
-        if (!calendarRes.ok || !tagsRes.ok || !contestRes.ok || !submissionsRes.ok) {
-          throw new Error("One or more auxiliary GraphQL queries failed.");
-        }
 
         profileData = await profileRes.json();
-        calendarData = await calendarRes.json();
-        tagsData = await tagsRes.json();
-        contestData = await contestRes.json();
-        submissionsData = await submissionsRes.json();
+        
+        // Fetch auxiliary data safely
+        [calendarData, tagsData, contestData, submissionsData] = await Promise.all([
+          safeFetch(calendarQuery, { username }),
+          safeFetch(tagsQuery, { username }),
+          safeFetch(contestQuery, { username }),
+          safeFetch(submissionsQuery, { username, limit: 15 })
+        ]);
 
         // Check if user exists on LeetCode
         if (!profileData?.data?.matchedUser) {
@@ -340,8 +346,9 @@ export class LeetcodeService {
       rating: Math.round(h.rating)
     }));
 
-    const contestRating = userContestRanking?.rating || 0;
-    const globalRank = userContestRanking?.globalRanking || null;
+    const contestRating = userContestRanking?.rating ?? null;
+    const contestGlobalRanking = userContestRanking?.globalRanking ?? null;
+    const profileRanking = matchedUser.profile?.ranking ?? null;
     const countryRank = null;
 
     const consistencyScore = Math.min(100, Math.round((userCalendar.totalActiveDays || 0) * 1.5));
@@ -365,11 +372,11 @@ export class LeetcodeService {
     const finalResult: ScrapedData = {
       platform: "LEETCODE",
       username,
-      currentRating: Math.round(contestRating),
-      highestRating: Math.round(Math.max(contestRating, ...ratingHistory.map((r: any) => r.rating))),
-      globalRank,
+      currentRating: contestRating !== null ? Math.round(contestRating) : null,
+      highestRating: ratingHistory.length > 0 ? Math.round(Math.max(contestRating || 0, ...ratingHistory.map((r: any) => r.rating))) : (contestRating !== null ? Math.round(contestRating) : null),
+      globalRank: contestGlobalRanking,
       countryRank,
-      stars: contestRating >= 2200 ? 6 : contestRating >= 2000 ? 5 : contestRating >= 1800 ? 4 : contestRating >= 1600 ? 3 : 2,
+      stars: contestRating !== null ? (contestRating >= 2200 ? 6 : contestRating >= 2000 ? 5 : contestRating >= 1800 ? 4 : contestRating >= 1600 ? 3 : 2) : null,
       problemsSolved: allSolved,
       contestCount: userContestRanking?.attendedContestsCount || 0,
       contests: [],
@@ -389,9 +396,9 @@ export class LeetcodeService {
       difficultyDistribution,
       activitySummary: heatmap,
       statisticDetails: {
-        stars: contestRating >= 2200 ? 6 : contestRating >= 2000 ? 5 : contestRating >= 1800 ? 4 : contestRating >= 1600 ? 3 : 2,
-        currentRating: Math.round(contestRating),
-        highestRating: Math.round(Math.max(contestRating, ...ratingHistory.map((r: any) => r.rating))),
+        stars: contestRating !== null ? (contestRating >= 2200 ? 6 : contestRating >= 2000 ? 5 : contestRating >= 1800 ? 4 : contestRating >= 1600 ? 3 : 2) : null,
+        currentRating: contestRating !== null ? Math.round(contestRating) : null,
+        highestRating: ratingHistory.length > 0 ? Math.round(Math.max(contestRating || 0, ...ratingHistory.map((r: any) => r.rating))) : (contestRating !== null ? Math.round(contestRating) : null),
         problemsSolved: allSolved,
         easySolved,
         mediumSolved,
@@ -415,7 +422,9 @@ export class LeetcodeService {
         contestHistory: contestHistory.slice(-8),
         recentSubmissions,
         badges,
-        streak
+        streak,
+        profileRanking,
+        contestsAttended: userContestRanking?.attendedContestsCount || 0
       }
     };
 

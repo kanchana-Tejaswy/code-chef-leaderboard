@@ -2752,8 +2752,8 @@ export default function LandingPage() {
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 border border-brand-border bg-brand-bg/50 rounded-xl text-[10px] font-black uppercase text-zinc-400">
                         {activeProfileDetails.codechefProfile?.division || "Div N/A"}
                       </span>
-                      <span className={`inline-flex items-center gap-1 px-3 py-1 border rounded-xl text-[10px] font-black uppercase ${getStarColorClass(activeProfileDetails.codechefProfile?.stars || 1)}`}>
-                        {activeProfileDetails.codechefProfile?.stars || 1}★ Star coder
+                      <span className={`inline-flex items-center gap-1 px-3 py-1 border rounded-xl text-[10px] font-black uppercase ${getStarColorClass(activeProfileDetails.codechefProfile?.stars ?? 0)}`}>
+                        {activeProfileDetails.codechefProfile?.stars === 0 || !activeProfileDetails.codechefProfile?.currentRating ? "Unrated" : `${activeProfileDetails.codechefProfile?.stars}★ Star coder`}
                       </span>
                     </div>
                   </div>
@@ -2880,7 +2880,7 @@ export default function LandingPage() {
                             <div className="border border-brand-border bg-brand-bg/50 p-4 rounded-2xl flex flex-col text-left">
                               <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Stars Tier</span>
                               <span className="text-xl font-black text-white mt-1">
-                                {activeProfileDetails.codechefProfile?.stars || 1}★
+                                {activeProfileDetails.codechefProfile?.stars === 0 || !activeProfileDetails.codechefProfile?.currentRating ? "Unrated" : `${activeProfileDetails.codechefProfile?.stars}★`}
                               </span>
                               <span className="text-[9px] text-zinc-500 font-semibold mt-1">
                                 Highest Rating: {activeProfileDetails.codechefProfile?.highestRating || 0}
@@ -3210,7 +3210,7 @@ export default function LandingPage() {
                                 </span>
                                 <SkillRadar
                                   aiAnalysis={activeProfileDetails.aiAnalysis}
-                                  stars={activeProfileDetails.codechefProfile?.stars || 1}
+                                  stars={activeProfileDetails.codechefProfile?.stars ?? 0}
                                   contestCount={activeProfileDetails.codechefProfile?.contestCount || 0}
                                 />
                               </div>
