@@ -480,8 +480,10 @@ export class SyncService {
       const leetcodeProfile = await prisma.leetcodeProfile.findUnique({ where: { studentId } });
       const githubProfile = await prisma.githubProfile.findUnique({ where: { studentId } });
 
-      const ccScore = codechefAi ? codechefAi.talentScore : 0;
-      const lcScore = leetcodeAi ? leetcodeAi.talentScore : 0;
+      const { OverallScoreService } = await import("@/services/overallScore.service");
+
+      const ccScore = codechefProfile ? OverallScoreService.calculateCodechefScore(codechefProfile) : 0;
+      const lcScore = leetcodeProfile ? OverallScoreService.calculateLeetcodeScore(leetcodeProfile) : 0;
       const ghScore = githubAi ? githubAi.talentScore : 0;
 
       const active = {
@@ -578,6 +580,22 @@ export class SyncService {
         },
       });
 
+      // Invalidate relevant caches
+      try {
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath("/dashboard");
+        revalidatePath("/leaderboard");
+        revalidatePath("/analytics");
+        revalidatePath("/departments");
+        revalidatePath("/insights");
+        revalidatePath(`/student/${studentId}`);
+        revalidatePath("/api/dashboard/stats");
+        revalidatePath("/api/dashboard/leaderboard-cache");
+        revalidatePath("/api/leaderboard");
+      } catch (cacheErr) {
+        console.error("Cache invalidation failed:", cacheErr);
+      }
+
       if (isCloudTest) {
         console.log("[Sanitized Log] [CLOUDTEST001] Sync completed successfully.");
       }
@@ -626,8 +644,7 @@ export class SyncService {
 
   static async recalculateLeaderboardRanks(): Promise<void> {
     try {
-      console.log("[SyncService] Fetching active leaderboard entries for rank recalculation...");
-      const { calculateCompetitionRank, getCompetitiveSortOrder } = await import("@/lib/ranking");
+      const { OverallScoreService } = await import("@/services/overallScore.service");
 
       // Fetch all active leaderboard entries, pre-sorted deterministically using our competitive ranking order
       const entries = await prisma.leaderboardEntry.findMany({
@@ -643,11 +660,11 @@ export class SyncService {
         include: {
           student: true,
         },
-        orderBy: getCompetitiveSortOrder("desc"),
+        orderBy: OverallScoreService.getCompetitiveSortOrder("desc"),
       });
 
       // Calculate the standard competition ranks
-      const rankedEntries = calculateCompetitionRank(
+      const rankedEntries = OverallScoreService.calculateCompetitionRank(
         entries,
         (entry) => [entry.overallScore, entry.codechefScore, entry.leetcodeScore]
       );

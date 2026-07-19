@@ -33,7 +33,7 @@ const nestedOrder = (relation: string, field: string, sort: SortOrder) => ({
   },
 }) as unknown as Prisma.LeaderboardEntryOrderByWithRelationInput;
 
-import { getCompetitiveSortOrder } from "@/lib/ranking";
+import { OverallScoreService } from "@/services/overallScore.service";
 
 const withCanonicalTieBreaker = (
   platform: PlatformKey,
@@ -53,7 +53,7 @@ const withCanonicalTieBreaker = (
   if (sortBy !== "overallScore") {
     // If we're not primarily sorting by overall score, append the full competitive
     // tie-breaker at the end to ensure deterministic global ordering.
-    result.push(...getCompetitiveSortOrder("desc"));
+    result.push(...OverallScoreService.getCompetitiveSortOrder("desc"));
   }
 
   return result;
@@ -65,7 +65,7 @@ const platformConfigs: Record<PlatformKey, PlatformConfig> = {
     defaultOrder: "desc",
     applyFilters: () => {},
     sortFields: {
-      overallScore: (order) => getCompetitiveSortOrder(order),
+      overallScore: (order) => OverallScoreService.getCompetitiveSortOrder(order),
       talentScore: (order) => [{ talentScore: order }],
       consistency: (order) => [nestedOrder("normalizedProfile", "consistencyScore", order)],
       rank: (order) => [{ rank: order }],

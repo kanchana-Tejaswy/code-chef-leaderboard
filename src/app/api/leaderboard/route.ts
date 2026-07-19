@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { NextRequest, NextResponse } from "next/server";
-import { getCompetitiveSortOrder } from "@/lib/ranking";
+import { OverallScoreService } from "@/services/overallScore.service";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
 
@@ -170,10 +170,10 @@ export async function GET(request: NextRequest) {
           },
         },
         orderBy: finalSortBy === "overallScore" 
-          ? getCompetitiveSortOrder(sortOrder as any)
+          ? OverallScoreService.getCompetitiveSortOrder(sortOrder as any)
           : [
               { [finalSortBy]: sortOrder },
-              ...getCompetitiveSortOrder("desc"),
+              ...OverallScoreService.getCompetitiveSortOrder("desc"),
             ],
         skip,
         take: limit,
