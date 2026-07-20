@@ -65,7 +65,8 @@ export class SyncService {
    */
   static async syncStudent(
     studentId: string,
-    initiatedBy: SyncTrigger
+    initiatedBy: SyncTrigger,
+    skipRankRecalculation: boolean = false
   ): Promise<{ success: boolean; error?: string }> {
     const startTime = Date.now();
 
@@ -91,7 +92,7 @@ export class SyncService {
       },
     });
 
-    if (!student.codechefUsername && !student.leetcodeUsername && !student.githubUsername) {
+    if (!student.codechefUsername && !student.leetcodeUsername) {
       if (isCloudTest) {
         console.log(`[Sanitized Log] [CLOUDTEST001] No usernames configured. Creating unranked LeaderboardEntry.`);
       }
@@ -157,19 +158,12 @@ export class SyncService {
               return null;
             })
           : Promise.resolve(null),
-        // GitHub Collector
-        student.githubUsername
-          ? GithubService.fetchData(student.githubUsername, false).catch((err) => {
-              console.error(`[Collector] GitHub scrape failed for student ${student.name}:`, err);
-              return null;
-            })
-          : Promise.resolve(null),
       ];
 
-      let [codechefData, leetcodeData, githubData] = await Promise.all(scrapePromises);
+      let [codechefData, leetcodeData] = await Promise.all(scrapePromises);
 
       if (isCloudTest) {
-        console.log(`[Sanitized Log] [CLOUDTEST001] Platform fetch results: CodeChef success: ${codechefData !== null}, LeetCode success: ${leetcodeData !== null}, GitHub success: ${githubData !== null}`);
+        console.log(`[Sanitized Log] [CLOUDTEST001] Platform fetch results: CodeChef success: ${codechefData !== null}, LeetCode success: ${leetcodeData !== null}`);
       }
 
       // Validate all successfully scraped data prior to database writes
@@ -190,18 +184,13 @@ export class SyncService {
           leetcodeData = null;
         }
       }
-      if (student.githubUsername && githubData) {
-        validateProfileData("GITHUB", student.githubUsername, githubData);
-      }
 
       // Calculate verificationStatus
       let codechefSuccess = student.codechefUsername ? (codechefData !== null) : null;
       let leetcodeSuccess = student.leetcodeUsername ? (leetcodeData !== null) : null;
-      let githubSuccess = student.githubUsername ? (githubData !== null) : null;
 
       const existingCc = await prisma.codechefProfile.findUnique({ where: { studentId } });
       const existingLc = await prisma.leetcodeProfile.findUnique({ where: { studentId } });
-      const existingGh = await prisma.githubProfile.findUnique({ where: { studentId } });
 
       if (student.codechefUsername && !codechefSuccess && existingCc && existingCc.username.toLowerCase() === student.codechefUsername.toLowerCase()) {
         codechefSuccess = true;
@@ -209,13 +198,10 @@ export class SyncService {
       if (student.leetcodeUsername && !leetcodeSuccess && existingLc && existingLc.username.toLowerCase() === student.leetcodeUsername.toLowerCase()) {
         leetcodeSuccess = true;
       }
-      if (student.githubUsername && !githubSuccess && existingGh && existingGh.username.toLowerCase() === student.githubUsername.toLowerCase()) {
-        githubSuccess = true;
-      }
 
       let verificationStatus = "UNABLE_TO_VERIFY";
-      const configuredCount = [student.codechefUsername, student.leetcodeUsername, student.githubUsername].filter(Boolean).length;
-      const successCount = [codechefSuccess, leetcodeSuccess, githubSuccess].filter(x => x === true).length;
+      const configuredCount = [student.codechefUsername, student.leetcodeUsername].filter(Boolean).length;
+      const successCount = [codechefSuccess, leetcodeSuccess].filter(x => x === true).length;
 
       if (configuredCount > 0) {
         if (successCount === configuredCount) {
@@ -438,66 +424,7 @@ export class SyncService {
         );
       }
 
-      // Upsert GitHub Profile
-      if (githubData) {
-        const metrics = githubData.rawMetrics || {};
-        const reposExtended = {
-          list: metrics.repos?.list || [],
-          intelligence: metrics.repos?.intelligence || {},
-          commitAnalytics: metrics.repos?.commitAnalytics || {},
-          openSource: metrics.repos?.openSource || {},
-          portfolio: metrics.repos?.portfolio || {},
-          careerInsights: metrics.repos?.careerInsights || {},
-          profileDetails: metrics.repos?.profileDetails || {},
-          developerScore: metrics.repos?.developerScore || {}
-        };
-        const retrievedAt = new Date().toISOString();
-        const ghMetadata = {
-          username: { value: githubData.username, source: "GitHub", retrievedAt, verificationStatus: "Verified" },
-          totalRepositories: { value: metrics.totalRepositories, source: "GitHub", retrievedAt, verificationStatus: metrics.totalRepositories !== null ? "Verified" : "Unavailable" },
-          totalStars: { value: metrics.totalStars, source: "GitHub", retrievedAt, verificationStatus: metrics.totalStars !== null ? "Verified" : "Unavailable" },
-          totalForks: { value: metrics.totalForks, source: "GitHub", retrievedAt, verificationStatus: metrics.totalForks !== null ? "Verified" : "Unavailable" },
-          followers: { value: metrics.followers, source: "GitHub", retrievedAt, verificationStatus: metrics.followers !== null ? "Verified" : "Unavailable" },
-          openSourceScore: { value: metrics.openSourceScore, source: "GitHub", retrievedAt, verificationStatus: metrics.openSourceScore !== null ? "Verified" : "Unavailable" }
-        };
 
-        queries.push(
-          prisma.githubProfile.upsert({
-            where: { studentId },
-            create: {
-              studentId,
-              username: githubData.username,
-              totalRepositories: metrics.totalRepositories,
-              totalStars: metrics.totalStars,
-              totalForks: metrics.totalForks,
-              followers: metrics.followers,
-              contributions: metrics.contributions as any,
-              languages: metrics.languages as any,
-              repos: reposExtended as any,
-              commitTimeline: metrics.commitTimeline as any,
-              openSourceScore: metrics.openSourceScore,
-              repoQualityScore: metrics.repoQualityScore as any,
-              verificationMetadata: ghMetadata as any,
-              lastFetchedAt: new Date(),
-            },
-            update: {
-              username: githubData.username,
-              totalRepositories: metrics.totalRepositories,
-              totalStars: metrics.totalStars,
-              totalForks: metrics.totalForks,
-              followers: metrics.followers,
-              contributions: metrics.contributions as any,
-              languages: metrics.languages as any,
-              repos: reposExtended as any,
-              commitTimeline: metrics.commitTimeline as any,
-              openSourceScore: metrics.openSourceScore,
-              repoQualityScore: metrics.repoQualityScore as any,
-              verificationMetadata: ghMetadata as any,
-              lastFetchedAt: new Date(),
-            },
-          })
-        );
-      }
 
       // Pre-update LeaderboardEntry with raw scores to maintain transactional consistency
       queries.push(
@@ -541,23 +468,20 @@ export class SyncService {
       }
       const codechefAi = analysisResult.codechef;
       const leetcodeAi = analysisResult.leetcode;
-      const githubAi = analysisResult.github;
 
       // Fetch the updated profiles to calculate the overall rating cache
       const codechefProfile = await prisma.codechefProfile.findUnique({ where: { studentId } });
       const leetcodeProfile = await prisma.leetcodeProfile.findUnique({ where: { studentId } });
-      const githubProfile = await prisma.githubProfile.findUnique({ where: { studentId } });
 
       const { OverallScoreService } = await import("@/services/overallScore.service");
 
       const ccScore = codechefProfile ? OverallScoreService.calculateCodechefScore(codechefProfile) : 0;
       const lcScore = leetcodeProfile ? OverallScoreService.calculateLeetcodeScore(leetcodeProfile) : 0;
-      const ghScore = githubAi ? githubAi.talentScore : 0;
+      const ghScore = 0; // GitHub no longer scraped or scored
 
       const active = {
         codechef: !!codechefProfile,
         leetcode: !!leetcodeProfile,
-        github: !!githubProfile,
       };
 
       const overallScore = OverallScoreService.calculate(
@@ -609,7 +533,9 @@ export class SyncService {
       }
 
       // Recalculate ranks on the leaderboard
-      await this.recalculateLeaderboardRanks();
+      if (!skipRankRecalculation) {
+        await this.recalculateLeaderboardRanks();
+      }
 
       // Log Sync Log
       await prisma.syncLog.create({
@@ -731,13 +657,13 @@ export class SyncService {
         orderBy: OverallScoreService.getCompetitiveSortOrder("desc"),
       });
 
-      // Calculate the standard competition ranks
-      const rankedEntries = OverallScoreService.calculateCompetitionRank(
+      // Calculate the dense competition ranks
+      const rankedEntries = OverallScoreService.calculateDenseRank(
         entries,
         (entry) => [entry.overallScore, entry.codechefScore, entry.leetcodeScore]
       );
 
-      console.log(`[SyncService] Recalculating standard competition rank for ${rankedEntries.length} students...`);
+      console.log(`[SyncService] Recalculating dense competition rank for ${rankedEntries.length} students...`);
 
       // First reset all ranks to 0
       await prisma.$executeRawUnsafe(`UPDATE leaderboard_entries SET rank = 0`);
@@ -761,4 +687,115 @@ export class SyncService {
       console.error("Failed to recalculate leaderboard ranks:", err);
     }
   }
+
+  /**
+   * Orchestrates bulk sync with max concurrency 2 to avoid EMAXCONN and DB pool saturation.
+   */
+  static async bulkSyncStudents(
+    mode: "STALE_ONLY" | "ALL" | "FAILED_ONLY",
+    jobId: string,
+    adminId: string
+  ): Promise<void> {
+    try {
+      const { updateJobProgress, getJob } = await import("@/lib/jobTracker");
+      
+      const staleThreshold = new Date(Date.now() - 6 * 60 * 60 * 1000); // 6 hours
+      
+      let whereClause: any = {
+        OR: [
+          { codechefUsername: { not: null } },
+          { leetcodeUsername: { not: null } },
+        ]
+      };
+
+      if (mode === "STALE_ONLY") {
+        whereClause = {
+          ...whereClause,
+          updatedAt: { lt: staleThreshold }
+        };
+      }
+
+      const students = await prisma.studentProfile.findMany({
+        where: whereClause,
+        select: { id: true }
+      });
+
+      const totalStudents = students.length;
+      updateJobProgress(jobId, { totalStudents, status: 'RUNNING' });
+
+      if (totalStudents === 0) {
+        updateJobProgress(jobId, { status: 'SUCCESS', completedAt: new Date() });
+        return;
+      }
+
+      // Concurrency 2 max
+      const maxConcurrency = 2;
+      let currentIndex = 0;
+      let successfulStudents = 0;
+      let failedStudents = 0;
+
+      const worker = async () => {
+        while (currentIndex < students.length) {
+          const index = currentIndex++;
+          const studentId = students[index].id;
+          
+          updateJobProgress(jobId, { currentStudent: studentId });
+
+          const result = await this.syncStudent(studentId, "ADMIN_FORCE", true);
+          
+          if (result.success) {
+            successfulStudents++;
+          } else {
+            failedStudents++;
+            const job = getJob(jobId);
+            if (job) {
+              updateJobProgress(jobId, { errors: [...job.errors, result.error || "Unknown error"] });
+            }
+          }
+          
+          updateJobProgress(jobId, {
+            processedStudents: successfulStudents + failedStudents,
+            successfulStudents,
+            failedStudents,
+          });
+        }
+      };
+
+      await Promise.all(
+        Array.from({ length: Math.min(maxConcurrency, totalStudents) }, () => worker())
+      );
+
+      // Single Global Rank Recalculation after all complete
+      await this.recalculateLeaderboardRanks();
+
+      // Invalidate Global Caches
+      try {
+        const { revalidatePath } = await import("next/cache");
+        revalidatePath("/dashboard");
+        revalidatePath("/leaderboard");
+        revalidatePath("/analytics");
+        revalidatePath("/departments");
+        revalidatePath("/insights");
+        revalidatePath("/api/dashboard/stats");
+        revalidatePath("/api/dashboard/leaderboard-cache");
+        revalidatePath("/api/leaderboard");
+      } catch (cacheErr) {
+        console.error("Global Cache invalidation failed:", cacheErr);
+      }
+
+      updateJobProgress(jobId, {
+        status: failedStudents > 0 ? (successfulStudents > 0 ? 'PARTIAL_SUCCESS' : 'FAILED') : 'SUCCESS',
+        completedAt: new Date()
+      });
+
+    } catch (error: any) {
+      console.error("Bulk sync failed:", error);
+      const { updateJobProgress, getJob } = await import("@/lib/jobTracker");
+      const job = getJob(jobId);
+      if (job) {
+         updateJobProgress(jobId, { status: 'FAILED', completedAt: new Date(), errors: [...job.errors, error.message || 'Fatal bulk sync error'] });
+      }
+    }
+  }
 }
+

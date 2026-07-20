@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
 
-type PlatformKey = "overall" | "codechef" | "leetcode" | "github";
+type PlatformKey = "overall" | "codechef" | "leetcode";
 type SortOrder = "asc" | "desc";
 
 type PlatformConfig = {
@@ -46,8 +46,6 @@ const withCanonicalTieBreaker = (
     result.push(nestedOrder("codechefProfile", "currentRating", "desc"));
   } else if (platform === "leetcode" && sortBy !== "lcRating" && sortBy !== "lcRank") {
     result.push(nestedOrder("leetcodeProfile", "contestRating", "desc"));
-  } else if (platform === "github" && sortBy !== "ghStars" && sortBy !== "githubScore") {
-    result.push(nestedOrder("githubProfile", "totalStars", "desc"));
   }
 
   if (sortBy !== "overallScore") {
@@ -139,33 +137,10 @@ const platformConfigs: Record<PlatformKey, PlatformConfig> = {
       leetcodeScore: (order) => [{ leetcodeScore: order }],
     },
   },
-  github: {
-    defaultSort: "githubScore",
-    defaultOrder: "desc",
-    applyFilters: (studentWhere, params) => {
-      const followersMin = numericParam(params, "ghFollowersMin");
-      const starsMin = numericParam(params, "ghStarsMin");
-      const reposMin = numericParam(params, "ghReposMin");
-      const githubProfile: Prisma.GithubProfileWhereInput = {};
-
-      if (followersMin !== null) githubProfile.followers = { gte: followersMin };
-      if (starsMin !== null) githubProfile.totalStars = { gte: starsMin };
-      if (reposMin !== null) githubProfile.totalRepositories = { gte: reposMin };
-      if (Object.keys(githubProfile).length > 0) studentWhere.githubProfile = { is: githubProfile };
-    },
-    sortFields: {
-      githubScore: (order) => [{ githubScore: order }],
-      ghFollowers: (order) => [nestedOrder("githubProfile", "followers", order)],
-      ghRepos: (order) => [nestedOrder("githubProfile", "totalRepositories", order)],
-      ghStars: (order) => [nestedOrder("githubProfile", "totalStars", order)],
-      ghActivity: (order) => [nestedOrder("githubProfile", "openSourceScore", order)],
-      ghOpenSource: (order) => [nestedOrder("githubProfile", "openSourceScore", order)],
-    },
-  },
 };
 
 const getPlatform = (value: string | null): PlatformKey =>
-  value === "codechef" || value === "leetcode" || value === "github" ? value : "overall";
+  value === "codechef" || value === "leetcode" ? value : "overall";
 
 const buildWhereClause = (platform: PlatformKey, searchParams: URLSearchParams) => {
   const search = searchParams.get("search") || "";

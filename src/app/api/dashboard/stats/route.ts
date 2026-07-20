@@ -27,9 +27,8 @@ const getCachedStats = unstable_cache(
       })
     ]);
 
-    const [leetcodeAgg, githubAgg] = await Promise.all([
+    const [leetcodeAgg] = await Promise.all([
       prisma.leaderboardEntry.aggregate({ where: { student: { leetcodeUsername: { not: null } } }, _avg: { leetcodeScore: true } }),
-      prisma.leaderboardEntry.aggregate({ where: { student: { githubUsername: { not: null } } }, _avg: { githubScore: true } }),
     ]);
 
     const [codechefAgg, lcSolvedAgg] = await Promise.all([
@@ -174,10 +173,10 @@ const getCachedStats = unstable_cache(
         prisma.leaderboardEntry.aggregate({ where: { updatedAt: { lt: dateLimit } }, _avg: { overallScore: true } }),
         prisma.leaderboardEntry.aggregate({ where: { student: { codechefUsername: { not: null } }, updatedAt: { lt: dateLimit } }, _avg: { codechefScore: true } }),
       ]);
-      const [cpS, consS] = await Promise.all([
+      const [cpS] = await Promise.all([
         prisma.leaderboardEntry.aggregate({ where: { student: { leetcodeUsername: { not: null } }, updatedAt: { lt: dateLimit } }, _avg: { leetcodeScore: true } }),
-        prisma.leaderboardEntry.aggregate({ where: { student: { githubUsername: { not: null } }, updatedAt: { lt: dateLimit } }, _avg: { githubScore: true } }),
       ]);
+      const consS = { _avg: { githubScore: 0 } };
       const [f4Count, f5Count] = await Promise.all([
         prisma.leaderboardEntry.count({ where: { overallScore: { gte: 70, lt: 85 }, updatedAt: { lt: dateLimit } } }),
         prisma.leaderboardEntry.count({ where: { overallScore: { gte: 85 }, updatedAt: { lt: dateLimit } } }),
@@ -250,7 +249,7 @@ const getCachedStats = unstable_cache(
         placementReadinessIndex: { value: placementReadinessIndex, trend: formatIndexTrend(placementReadinessIndex, yesterdayPlacementReadinessIndex), sparkline: sparklines.placementIndex },
         averageTalentScore: { value: Math.round(codechefAgg._avg.codechefScore || 0), trend: "CodeChef Avg", sparkline: sparklines.averageTalentScore },
         averageCPScore: { value: Math.round(leetcodeAgg._avg.leetcodeScore || 0), trend: "LeetCode Avg", sparkline: sparklines.averageCPScore },
-        averageConsistencyScore: { value: Math.round(githubAgg._avg.githubScore || 0), trend: "GitHub Avg", sparkline: sparklines.averageConsistencyScore },
+        averageConsistencyScore: { value: 0, trend: "GitHub Avg (Deprecated)", sparkline: sparklines.averageConsistencyScore },
         averageProblemsSolved: { value: lcProblemsSolvedAvg, trend: "", sparkline: sparklines.averageProblemsSolved },
         averageContestParticipation: { value: ccContestCountAvg, trend: "", sparkline: sparklines.averageContestParticipation },
         averageCodechefRating: { value: ccRatingAvg, trend: "", sparkline: sparklines.averageRating },

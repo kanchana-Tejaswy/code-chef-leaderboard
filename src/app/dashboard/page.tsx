@@ -557,6 +557,7 @@ export default function LandingPage() {
   const [formCodechefUrl, setFormCodechefUrl] = useState("");
   const [formLeetcodeUrl, setFormLeetcodeUrl] = useState("");
   const [formGithubUrl, setFormGithubUrl] = useState("");
+  const [formLinkedinUrl, setFormLinkedinUrl] = useState("");
   const [formRollNumber, setFormRollNumber] = useState("");
   const [formDepartment, setFormDepartment] = useState("CSE");
   const [formYear, setFormYear] = useState(3);
@@ -598,6 +599,59 @@ export default function LandingPage() {
   // CSV Import Modal States
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [csvInput, setCsvInput] = useState("");
+
+  // Bulk Refresh States
+  const [bulkJobId, setBulkJobId] = useState<string | null>(null);
+  const [bulkJobProgress, setBulkJobProgress] = useState<any>(null);
+
+  // Poll bulk refresh status
+  useEffect(() => {
+    if (!bulkJobId) return;
+    const interval = setInterval(async () => {
+      try {
+        const adminSecret = localStorage.getItem("ADMIN_SECRET") || process.env.NEXT_PUBLIC_ADMIN_SECRET || "";
+        const res = await fetch(`/api/admin/refresh/status/${bulkJobId}`, {
+          headers: { Authorization: `Bearer ${adminSecret}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBulkJobProgress(data.job);
+          if (data.job?.status !== 'RUNNING' && data.job?.status !== 'PENDING') {
+            clearInterval(interval);
+            setBulkJobId(null);
+            setTimeout(() => { setBulkJobProgress(null); loadDashboardData(); fetchLeaderboard(); }, 5000);
+          }
+        } else if (res.status === 404 || res.status === 401) {
+          clearInterval(interval);
+          setBulkJobId(null);
+        }
+      } catch (e) {
+        console.error("Failed to poll bulk job status", e);
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [bulkJobId]);
+
+  const triggerBulkRefresh = async (mode: "STALE_ONLY" | "ALL") => {
+    try {
+      const adminSecret = localStorage.getItem("ADMIN_SECRET") || process.env.NEXT_PUBLIC_ADMIN_SECRET || "";
+      const res = await fetch("/api/admin/refresh/all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminSecret}` },
+        body: JSON.stringify({ mode })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBulkJobId(data.jobId);
+        setBulkJobProgress({ status: 'PENDING', totalStudents: 1, processedStudents: 0 });
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to start bulk refresh.");
+      }
+    } catch (e) {
+      alert("Error starting bulk refresh");
+    }
+  };
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
   const [previewResults, setPreviewResults] = useState<any>(null);
@@ -618,6 +672,7 @@ export default function LandingPage() {
   const [editCodechefUsername, setEditCodechefUsername] = useState("");
   const [editLeetcodeUsername, setEditLeetcodeUsername] = useState("");
   const [editGithubUsername, setEditGithubUsername] = useState("");
+  const [editLinkedinUrl, setEditLinkedinUrl] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
 
@@ -734,8 +789,8 @@ export default function LandingPage() {
       setAnalysisError("Roll Number is required.");
       return;
     }
-    if (!formCodechefUrl.trim() && !formLeetcodeUrl.trim() && !formGithubUrl.trim()) {
-      setAnalysisError("At least one profile URL (CodeChef, LeetCode, or GitHub) is required.");
+    if (!formCodechefUrl.trim() && !formLeetcodeUrl.trim() && !formGithubUrl.trim() && !formLinkedinUrl.trim()) {
+      setAnalysisError("At least one platform profile URL is required (CodeChef, LeetCode, GitHub, LinkedIn).");
       return;
     }
 
@@ -767,6 +822,7 @@ export default function LandingPage() {
           codechefUrl: formCodechefUrl,
           leetcodeUrl: formLeetcodeUrl,
           githubUrl: formGithubUrl,
+          linkedinUrl: formLinkedinUrl,
         }),
       });
 
@@ -790,6 +846,7 @@ export default function LandingPage() {
         setFormCodechefUrl("");
         setFormLeetcodeUrl("");
         setFormGithubUrl("");
+        setFormLinkedinUrl("");
         setFormRollNumber("");
         setFormDepartment("CSE");
         setFormYear(3);
@@ -823,6 +880,7 @@ export default function LandingPage() {
     setFormCodechefUrl("");
     setFormLeetcodeUrl("");
     setFormGithubUrl("");
+    setFormLinkedinUrl("");
     setFormRollNumber("");
     setFormDepartment("CSE");
     setFormYear(3);
@@ -835,10 +893,11 @@ export default function LandingPage() {
   const handleRefreshStudent = async (studentId: string) => {
     setRefreshingIds((prev) => new Set(prev).add(studentId));
     try {
-      const res = await fetch("/api/sync", {
+      const adminSecret = localStorage.getItem("ADMIN_SECRET") || process.env.NEXT_PUBLIC_ADMIN_SECRET || "";
+      const res = await fetch("/api/admin/refresh/student", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studentId }),
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminSecret}` },
+        body: JSON.stringify({ studentProfileId: studentId }),
       });
       if (res.ok) {
         await fetchLeaderboard();
@@ -900,6 +959,7 @@ export default function LandingPage() {
         if (header === "codechef_username" || header === "codechefusername" || header === "codechef_handle") stdHeader = "codechef_username";
         if (header === "leetcode_username" || header === "leetcodeusername" || header === "leetcode_handle") stdHeader = "leetcode_username";
         if (header === "github_username" || header === "githubusername" || header === "github_handle") stdHeader = "github_username";
+        if (header === "linkedin_url" || header === "linkedinurl" || header === "linkedin") stdHeader = "linkedin_url";
         
         row[stdHeader] = values[idx] !== undefined ? values[idx] : "";
       });
@@ -927,6 +987,7 @@ export default function LandingPage() {
         setEditCodechefUsername(profile.codechefUsername || "");
         setEditLeetcodeUsername(profile.leetcodeUsername || "");
         setEditGithubUsername(profile.githubUsername || "");
+        setEditLinkedinUrl(profile.linkedinUrl || "");
       } else {
         setEditError("Failed to fetch student details.");
       }
@@ -961,6 +1022,7 @@ export default function LandingPage() {
           codechefUsername: editCodechefUsername,
           leetcodeUsername: editLeetcodeUsername,
           githubUsername: editGithubUsername,
+          linkedinUrl: editLinkedinUrl,
           autoSync: true,
         }),
       });
@@ -1038,6 +1100,7 @@ export default function LandingPage() {
         codechef_username: r.codechefUsername,
         leetcode_username: r.leetcodeUsername,
         github_username: r.githubUsername,
+        linkedin_url: r.linkedinUrl,
       }));
       const res = await fetch("/api/students/import", {
         method: "POST",
@@ -1384,6 +1447,38 @@ export default function LandingPage() {
             </p>
           </div>
         </div>
+        
+        {/* Bulk Refresh Controls */}
+        <div className="relative z-10 flex flex-col sm:flex-row gap-3">
+          {bulkJobProgress ? (
+            <div className="flex items-center gap-3 px-4 py-2 bg-[#EAB308]/10 border border-[#EAB308]/30 rounded-xl">
+              <Loader2 className="w-4 h-4 text-[#EAB308] animate-spin" />
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-[#EAB308]">
+                  {bulkJobProgress.status === 'RUNNING' ? 'Refreshing live data...' : 
+                   bulkJobProgress.status === 'SUCCESS' ? 'Refresh Complete!' : 
+                   bulkJobProgress.status === 'PARTIAL_SUCCESS' ? 'Refresh Complete with some errors.' : 'Refresh Failed.'}
+                </span>
+                {bulkJobProgress.status === 'RUNNING' && (
+                  <span className="text-[10px] text-[#EAB308]/80">
+                    {bulkJobProgress.processedStudents} of {bulkJobProgress.totalStudents} students processed
+                  </span>
+                )}
+              </div>
+            </div>
+          ) : (
+            <>
+              <button
+                onClick={() => triggerBulkRefresh("STALE_ONLY")}
+                className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs font-black tracking-widest text-[#111111] uppercase bg-[#EAB308] border border-[#EAB308] hover:bg-[#FACC15] hover:border-[#FACC15] rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.2)] transition-all"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh Live Data
+              </button>
+            </>
+          )}
+        </div>
+
 
 
       </div>
@@ -1942,6 +2037,21 @@ export default function LandingPage() {
                     onChange={(e) => setFormGithubUrl(e.target.value)}
                     disabled={isAnalyzing}
                     placeholder="https://github.com/username"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
+                  />
+                </div>
+
+                {/* LinkedIn URL */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-[#A3A3A3] uppercase tracking-wider">
+                    LinkedIn Profile URL
+                  </label>
+                  <input
+                    type="text"
+                    value={formLinkedinUrl}
+                    onChange={(e) => setFormLinkedinUrl(e.target.value)}
+                    disabled={isAnalyzing}
+                    placeholder="https://linkedin.com/in/username"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
                 </div>
@@ -3633,17 +3743,32 @@ export default function LandingPage() {
                   />
                 </div>
 
-                {/* GitHub Username */}
+                {/* GitHub URL */}
                 <div className="flex flex-col gap-1.5">
                   <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
-                    GitHub Username
+                    GitHub URL
                   </label>
                   <input
                     type="text"
                     value={editGithubUsername}
                     onChange={(e) => setEditGithubUsername(e.target.value)}
                     disabled={isSavingEdit}
-                    placeholder="Username"
+                    placeholder="https://github.com/username"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50"
+                  />
+                </div>
+
+                {/* LinkedIn URL */}
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[9px] font-black text-brand-muted uppercase tracking-wider">
+                    LinkedIn URL
+                  </label>
+                  <input
+                    type="text"
+                    value={editLinkedinUrl}
+                    onChange={(e) => setEditLinkedinUrl(e.target.value)}
+                    disabled={isSavingEdit}
+                    placeholder="https://linkedin.com/in/username"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50"
                   />
                 </div>

@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
       leetcode_username,
       githubUsername,
       github_username,
+      linkedinUrl,
+      linkedin_url,
       profilePictureUrl,
       profile_picture_url
     } = body;
@@ -65,10 +67,27 @@ export async function POST(request: NextRequest) {
     const normalizedCodechef = (codechefUsername || codechef_username) ? String(codechefUsername || codechef_username).trim() : null;
     const normalizedLeetcode = (leetcodeUsername || leetcode_username) ? String(leetcodeUsername || leetcode_username).trim() : null;
     const normalizedGithub = (githubUsername || github_username) ? String(githubUsername || github_username).trim() : null;
+    const normalizedLinkedin = (linkedinUrl || linkedin_url) ? String(linkedinUrl || linkedin_url).trim() : null;
     const normalizedPicUrl = (profilePictureUrl || profile_picture_url) ? String(profilePictureUrl || profile_picture_url).trim() : null;
 
     if (!normalizedName) {
       return NextResponse.json({ error: "Student Name is required." }, { status: 400 });
+    }
+
+    const isValidUrl = (urlStr: string) => {
+      try {
+        new URL(urlStr);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (normalizedGithub && !isValidUrl(normalizedGithub)) {
+      return NextResponse.json({ error: "GitHub must be a valid URL (e.g., https://github.com/username)" }, { status: 400 });
+    }
+    if (normalizedLinkedin && !isValidUrl(normalizedLinkedin)) {
+      return NextResponse.json({ error: "LinkedIn must be a valid URL (e.g., https://linkedin.com/in/username)" }, { status: 400 });
     }
 
     if (isNaN(normalizedYear) || normalizedYear < 1 || normalizedYear > 4) {
@@ -155,6 +174,7 @@ export async function POST(request: NextRequest) {
         codechefUsername: normalizedCodechef,
         leetcodeUsername: normalizedLeetcode,
         githubUsername: normalizedGithub,
+        linkedinUrl: normalizedLinkedin,
         profilePictureUrl: normalizedPicUrl,
         verificationStatus: "UNABLE_TO_VERIFY",
         leaderboardEntry: {
@@ -297,9 +317,27 @@ export async function PATCH(request: NextRequest) {
       updateData.section = body.section ? String(body.section).trim().toUpperCase() : null;
     }
 
+    const isValidUrl = (urlStr: string) => {
+      try {
+        new URL(urlStr);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
     if (body.hasOwnProperty("profilePictureUrl") || body.hasOwnProperty("profile_picture_url")) {
       const pic = body.hasOwnProperty("profilePictureUrl") ? body.profilePictureUrl : body.profile_picture_url;
       updateData.profilePictureUrl = pic ? String(pic).trim() : null;
+    }
+
+    if (body.hasOwnProperty("linkedinUrl") || body.hasOwnProperty("linkedin_url")) {
+      const linked = body.hasOwnProperty("linkedinUrl") ? body.linkedinUrl : body.linkedin_url;
+      const lnUrl = linked ? String(linked).trim() : null;
+      if (lnUrl && !isValidUrl(lnUrl)) {
+        return NextResponse.json({ error: "LinkedIn must be a valid URL." }, { status: 400 });
+      }
+      updateData.linkedinUrl = lnUrl;
     }
 
     let usernamesChanged = false;
@@ -341,12 +379,15 @@ export async function PATCH(request: NextRequest) {
     if (body.hasOwnProperty("githubUsername") || body.hasOwnProperty("github_username")) {
       const gh = body.hasOwnProperty("githubUsername") ? body.githubUsername : body.github_username;
       const ghUser = gh ? String(gh).trim() : null;
+      if (ghUser && !isValidUrl(ghUser)) {
+        return NextResponse.json({ error: "GitHub must be a valid URL." }, { status: 400 });
+      }
       if (ghUser) {
         const existingGH = await prisma.studentProfile.findFirst({
           where: { githubUsername: { equals: ghUser }, id: { not: id } },
         });
         if (existingGH) {
-          return NextResponse.json({ error: "GitHub username is already linked to another student." }, { status: 400 });
+          return NextResponse.json({ error: "GitHub URL is already linked to another student." }, { status: 400 });
         }
       }
       if (ghUser !== currentProfile.githubUsername) {
@@ -365,18 +406,15 @@ export async function PATCH(request: NextRequest) {
     if (usernamesChanged) {
       const existingCc = await prisma.codechefProfile.findUnique({ where: { studentId: id } });
       const existingLc = await prisma.leetcodeProfile.findUnique({ where: { studentId: id } });
-      const existingGh = await prisma.githubProfile.findUnique({ where: { studentId: id } });
 
       const finalCodechef = updateData.hasOwnProperty("codechefUsername") ? updateData.codechefUsername : currentProfile.codechefUsername;
       const finalLeetcode = updateData.hasOwnProperty("leetcodeUsername") ? updateData.leetcodeUsername : currentProfile.leetcodeUsername;
-      const finalGithub = updateData.hasOwnProperty("githubUsername") ? updateData.githubUsername : currentProfile.githubUsername;
 
       const ccVerified = finalCodechef && existingCc && existingCc.username.toLowerCase() === finalCodechef.toLowerCase();
       const lcVerified = finalLeetcode && existingLc && existingLc.username.toLowerCase() === finalLeetcode.toLowerCase();
-      const ghVerified = finalGithub && existingGh && existingGh.username.toLowerCase() === finalGithub.toLowerCase();
 
-      const configuredCount = [finalCodechef, finalLeetcode, finalGithub].filter(Boolean).length;
-      const verifiedCount = [ccVerified, lcVerified, ghVerified].filter(Boolean).length;
+      const configuredCount = [finalCodechef, finalLeetcode].filter(Boolean).length;
+      const verifiedCount = [ccVerified, lcVerified].filter(Boolean).length;
 
       let newStatus = "UNABLE_TO_VERIFY";
       if (configuredCount > 0) {
@@ -404,7 +442,7 @@ export async function PATCH(request: NextRequest) {
 
     // Trigger background sync safely using after()
     const shouldSync = body.sync === true || body.autoSync === true || (usernamesChanged && (body.sync !== false && body.autoSync !== false));
-    if (shouldSync && (updatedProfile.codechefUsername || updatedProfile.leetcodeUsername || updatedProfile.githubUsername)) {
+    if (shouldSync && (updatedProfile.codechefUsername || updatedProfile.leetcodeUsername)) {
       after(async () => {
         try {
           const syncRes = await SyncService.syncStudent(id, "USER_MANUAL");

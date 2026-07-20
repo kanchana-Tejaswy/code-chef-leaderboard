@@ -70,6 +70,7 @@ interface StudentDetails {
   codechefUsername: string | null;
   leetcodeUsername: string | null;
   githubUsername: string | null;
+  linkedinUrl?: string | null;
   verificationStatus?: string;
   codechefProfile?: any;
   leetcodeProfile?: any;
@@ -132,6 +133,7 @@ export default function StudentProfileDashboard() {
     codechefUsername: "",
     leetcodeUsername: "",
     githubUsername: "",
+    linkedinUrl: "",
   });
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [saveDetailsError, setSaveDetailsError] = useState<string | null>(null);
@@ -148,6 +150,7 @@ export default function StudentProfileDashboard() {
         codechefUsername: student.codechefUsername || "",
         leetcodeUsername: student.leetcodeUsername || "",
         githubUsername: student.githubUsername || "",
+        linkedinUrl: student.linkedinUrl || "",
       });
       setSaveDetailsError(null);
       setIsEditModalOpen(true);
@@ -516,8 +519,8 @@ export default function StudentProfileDashboard() {
             Select a Platform Card below to view detailed analytics
           </div>
 
-          {/* 3 BIG CLICKABLE CARDS */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* 4 BIG CLICKABLE CARDS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             
             {/* CODECHEF CARD */}
             <div
@@ -590,39 +593,38 @@ export default function StudentProfileDashboard() {
             </div>
 
             {/* GITHUB CARD */}
-            <div
-              onClick={() => student.githubUsername && setSelectedPlatform("github")}
-              className={`border border-[#262626] hover:border-[#EAB308]/40 bg-[#111111]/70 hover:bg-[#111111] p-6 rounded-3xl cursor-pointer flex flex-col gap-4 transition-all duration-300 group shadow-lg ${!student.githubUsername ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
+            <a
+              href={student.githubUsername ? student.githubUsername : "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`border border-[#262626] hover:border-[#EAB308]/40 bg-[#111111]/70 hover:bg-[#111111] p-6 rounded-3xl cursor-pointer flex flex-col justify-center items-center gap-4 transition-all duration-300 group shadow-lg ${!student.githubUsername ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
             >
-              <div className="flex justify-between items-start">
-                <div className="flex items-center gap-2">
-                  <div className="h-9 w-9 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
-                    <Github className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-black uppercase tracking-wider text-[#FAFAFA] group-hover:text-[#EAB308] transition-colors">GitHub</h3>
-                    <p className="text-[9px] text-[#A3A3A3] font-semibold">@{student.githubUsername || "N/A"}</p>
-                  </div>
-                </div>
-                <span className="text-[9px] font-bold px-2 py-0.5 bg-purple-500/5 border border-purple-500/20 rounded-md text-purple-400">
-                  {student.githubProfile?.openSourceScore || 0} OS Score
-                </span>
+              <div className="h-12 w-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-110 transition-transform">
+                <Github className="h-6 w-6" />
               </div>
-              <div className="grid grid-cols-3 gap-2 text-center border-t border-[#262626]/60 pt-4 mt-2">
-                <div className="flex flex-col">
-                  <span className="text-[8px] uppercase tracking-wider text-[#A3A3A3] font-bold">Repos</span>
-                  <span className="text-xs font-black text-[#FAFAFA] mt-1">{student.githubProfile?.totalRepositories || 0}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[8px] uppercase tracking-wider text-[#A3A3A3] font-bold">Stars</span>
-                  <span className="text-xs font-black text-[#FAFAFA] mt-1">{student.githubProfile?.totalStars || 0}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[8px] uppercase tracking-wider text-[#A3A3A3] font-bold">Followers</span>
-                  <span className="text-xs font-black text-[#FAFAFA] mt-1">{student.githubProfile?.followers || 0}</span>
-                </div>
+              <div className="text-center">
+                <h3 className="text-xs font-black uppercase tracking-wider text-[#FAFAFA] group-hover:text-[#EAB308] transition-colors">GitHub</h3>
+                <p className="text-[9px] text-[#A3A3A3] font-semibold mt-1">View Profile</p>
               </div>
-            </div>
+            </a>
+
+            {/* LINKEDIN CARD */}
+            <a
+              href={student.linkedinUrl ? student.linkedinUrl : "#"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`border border-[#262626] hover:border-[#EAB308]/40 bg-[#111111]/70 hover:bg-[#111111] p-6 rounded-3xl cursor-pointer flex flex-col justify-center items-center gap-4 transition-all duration-300 group shadow-lg ${!student.linkedinUrl ? "opacity-40 cursor-not-allowed pointer-events-none" : ""}`}
+            >
+              <div className="h-12 w-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 group-hover:scale-110 transition-transform">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="h-6 w-6">
+                  <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                </svg>
+              </div>
+              <div className="text-center">
+                <h3 className="text-xs font-black uppercase tracking-wider text-[#FAFAFA] group-hover:text-[#EAB308] transition-colors">LinkedIn</h3>
+                <p className="text-[9px] text-[#A3A3A3] font-semibold mt-1">View Profile</p>
+              </div>
+            </a>
 
           </div>
 
@@ -651,9 +653,15 @@ export default function StudentProfileDashboard() {
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-xs border border-[#262626] bg-[#111111]/60 px-3.5 py-2 rounded-xl">
-                    <span className="font-bold text-zinc-300">GitHub Verified</span>
-                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ${student.githubProfile ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border border-red-500/20 text-red-400"}`}>
-                      {student.githubProfile ? "✓ Active" : "✗ Missing"}
+                    <span className="font-bold text-zinc-300">GitHub Connected</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ${student.githubUsername ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border border-red-500/20 text-red-400"}`}>
+                      {student.githubUsername ? "✓ Linked" : "✗ Missing"}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs border border-[#262626] bg-[#111111]/60 px-3.5 py-2 rounded-xl">
+                    <span className="font-bold text-zinc-300">LinkedIn Connected</span>
+                    <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-lg ${student.linkedinUrl ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-red-500/10 border border-red-500/20 text-red-400"}`}>
+                      {student.linkedinUrl ? "✓ Linked" : "✗ Missing"}
                     </span>
                   </div>
                 </div>
@@ -671,7 +679,7 @@ export default function StudentProfileDashboard() {
                     <span className="font-bold text-zinc-400">Data Completeness:</span>
                     <span className="font-black text-emerald-400 text-sm">
                       {(() => {
-                        const totalPossibleFields = 18;
+                        const totalPossibleFields = 14;
                         let populatedFields = 0;
                         if (student.codechefProfile) {
                           if (student.codechefProfile.currentRating !== null) populatedFields++;
@@ -690,12 +698,6 @@ export default function StudentProfileDashboard() {
                           if (student.leetcodeProfile.contestRating !== null) populatedFields++;
                           if (student.leetcodeProfile.contestRank !== null && student.leetcodeProfile.contestRank > 0) populatedFields++;
                           if (student.leetcodeProfile.acceptanceRate !== null) populatedFields++;
-                        }
-                        if (student.githubProfile) {
-                          if (student.githubProfile.totalRepositories !== null) populatedFields++;
-                          if (student.githubProfile.totalStars !== null) populatedFields++;
-                          if (student.githubProfile.followers !== null) populatedFields++;
-                          if (student.githubProfile.openSourceScore !== null) populatedFields++;
                         }
                         return Math.round((populatedFields / totalPossibleFields) * 100);
                       })()}%
@@ -724,13 +726,6 @@ export default function StudentProfileDashboard() {
                       if (student.leetcodeProfile.contestRating === null) missingList.push("LeetCode Rating");
                       if (student.leetcodeProfile.contestRank === null || student.leetcodeProfile.contestRank === 0) missingList.push("LeetCode Rank");
                       if (student.leetcodeProfile.acceptanceRate === null) missingList.push("Acceptance Rate");
-                    }
-                    if (!student.githubProfile) {
-                      missingList.push("GitHub Data");
-                    } else {
-                      if (student.githubProfile.totalRepositories === null) missingList.push("GitHub Repos");
-                      if (student.githubProfile.totalStars === null) missingList.push("GitHub Stars");
-                      if (student.githubProfile.followers === null) missingList.push("GitHub Followers");
                     }
                     if (missingList.length === 0) {
                       return <span className="text-xs text-emerald-400 font-bold">✓ 100% complete payload</span>;
@@ -1804,11 +1799,27 @@ export default function StudentProfileDashboard() {
                       <Github className="h-4 w-4" />
                     </div>
                     <div className="flex-1 flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">GitHub Username</label>
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">GitHub Profile URL</label>
                       <input
                         type="text"
                         value={editFormData.githubUsername}
                         onChange={(e) => setEditFormData({ ...editFormData, githubUsername: e.target.value })}
+                        className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
+                      <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+                        <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
+                      </svg>
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">LinkedIn Profile URL</label>
+                      <input
+                        type="text"
+                        value={editFormData.linkedinUrl}
+                        onChange={(e) => setEditFormData({ ...editFormData, linkedinUrl: e.target.value })}
                         className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
                       />
                     </div>

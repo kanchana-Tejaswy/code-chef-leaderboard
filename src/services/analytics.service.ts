@@ -33,18 +33,10 @@ export class AnalyticsService {
             return null;
           })
         : Promise.resolve(null),
-
-      // GitHub [Index 2]
-      githubUrl
-        ? GithubService.fetchData(githubUrl).catch((err) => {
-            console.error("GitHub scrape failed during sync:", err);
-            return null;
-          })
-        : Promise.resolve(null),
     ];
 
     // Run simultaneously in parallel
-    const [codechefResult, leetcodeResult, githubResult] = await Promise.all(promises);
+    const [codechefResult, leetcodeResult] = await Promise.all(promises);
 
     // Compute platform-specific AI engine evaluations
     let codechefAi = null;
@@ -82,19 +74,10 @@ export class AnalyticsService {
       leetcodeScore = leetcodeAi.talentScore;
     }
 
-    let githubAi = null;
-    let githubScore = 0;
-    if (githubResult && githubResult.rawMetrics?.careerInsights && githubResult.rawMetrics?.developerScore) {
-      // githubResult.rawMetrics contains the fully computed GitHubAnalytics payload
-      githubAi = GithubAiEngine.analyze(githubResult.rawMetrics);
-      githubScore = githubAi.talentScore;
-    }
-
     // Determine platform configurations
     const active = {
       codechef: !!codechefResult,
       leetcode: !!leetcodeResult,
-      github: !!githubResult,
     };
 
     // Calculate Overall Weighted Score (excluding GitHub for competitive scoring)
@@ -108,7 +91,7 @@ export class AnalyticsService {
     const overallAi = OverallAiEngine.analyze(
       codechefAi,
       leetcodeAi,
-      githubAi,
+      null,
       weights
     );
 
@@ -117,7 +100,7 @@ export class AnalyticsService {
       active,
       codechef: codechefResult ? { data: codechefResult, score: codechefScore, ai: codechefAi } : null,
       leetcode: leetcodeResult ? { data: leetcodeResult, score: leetcodeScore, ai: leetcodeAi } : null,
-      github: githubResult ? { data: githubResult, score: githubScore, ai: githubAi } : null,
+      github: null,
       overall: {
         score: overallScore,
         ai: overallAi,

@@ -2,10 +2,10 @@ import { Prisma } from "@prisma/client";
 
 export class OverallScoreService {
   /**
-   * Calculates standard competition ranking (1, 2, 2, 4) for any array of items.
+   * Calculates dense ranking (1, 2, 2, 3) for any array of items.
    * Assumes the array is ALREADY sorted in the correct competitive order.
    */
-  static calculateCompetitionRank<T>(
+  static calculateDenseRank<T>(
     sortedItems: T[],
     getScoreKeys: (item: T) => number[]
   ): (T & { rank: number })[] {
@@ -22,7 +22,7 @@ export class OverallScoreService {
           keys.every((val, i) => val === previousKeys![i]);
           
         if (!isTie) {
-          currentRank = index + 1;
+          currentRank++;
           previousKeys = keys;
         }
       }

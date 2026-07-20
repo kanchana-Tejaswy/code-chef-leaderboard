@@ -17,7 +17,8 @@ import {
   ChevronRight,
   Edit2,
   Check,
-  X
+  X,
+  RefreshCw
 } from "lucide-react";
 import ContestPlatformCard from "../../components/leaderboard/ContestPlatformCard";
 import { getDisplayRank } from "@/utils/ranking";
@@ -224,6 +225,59 @@ function LeaderboardContent() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<PlatformKey>("overall");
 
+  // Bulk Refresh States
+  const [bulkJobId, setBulkJobId] = useState<string | null>(null);
+  const [bulkJobProgress, setBulkJobProgress] = useState<any>(null);
+
+  // Poll bulk refresh status
+  useEffect(() => {
+    if (!bulkJobId) return;
+    const interval = setInterval(async () => {
+      try {
+        const adminSecret = localStorage.getItem("ADMIN_SECRET") || process.env.NEXT_PUBLIC_ADMIN_SECRET || "";
+        const res = await fetch(`/api/admin/refresh/status/${bulkJobId}`, {
+          headers: { Authorization: `Bearer ${adminSecret}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setBulkJobProgress(data.job);
+          if (data.job?.status !== 'RUNNING' && data.job?.status !== 'PENDING') {
+            clearInterval(interval);
+            setBulkJobId(null);
+            setTimeout(() => { setBulkJobProgress(null); fetchStandings(); }, 5000);
+          }
+        } else if (res.status === 404 || res.status === 401) {
+          clearInterval(interval);
+          setBulkJobId(null);
+        }
+      } catch (e) {
+        console.error("Failed to poll bulk job status", e);
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [bulkJobId]);
+
+  const triggerBulkRefresh = async (mode: "STALE_ONLY" | "ALL") => {
+    try {
+      const adminSecret = localStorage.getItem("ADMIN_SECRET") || process.env.NEXT_PUBLIC_ADMIN_SECRET || "";
+      const res = await fetch("/api/admin/refresh/all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminSecret}` },
+        body: JSON.stringify({ mode })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setBulkJobId(data.jobId);
+        setBulkJobProgress({ status: 'PENDING', totalStudents: 1, processedStudents: 0 });
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to start bulk refresh.");
+      }
+    } catch (e) {
+      alert("Error starting bulk refresh");
+    }
+  };
+
   // Editing Student Name State
   const [editingStudentId, setEditingStudentId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState("");
@@ -255,6 +309,35 @@ function LeaderboardContent() {
       alert("Error updating student name.");
     } finally {
       setIsSavingName(false);
+    }
+  };
+
+  const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
+
+  const handleRefreshStudent = async (studentId: string) => {
+    setRefreshingIds((prev) => new Set(prev).add(studentId));
+    try {
+      const adminSecret = localStorage.getItem("ADMIN_SECRET") || process.env.NEXT_PUBLIC_ADMIN_SECRET || "";
+      const res = await fetch("/api/admin/refresh/student", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${adminSecret}` },
+        body: JSON.stringify({ studentProfileId: studentId }),
+      });
+      if (res.ok) {
+        await fetchStandings();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        alert(errorData.error || "Failed to synchronize profile.");
+      }
+    } catch (e) {
+      console.error("Error refreshing student:", e);
+      alert("Failed to refresh profile due to a network error.");
+    } finally {
+      setRefreshingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(studentId);
+        return next;
+      });
     }
   };
 
@@ -515,7 +598,7 @@ function LeaderboardContent() {
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8">
       
       {/* Page Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-6">
           <div className="flex items-center gap-3">
             <div className="p-2.5 bg-[#EAB308]/10 border border-[#EAB308]/20 text-[#EAB308] rounded-xl">
               <Trophy className="h-6 w-6" />
@@ -525,6 +608,35 @@ function LeaderboardContent() {
               <p className="text-sm text-brand-muted mt-1">Real-time student placement readiness rankings across CodeChef and LeetCode</p>
             </div>
           </div>
+
+          <div className="flex flex-col sm:flex-row gap-3">
+            {bulkJobProgress ? (
+              <div className="flex items-center gap-3 px-4 py-2 bg-[#EAB308]/10 border border-[#EAB308]/30 rounded-xl">
+                <Loader2 className="w-4 h-4 text-[#EAB308] animate-spin" />
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-[#EAB308]">
+                    {bulkJobProgress.status === 'RUNNING' ? 'Refreshing live data...' : 
+                     bulkJobProgress.status === 'SUCCESS' ? 'Refresh Complete!' : 
+                     bulkJobProgress.status === 'PARTIAL_SUCCESS' ? 'Refresh Complete with some errors.' : 'Refresh Failed.'}
+                  </span>
+                  {bulkJobProgress.status === 'RUNNING' && (
+                    <span className="text-[10px] text-[#EAB308]/80">
+                      {bulkJobProgress.processedStudents} of {bulkJobProgress.totalStudents} students processed
+                    </span>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => triggerBulkRefresh("ALL")}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-black tracking-widest text-[#111111] uppercase bg-[#EAB308] border border-[#EAB308] hover:bg-[#FACC15] hover:border-[#FACC15] rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.2)] transition-all"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Refresh All Students
+              </button>
+            )}
+          </div>
+
 
           {/* Contest Center */}
           <div className="flex gap-4 mt-4 md:mt-0">
@@ -1137,13 +1249,27 @@ function LeaderboardContent() {
 
                         {/* View Action */}
                         <td className="py-4 px-6 text-center">
-                          <Link
-                            href={`/student/${entry.student.id}`}
-                            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-[#EAB308] hover:border-[#EAB308]/30 hover:bg-zinc-900 transition-all"
-                            title="View Student Portfolio"
-                          >
-                            <Eye className="h-3.5 w-3.5" />
-                          </Link>
+                          <div className="flex items-center justify-center gap-2">
+                            <button
+                              onClick={() => handleRefreshStudent(entry.student.id)}
+                              disabled={refreshingIds.has(entry.student.id)}
+                              title="Refresh metrics"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-[#22C55E] hover:border-[#22C55E]/30 hover:bg-zinc-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              {refreshingIds.has(entry.student.id) ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <RefreshCw className="h-3.5 w-3.5" />
+                              )}
+                            </button>
+                            <Link
+                              href={`/student/${entry.student.id}`}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-[#EAB308] hover:border-[#EAB308]/30 hover:bg-zinc-900 transition-all"
+                              title="View Student Portfolio"
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </Link>
+                          </div>
                         </td>
                       </tr>
                     );

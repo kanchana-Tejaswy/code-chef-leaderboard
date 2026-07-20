@@ -16,6 +16,7 @@ interface ImportRow {
   codechef_username?: string;
   leetcode_username?: string;
   github_username?: string;
+  linkedin_url?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -70,6 +71,7 @@ export async function POST(request: NextRequest) {
       const ccUser = rawRow.codechef_username?.trim() || null;
       const lcUser = rawRow.leetcode_username?.trim() || null;
       const ghUser = rawRow.github_username?.trim() || null;
+      const lnUrl = rawRow.linkedin_url?.trim() || null;
       const rawYear = rawRow.year?.trim() || "3";
       
       const parsedYear = parseInt(rawYear, 10);
@@ -164,6 +166,7 @@ export async function POST(request: NextRequest) {
         codechefUsername: ccUser,
         leetcodeUsername: lcUser,
         githubUsername: ghUser,
+        linkedinUrl: lnUrl,
         errors,
         classification
       });
@@ -200,6 +203,7 @@ export async function POST(request: NextRequest) {
               codechefUsername: row.codechefUsername,
               leetcodeUsername: row.leetcodeUsername,
               githubUsername: row.githubUsername,
+              linkedinUrl: row.linkedinUrl,
             }
           });
           importedIds.push(updated.id);
@@ -215,6 +219,7 @@ export async function POST(request: NextRequest) {
               codechefUsername: row.codechefUsername,
               leetcodeUsername: row.leetcodeUsername,
               githubUsername: row.githubUsername,
+              linkedinUrl: row.linkedinUrl,
             }
           });
           importedIds.push(created.id);

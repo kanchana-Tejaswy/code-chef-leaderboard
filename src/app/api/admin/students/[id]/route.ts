@@ -28,7 +28,8 @@ export async function PATCH(
       section, 
       codechefUsername, 
       leetcodeUsername, 
-      githubUsername 
+      githubUsername,
+      linkedinUrl
     } = body;
 
     if (!studentId || typeof studentId !== "string") {
@@ -58,11 +59,27 @@ export async function PATCH(
     const newCodechef = normalizeUsername(codechefUsername);
     const newLeetcode = normalizeUsername(leetcodeUsername);
     const newGithub = normalizeUsername(githubUsername);
+    const newLinkedin = normalizeUsername(linkedinUrl);
+
+    const isValidUrl = (urlStr: string) => {
+      try {
+        new URL(urlStr);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (newGithub && !isValidUrl(newGithub)) {
+        return NextResponse.json({ error: "GitHub must be a valid URL (e.g., https://github.com/username)" }, { status: 400 });
+    }
+    if (newLinkedin && !isValidUrl(newLinkedin)) {
+        return NextResponse.json({ error: "LinkedIn must be a valid URL (e.g., https://linkedin.com/in/username)" }, { status: 400 });
+    }
 
     const isPlatformChanged = 
       oldStudent.codechefUsername !== newCodechef ||
-      oldStudent.leetcodeUsername !== newLeetcode ||
-      oldStudent.githubUsername !== newGithub;
+      oldStudent.leetcodeUsername !== newLeetcode;
 
     // Update database record
     const updatedStudent = await prisma.studentProfile.update({
@@ -77,6 +94,7 @@ export async function PATCH(
         codechefUsername: newCodechef,
         leetcodeUsername: newLeetcode,
         githubUsername: newGithub,
+        linkedinUrl: newLinkedin,
       },
     });
 

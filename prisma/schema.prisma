@@ -38,6 +38,7 @@ model StudentProfile {
   codechefUsername  String?           @unique @map("codechef_username")
   leetcodeUsername  String?           @unique @map("leetcode_username")
   githubUsername    String?           @unique @map("github_username")
+  linkedinUrl       String?           @map("linkedin_url")
   verificationStatus String            @default("UNABLE_TO_VERIFY") @map("verification_status")
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
