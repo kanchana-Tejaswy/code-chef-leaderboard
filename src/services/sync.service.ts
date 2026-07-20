@@ -228,49 +228,53 @@ export class SyncService {
       }
 
       // 3. Database Storage Phase: Update Database inside a transaction
-      await prisma.$transaction(async (tx) => {
-        // Update StudentProfile verificationStatus
-        await tx.studentProfile.update({
+      const queries: any[] = [];
+
+      // Update StudentProfile verificationStatus
+      queries.push(
+        prisma.studentProfile.update({
           where: { id: studentId },
           data: { verificationStatus }
-        });
+        })
+      );
 
-        // Upsert CodeChef Profile
-        if (codechefData) {
-          const retrievedAt = new Date().toISOString();
-          const ccMetadata = {
-            username: { value: codechefData.username, source: "CodeChef", retrievedAt, verificationStatus: "Verified" },
-            fullName: { value: codechefData.fullName, source: "CodeChef", retrievedAt, verificationStatus: codechefData.fullName ? "Verified" : "Unavailable" },
-            country: { value: codechefData.country, source: "CodeChef", retrievedAt, verificationStatus: codechefData.country ? "Verified" : "Unavailable" },
-            institution: { value: codechefData.institution, source: "CodeChef", retrievedAt, verificationStatus: codechefData.institution ? "Verified" : "Unavailable" },
-            city: { value: codechefData.city, source: "CodeChef", retrievedAt, verificationStatus: codechefData.city ? "Verified" : "Unavailable" },
-            currentRating: { value: codechefData.currentRating, source: "CodeChef", retrievedAt, verificationStatus: codechefData.currentRating !== null ? "Verified" : "Unavailable" },
-            highestRating: { value: codechefData.highestRating, source: "CodeChef", retrievedAt, verificationStatus: codechefData.highestRating !== null ? "Verified" : "Unavailable" },
-            stars: { value: codechefData.stars, source: "CodeChef", retrievedAt, verificationStatus: codechefData.stars !== null ? "Verified" : "Unavailable" },
-            maxStars: { value: codechefData.maxStars, source: "CodeChef", retrievedAt, verificationStatus: codechefData.maxStars !== null ? "Verified" : "Unavailable" },
-            globalRank: { value: codechefData.globalRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.globalRank !== null ? "Verified" : "Unavailable" },
-            countryRank: { value: codechefData.countryRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.countryRank !== null ? "Verified" : "Unavailable" },
-            problemsSolved: { value: codechefData.problemsSolved, source: "CodeChef", retrievedAt, verificationStatus: codechefData.problemsSolved !== null ? "Verified" : "Unavailable" },
-            fullySolvedCount: { value: codechefData.fullySolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.fullySolvedCount !== null ? "Verified" : "Unavailable" },
-            partiallySolvedCount: { value: codechefData.partiallySolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.partiallySolvedCount !== null ? "Verified" : "Unavailable" },
-            easySolvedCount: { value: codechefData.easySolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.easySolvedCount !== null ? "Verified" : "Unavailable" },
-            mediumSolvedCount: { value: codechefData.mediumSolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.mediumSolvedCount !== null ? "Verified" : "Unavailable" },
-            hardSolvedCount: { value: codechefData.hardSolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.hardSolvedCount !== null ? "Verified" : "Unavailable" },
-            challengeSolvedCount: { value: codechefData.challengeSolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.challengeSolvedCount !== null ? "Verified" : "Unavailable" },
-            contestCount: { value: codechefData.contestCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.contestCount !== null ? "Verified" : "Unavailable" },
-            longChallengeCount: { value: codechefData.longChallengeCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.longChallengeCount !== null ? "Verified" : "Unavailable" },
-            cookOffCount: { value: codechefData.cookOffCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.cookOffCount !== null ? "Verified" : "Unavailable" },
-            lunchtimeCount: { value: codechefData.lunchtimeCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.lunchtimeCount !== null ? "Verified" : "Unavailable" },
-            startersCount: { value: codechefData.startersCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.startersCount !== null ? "Verified" : "Unavailable" },
-            division: { value: codechefData.division, source: "CodeChef", retrievedAt, verificationStatus: codechefData.division ? "Verified" : "Unavailable" },
-            bestContestRank: { value: codechefData.bestContestRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.bestContestRank !== null ? "Verified" : "Unavailable" },
-            averageContestRank: { value: codechefData.averageContestRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.averageContestRank !== null ? "Verified" : "Unavailable" },
-            lastActive: { value: codechefData.lastActive, source: "CodeChef", retrievedAt, verificationStatus: codechefData.lastActive ? "Verified" : "Unavailable" },
-            activeDaysCount: { value: codechefData.activeDaysCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.activeDaysCount !== null ? "Verified" : "Unavailable" },
-            syncStatus: "SUCCESS"
-          };
+      // Upsert CodeChef Profile
+      if (codechefData) {
+        const retrievedAt = new Date().toISOString();
+        const ccMetadata = {
+          username: { value: codechefData.username, source: "CodeChef", retrievedAt, verificationStatus: "Verified" },
+          fullName: { value: codechefData.fullName, source: "CodeChef", retrievedAt, verificationStatus: codechefData.fullName ? "Verified" : "Unavailable" },
+          country: { value: codechefData.country, source: "CodeChef", retrievedAt, verificationStatus: codechefData.country ? "Verified" : "Unavailable" },
+          institution: { value: codechefData.institution, source: "CodeChef", retrievedAt, verificationStatus: codechefData.institution ? "Verified" : "Unavailable" },
+          city: { value: codechefData.city, source: "CodeChef", retrievedAt, verificationStatus: codechefData.city ? "Verified" : "Unavailable" },
+          currentRating: { value: codechefData.currentRating, source: "CodeChef", retrievedAt, verificationStatus: codechefData.currentRating !== null ? "Verified" : "Unavailable" },
+          highestRating: { value: codechefData.highestRating, source: "CodeChef", retrievedAt, verificationStatus: codechefData.highestRating !== null ? "Verified" : "Unavailable" },
+          stars: { value: codechefData.stars, source: "CodeChef", retrievedAt, verificationStatus: codechefData.stars !== null ? "Verified" : "Unavailable" },
+          maxStars: { value: codechefData.maxStars, source: "CodeChef", retrievedAt, verificationStatus: codechefData.maxStars !== null ? "Verified" : "Unavailable" },
+          globalRank: { value: codechefData.globalRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.globalRank !== null ? "Verified" : "Unavailable" },
+          countryRank: { value: codechefData.countryRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.countryRank !== null ? "Verified" : "Unavailable" },
+          problemsSolved: { value: codechefData.problemsSolved, source: "CodeChef", retrievedAt, verificationStatus: codechefData.problemsSolved !== null ? "Verified" : "Unavailable" },
+          fullySolvedCount: { value: codechefData.fullySolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.fullySolvedCount !== null ? "Verified" : "Unavailable" },
+          partiallySolvedCount: { value: codechefData.partiallySolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.partiallySolvedCount !== null ? "Verified" : "Unavailable" },
+          easySolvedCount: { value: codechefData.easySolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.easySolvedCount !== null ? "Verified" : "Unavailable" },
+          mediumSolvedCount: { value: codechefData.mediumSolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.mediumSolvedCount !== null ? "Verified" : "Unavailable" },
+          hardSolvedCount: { value: codechefData.hardSolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.hardSolvedCount !== null ? "Verified" : "Unavailable" },
+          challengeSolvedCount: { value: codechefData.challengeSolvedCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.challengeSolvedCount !== null ? "Verified" : "Unavailable" },
+          contestCount: { value: codechefData.contestCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.contestCount !== null ? "Verified" : "Unavailable" },
+          longChallengeCount: { value: codechefData.longChallengeCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.longChallengeCount !== null ? "Verified" : "Unavailable" },
+          cookOffCount: { value: codechefData.cookOffCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.cookOffCount !== null ? "Verified" : "Unavailable" },
+          lunchtimeCount: { value: codechefData.lunchtimeCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.lunchtimeCount !== null ? "Verified" : "Unavailable" },
+          startersCount: { value: codechefData.startersCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.startersCount !== null ? "Verified" : "Unavailable" },
+          division: { value: codechefData.division, source: "CodeChef", retrievedAt, verificationStatus: codechefData.division ? "Verified" : "Unavailable" },
+          bestContestRank: { value: codechefData.bestContestRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.bestContestRank !== null ? "Verified" : "Unavailable" },
+          averageContestRank: { value: codechefData.averageContestRank, source: "CodeChef", retrievedAt, verificationStatus: codechefData.averageContestRank !== null ? "Verified" : "Unavailable" },
+          lastActive: { value: codechefData.lastActive, source: "CodeChef", retrievedAt, verificationStatus: codechefData.lastActive ? "Verified" : "Unavailable" },
+          activeDaysCount: { value: codechefData.activeDaysCount, source: "CodeChef", retrievedAt, verificationStatus: codechefData.activeDaysCount !== null ? "Verified" : "Unavailable" },
+          syncStatus: "SUCCESS"
+        };
 
-          await tx.codechefProfile.upsert({
+        queries.push(
+          prisma.codechefProfile.upsert({
             where: { studentId },
             create: {
               studentId,
@@ -349,11 +353,13 @@ export class SyncService {
               verificationMetadata: ccMetadata as any,
               lastFetchedAt: new Date(),
             },
-          });
-        } else if (existingCc) {
-          // If scraping failed but we have existing data, preserve it and mark status as FAILED
-          const existingMetadata = existingCc.verificationMetadata as any || {};
-          await tx.codechefProfile.update({
+          })
+        );
+      } else if (existingCc) {
+        // If scraping failed but we have existing data, preserve it and mark status as FAILED
+        const existingMetadata = existingCc.verificationMetadata as any || {};
+        queries.push(
+          prisma.codechefProfile.update({
             where: { studentId },
             data: {
               verificationMetadata: {
@@ -363,29 +369,31 @@ export class SyncService {
                 lastAttemptedAt: new Date().toISOString()
               } as any
             }
-          });
-        }
+          })
+        );
+      }
 
-        // Upsert LeetCode Profile
-        if (leetcodeData) {
-          const metrics = leetcodeData.rawMetrics || {};
-          const retrievedAt = new Date().toISOString();
-          const lcMetadata = {
-            username: { value: leetcodeData.username, source: "LeetCode", retrievedAt, verificationStatus: "Verified" },
-            problemsSolved: { value: leetcodeData.problemsSolved, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.problemsSolved !== null ? "Verified" : "Unavailable" },
-            easySolvedCount: { value: metrics.easySolvedCount, source: "LeetCode", retrievedAt, verificationStatus: metrics.easySolvedCount !== null ? "Verified" : "Unavailable" },
-            mediumSolvedCount: { value: metrics.mediumSolvedCount, source: "LeetCode", retrievedAt, verificationStatus: metrics.mediumSolvedCount !== null ? "Verified" : "Unavailable" },
-            hardSolvedCount: { value: metrics.hardSolvedCount, source: "LeetCode", retrievedAt, verificationStatus: metrics.hardSolvedCount !== null ? "Verified" : "Unavailable" },
-            contestRating: { value: leetcodeData.currentRating, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.currentRating !== null ? "Verified" : "Unavailable" },
-            contestRank: { value: leetcodeData.globalRank, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.globalRank !== null ? "Verified" : "Unavailable" },
-            acceptanceRate: { value: metrics.acceptanceRate, source: "LeetCode", retrievedAt, verificationStatus: metrics.acceptanceRate !== null ? "Verified" : "Unavailable" },
-            consistencyScore: { value: metrics.consistencyScore, source: "LeetCode", retrievedAt, verificationStatus: metrics.consistencyScore !== null ? "Verified" : "Unavailable" },
-            profileRanking: { value: metrics.profileRanking, source: "LeetCode", retrievedAt, verificationStatus: metrics.profileRanking !== null ? "Verified" : "Unavailable" },
-            contestsAttended: { value: metrics.contestsAttended, source: "LeetCode", retrievedAt, verificationStatus: metrics.contestsAttended !== null ? "Verified" : "Unavailable" },
-            syncStatus: { value: "SUCCESS", source: "System", retrievedAt, verificationStatus: "Verified" }
-          };
+      // Upsert LeetCode Profile
+      if (leetcodeData) {
+        const metrics = leetcodeData.rawMetrics || {};
+        const retrievedAt = new Date().toISOString();
+        const lcMetadata = {
+          username: { value: leetcodeData.username, source: "LeetCode", retrievedAt, verificationStatus: "Verified" },
+          problemsSolved: { value: leetcodeData.problemsSolved, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.problemsSolved !== null ? "Verified" : "Unavailable" },
+          easySolvedCount: { value: metrics.easySolvedCount, source: "LeetCode", retrievedAt, verificationStatus: metrics.easySolvedCount !== null ? "Verified" : "Unavailable" },
+          mediumSolvedCount: { value: metrics.mediumSolvedCount, source: "LeetCode", retrievedAt, verificationStatus: metrics.mediumSolvedCount !== null ? "Verified" : "Unavailable" },
+          hardSolvedCount: { value: metrics.hardSolvedCount, source: "LeetCode", retrievedAt, verificationStatus: metrics.hardSolvedCount !== null ? "Verified" : "Unavailable" },
+          contestRating: { value: leetcodeData.currentRating, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.currentRating !== null ? "Verified" : "Unavailable" },
+          contestRank: { value: leetcodeData.globalRank, source: "LeetCode", retrievedAt, verificationStatus: leetcodeData.globalRank !== null ? "Verified" : "Unavailable" },
+          acceptanceRate: { value: metrics.acceptanceRate, source: "LeetCode", retrievedAt, verificationStatus: metrics.acceptanceRate !== null ? "Verified" : "Unavailable" },
+          consistencyScore: { value: metrics.consistencyScore, source: "LeetCode", retrievedAt, verificationStatus: metrics.consistencyScore !== null ? "Verified" : "Unavailable" },
+          profileRanking: { value: metrics.profileRanking, source: "LeetCode", retrievedAt, verificationStatus: metrics.profileRanking !== null ? "Verified" : "Unavailable" },
+          contestsAttended: { value: metrics.contestsAttended, source: "LeetCode", retrievedAt, verificationStatus: metrics.contestsAttended !== null ? "Verified" : "Unavailable" },
+          syncStatus: { value: "SUCCESS", source: "System", retrievedAt, verificationStatus: "Verified" }
+        };
 
-          await tx.leetcodeProfile.upsert({
+        queries.push(
+          prisma.leetcodeProfile.upsert({
             where: { studentId },
             create: {
               studentId,
@@ -426,33 +434,35 @@ export class SyncService {
               verificationMetadata: lcMetadata as any,
               lastFetchedAt: new Date(),
             },
-          });
-        }
+          })
+        );
+      }
 
-        // Upsert GitHub Profile
-        if (githubData) {
-          const metrics = githubData.rawMetrics || {};
-          const reposExtended = {
-            list: metrics.repos?.list || [],
-            intelligence: metrics.repos?.intelligence || {},
-            commitAnalytics: metrics.repos?.commitAnalytics || {},
-            openSource: metrics.repos?.openSource || {},
-            portfolio: metrics.repos?.portfolio || {},
-            careerInsights: metrics.repos?.careerInsights || {},
-            profileDetails: metrics.repos?.profileDetails || {},
-            developerScore: metrics.repos?.developerScore || {}
-          };
-          const retrievedAt = new Date().toISOString();
-          const ghMetadata = {
-            username: { value: githubData.username, source: "GitHub", retrievedAt, verificationStatus: "Verified" },
-            totalRepositories: { value: metrics.totalRepositories, source: "GitHub", retrievedAt, verificationStatus: metrics.totalRepositories !== null ? "Verified" : "Unavailable" },
-            totalStars: { value: metrics.totalStars, source: "GitHub", retrievedAt, verificationStatus: metrics.totalStars !== null ? "Verified" : "Unavailable" },
-            totalForks: { value: metrics.totalForks, source: "GitHub", retrievedAt, verificationStatus: metrics.totalForks !== null ? "Verified" : "Unavailable" },
-            followers: { value: metrics.followers, source: "GitHub", retrievedAt, verificationStatus: metrics.followers !== null ? "Verified" : "Unavailable" },
-            openSourceScore: { value: metrics.openSourceScore, source: "GitHub", retrievedAt, verificationStatus: metrics.openSourceScore !== null ? "Verified" : "Unavailable" }
-          };
+      // Upsert GitHub Profile
+      if (githubData) {
+        const metrics = githubData.rawMetrics || {};
+        const reposExtended = {
+          list: metrics.repos?.list || [],
+          intelligence: metrics.repos?.intelligence || {},
+          commitAnalytics: metrics.repos?.commitAnalytics || {},
+          openSource: metrics.repos?.openSource || {},
+          portfolio: metrics.repos?.portfolio || {},
+          careerInsights: metrics.repos?.careerInsights || {},
+          profileDetails: metrics.repos?.profileDetails || {},
+          developerScore: metrics.repos?.developerScore || {}
+        };
+        const retrievedAt = new Date().toISOString();
+        const ghMetadata = {
+          username: { value: githubData.username, source: "GitHub", retrievedAt, verificationStatus: "Verified" },
+          totalRepositories: { value: metrics.totalRepositories, source: "GitHub", retrievedAt, verificationStatus: metrics.totalRepositories !== null ? "Verified" : "Unavailable" },
+          totalStars: { value: metrics.totalStars, source: "GitHub", retrievedAt, verificationStatus: metrics.totalStars !== null ? "Verified" : "Unavailable" },
+          totalForks: { value: metrics.totalForks, source: "GitHub", retrievedAt, verificationStatus: metrics.totalForks !== null ? "Verified" : "Unavailable" },
+          followers: { value: metrics.followers, source: "GitHub", retrievedAt, verificationStatus: metrics.followers !== null ? "Verified" : "Unavailable" },
+          openSourceScore: { value: metrics.openSourceScore, source: "GitHub", retrievedAt, verificationStatus: metrics.openSourceScore !== null ? "Verified" : "Unavailable" }
+        };
 
-          await tx.githubProfile.upsert({
+        queries.push(
+          prisma.githubProfile.upsert({
             where: { studentId },
             create: {
               studentId,
@@ -485,9 +495,35 @@ export class SyncService {
               verificationMetadata: ghMetadata as any,
               lastFetchedAt: new Date(),
             },
-          });
-        }
-      });
+          })
+        );
+      }
+
+      // Pre-update LeaderboardEntry with raw scores to maintain transactional consistency
+      queries.push(
+        prisma.leaderboardEntry.upsert({
+          where: { studentId },
+          create: {
+            studentId,
+            rating: codechefData?.currentRating || existingCc?.currentRating || 0,
+            stars: codechefData?.stars || existingCc?.stars || 0,
+            talentScore: 0, // Computed later
+            overallScore: 0, // Computed later
+            codechefScore: 0, // Computed later
+            leetcodeScore: 0, // Computed later
+            githubScore: 0, // Computed later
+            trendDirection: "NEUTRAL",
+            rank: 0,
+          },
+          update: {
+            rating: codechefData?.currentRating || existingCc?.currentRating || 0,
+            stars: codechefData?.stars || existingCc?.stars || 0,
+          }
+        })
+      );
+
+      // Execute sequential transaction
+      await prisma.$transaction(queries);
 
       // 4. Normalization Phase: Unify and validate platform data
       const normalizedProfile = await NormalizationService.normalizeStudent(studentId);

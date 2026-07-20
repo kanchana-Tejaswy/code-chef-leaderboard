@@ -571,7 +571,7 @@ export default function LandingPage() {
   const [isYearDropdownOpen, setIsYearDropdownOpen] = useState(false);
 
   // Action Loading States
-  const [isRefreshingId, setIsRefreshingId] = useState<string | null>(null);
+  const [refreshingIds, setRefreshingIds] = useState<Set<string>>(new Set());
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
 
   // Centerpiece Leaderboard Filtering, Sorting & Pagination
@@ -833,7 +833,7 @@ export default function LandingPage() {
   };
 
   const handleRefreshStudent = async (studentId: string) => {
-    setIsRefreshingId(studentId);
+    setRefreshingIds((prev) => new Set(prev).add(studentId));
     try {
       const res = await fetch("/api/sync", {
         method: "POST",
@@ -851,7 +851,11 @@ export default function LandingPage() {
       console.error("Error refreshing student:", e);
       alert("Failed to refresh profile due to a network error.");
     } finally {
-      setIsRefreshingId(null);
+      setRefreshingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(studentId);
+        return next;
+      });
     }
   };
 
@@ -2475,11 +2479,11 @@ export default function LandingPage() {
                               {/* Refresh Data */}
                               <button
                                 onClick={() => handleRefreshStudent(entry.student.id)}
-                                disabled={isRefreshingId === entry.student.id}
+                                disabled={refreshingIds.has(entry.student.id)}
                                 className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-brand-border hover:border-[#22C55E]/30 bg-zinc-950 text-[9px] font-extrabold text-brand-muted hover:text-white disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
                                 title="Refresh metrics"
                               >
-                                {isRefreshingId === entry.student.id ? (
+                                {refreshingIds.has(entry.student.id) ? (
                                   <Loader2 className="h-3 w-3 animate-spin text-[#22C55E]" />
                                 ) : (
                                   <RefreshCw className="h-3 w-3 text-zinc-500 hover:text-[#22C55E] transition-colors" />
