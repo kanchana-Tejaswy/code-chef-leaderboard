@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { getJob } from "@/lib/jobTracker";
 
@@ -15,11 +16,9 @@ function isAdmin(request: NextRequest): boolean {
   return false;
 }
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ jobId: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   try {
+    await requireAdmin();
     if (!isAdmin(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -40,6 +39,9 @@ export async function GET(
       job
     });
   } catch (err: any) {
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     console.error("Error in job status API:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

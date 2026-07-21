@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider, ThemeProvider } from "./providers";
 import { Navbar } from "@/components/shared/navbar";
 import { ToastProvider } from "@/components/shared/toast";
+import { getAuthenticatedUserAccess } from "@/lib/auth";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,11 +31,13 @@ export const metadata: Metadata = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const access = await getAuthenticatedUserAccess();
+
   return (
     <html
       lang="en"
@@ -64,9 +67,9 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider>
-          <AuthProvider>
+          <AuthProvider initialRole={access?.role} initialStudentProfileId={access?.studentProfileId}>
             <ToastProvider>
-              <Navbar />
+              <Navbar userRole={access?.role} studentProfileId={access?.studentProfileId} />
               <main className="flex-1 flex flex-col">{children}</main>
             </ToastProvider>
           </AuthProvider>

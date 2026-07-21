@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireStudentProfileReadAccess } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -10,6 +13,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    await requireStudentProfileReadAccess(userId);
+
     const student = await prisma.studentProfile.findUnique({
       where: { id: userId },
       include: {
@@ -25,9 +30,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Student profile not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ profile: student });
+    return NextResponse.json({ profile: student }, {
+      headers: {
+        "Cache-Control": "private, no-store",
+      },
+    });
   } catch (err: any) {
     console.error("Error fetching detailed profile:", err);
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

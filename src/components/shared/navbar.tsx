@@ -23,9 +23,16 @@ import {
   Moon
 } from "lucide-react";
 
-export function Navbar() {
+import { UserRole } from "@prisma/client";
+
+interface NavbarProps {
+  userRole?: string | null;
+  studentProfileId?: string | null;
+}
+
+export function Navbar({ userRole, studentProfileId }: NavbarProps) {
   const pathname = usePathname();
-  const { user, profile, signOut } = useAuth();
+  const { signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
@@ -57,8 +64,6 @@ export function Navbar() {
         ? "bg-[#EAB308] text-[#0A0A0A]"
         : "bg-transparent text-white hover:text-[#EAB308] hover:bg-white/5"
     }`;
-
-  const isStaff = profile && ["ADMIN", "FACULTY", "PLACEMENT_OFFICER", "PRINCIPAL"].includes(profile.role);
 
 
 
@@ -99,21 +104,36 @@ export function Navbar() {
 
         {/* Center Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-4">
-          <Link href="/dashboard" prefetch={false} className={navItemClass("/dashboard")}>
-            Dashboard
-          </Link>
-          <Link href="/leaderboard" prefetch={false} className={navItemClass("/leaderboard")}>
-            Leaderboard
-          </Link>
-          <Link href="/analytics" prefetch={false} className={navItemClass("/analytics")}>
-            Analytics
-          </Link>
-          <Link href="/departments" prefetch={false} className={navItemClass("/departments")}>
-            Departments
-          </Link>
-          <Link href="/insights" prefetch={false} className={navItemClass("/insights")}>
-            Insights
-          </Link>
+          {userRole === "ADMIN" && (
+            <Link href="/dashboard" prefetch={false} className={navItemClass("/dashboard")}>
+              Dashboard
+            </Link>
+          )}
+          {userRole && (
+            <Link href="/leaderboard" prefetch={false} className={navItemClass("/leaderboard")}>
+              Leaderboard
+            </Link>
+          )}
+          {userRole === "ADMIN" && (
+            <Link href="/analytics" prefetch={false} className={navItemClass("/analytics")}>
+              Analytics
+            </Link>
+          )}
+          {userRole === "ADMIN" && (
+            <Link href="/departments" prefetch={false} className={navItemClass("/departments")}>
+              Departments
+            </Link>
+          )}
+          {userRole === "ADMIN" && (
+            <Link href="/insights" prefetch={false} className={navItemClass("/insights")}>
+              Insights
+            </Link>
+          )}
+          {userRole === "STUDENT" && studentProfileId && (
+            <Link href={`/student/${studentProfileId}`} prefetch={false} className={navItemClass(`/student/${studentProfileId}`)}>
+              My Profile
+            </Link>
+          )}
         </nav>
 
         {/* Right Navigation Controls */}
@@ -143,7 +163,15 @@ export function Navbar() {
             </div>
           </button>
 
-          {/* User Profile / Auth State controls removed for public access */}
+          {userRole && (
+            <button
+              onClick={signOut}
+              className="relative p-2 rounded-lg border border-brand-border bg-brand-card text-brand-muted hover:text-red-500 hover:border-red-500/30 transition-all duration-300 cursor-pointer"
+              title="Sign Out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          )}
 
           {/* Mobile Menu Toggle Button */}
           <button
@@ -158,46 +186,66 @@ export function Navbar() {
       {/* Mobile Menu Panel */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-brand-border bg-brand-bg px-4 py-4 space-y-2">
-          <Link
-            href="/dashboard"
-            prefetch={false}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={mobileNavItemClass("/dashboard")}
-          >
-            Dashboard
-          </Link>
-          <Link
-            href="/leaderboard"
-            prefetch={false}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={mobileNavItemClass("/leaderboard")}
-          >
-            Leaderboard
-          </Link>
-          <Link
-            href="/analytics"
-            prefetch={false}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={mobileNavItemClass("/analytics")}
-          >
-            Analytics
-          </Link>
-          <Link
-            href="/departments"
-            prefetch={false}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={mobileNavItemClass("/departments")}
-          >
-            Departments
-          </Link>
-          <Link
-            href="/insights"
-            prefetch={false}
-            onClick={() => setIsMobileMenuOpen(false)}
-            className={mobileNavItemClass("/insights")}
-          >
-            Insights
-          </Link>
+          {userRole === "ADMIN" && (
+            <Link
+              href="/dashboard"
+              prefetch={false}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={mobileNavItemClass("/dashboard")}
+            >
+              Dashboard
+            </Link>
+          )}
+          {userRole && (
+            <Link
+              href="/leaderboard"
+              prefetch={false}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={mobileNavItemClass("/leaderboard")}
+            >
+              Leaderboard
+            </Link>
+          )}
+          {userRole === "ADMIN" && (
+            <Link
+              href="/analytics"
+              prefetch={false}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={mobileNavItemClass("/analytics")}
+            >
+              Analytics
+            </Link>
+          )}
+          {userRole === "ADMIN" && (
+            <Link
+              href="/departments"
+              prefetch={false}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={mobileNavItemClass("/departments")}
+            >
+              Departments
+            </Link>
+          )}
+          {userRole === "ADMIN" && (
+            <Link
+              href="/insights"
+              prefetch={false}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={mobileNavItemClass("/insights")}
+            >
+              Insights
+            </Link>
+          )}
+          {userRole === "STUDENT" && studentProfileId && (
+            <Link
+              href={`/student/${studentProfileId}`}
+              prefetch={false}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={mobileNavItemClass(`/student/${studentProfileId}`)}
+            >
+              My Profile
+            </Link>
+          )}
         </div>
       )}
     </header>

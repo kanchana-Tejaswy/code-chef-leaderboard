@@ -35,10 +35,24 @@ const AuthContext = createContext<AuthContextType>({
 
 export const useAuth = () => useContext(AuthContext);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ 
+  children,
+  initialRole,
+  initialStudentProfileId 
+}: { 
+  children: React.ReactNode;
+  initialRole?: string | null;
+  initialStudentProfileId?: string | null;
+}) {
   const [user] = useState<User | null>(null);
   const [session] = useState<Session | null>(null);
-  const [profile] = useState<UserProfile | null>(null);
+  
+  const [profile] = useState<UserProfile | null>(initialRole ? {
+    id: initialStudentProfileId || "",
+    name: "",
+    role: initialRole as any
+  } : null);
+  
   const [isLoading] = useState(false);
 
   const refreshProfile = async () => {};

@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { SyncService } from "@/services/sync.service";
 import { prisma } from "@/lib/prisma";
@@ -18,6 +19,7 @@ function isAdmin(request: NextRequest): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin();
     if (!isAdmin(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -53,6 +55,9 @@ export async function POST(request: NextRequest) {
       profile: updatedProfile,
     });
   } catch (err: any) {
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     console.error("Error in per-student admin refresh API:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

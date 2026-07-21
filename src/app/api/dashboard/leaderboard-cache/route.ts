@@ -1,9 +1,9 @@
-export const revalidate = 60;
 
 import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
+import { requireDashboardAccess } from "@/lib/auth";
 import * as XLSX from "xlsx";
 
 
@@ -192,12 +192,16 @@ const studentSelect = {
   normalizedProfile: true,
 };
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const platform = getPlatform(searchParams.get("platform"));
   const doExport = searchParams.get("export") === "true";
 
   try {
+    await requireDashboardAccess();
+    
     const departmentFilter = undefined;
 
     const whereClause = buildWhereClause(platform, searchParams, departmentFilter);
@@ -252,6 +256,7 @@ export async function GET(request: NextRequest) {
         headers: {
           "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "Content-Disposition": `attachment; filename=ace_${platform}_leaderboard_${new Date().toISOString().split("T")[0]}.xlsx`,
+          "Cache-Control": "private, no-store",
         },
       });
     }
@@ -294,9 +299,16 @@ export async function GET(request: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
+    }, {
+      headers: {
+        "Cache-Control": "private, no-store",
+      },
     });
-  } catch (err: unknown) {
+  } catch (err: any) {
     console.error("Error fetching leaderboard cache API:", err);
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

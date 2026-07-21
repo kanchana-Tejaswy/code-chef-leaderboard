@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { SyncService } from "@/services/sync.service";
 import { OverallScoreService } from "@/services/overallScore.service";
@@ -5,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin();
     const authHeader = request.headers.get("authorization");
     
     // Note: Use a stronger secret pattern in production (e.g., from process.env)

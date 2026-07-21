@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { SyncService } from "@/services/sync.service";
 import { createJob, getJob } from "@/lib/jobTracker";
@@ -18,6 +19,7 @@ function isAdmin(request: NextRequest): boolean {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin();
     if (!isAdmin(request)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -50,6 +52,9 @@ export async function POST(request: NextRequest) {
       message: `Bulk sync started in mode: ${mode}`
     });
   } catch (err: any) {
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     console.error("Error in bulk refresh API:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

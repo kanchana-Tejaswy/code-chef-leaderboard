@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { requireDashboardAccess } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
+    await requireDashboardAccess();
     const students = await prisma.studentProfile.findMany({
       include: {
         codechefProfile: true,
@@ -264,9 +268,16 @@ export async function GET(request: NextRequest) {
           growth: monthlyGrowth.map((g) => ({ ...g, count: Math.round(g.count * 2.1) })), // scale commits activity
         }
       }
+    }, {
+      headers: {
+        "Cache-Control": "private, no-store",
+      },
     });
   } catch (err: any) {
     console.error("Error in analytics api:", err);
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     return NextResponse.json({ error: "Failed to load analytics details" }, { status: 500 });
   }
 }

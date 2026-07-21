@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { unstable_cache } from "next/cache";
+import { requireDashboardAccess } from "@/lib/auth";
 
-
-export const revalidate = 60;
+export const dynamic = "force-dynamic";
 
 const getCachedAnalytics = async (departmentFilter?: string) => {
   return unstable_cache(
@@ -304,12 +304,21 @@ const getCachedAnalytics = async (departmentFilter?: string) => {
 
 export async function GET(request: NextRequest) {
   try {
+    await requireDashboardAccess();
+    
     const departmentFilter = undefined;
     
     const data = await getCachedAnalytics(departmentFilter);
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "private, no-store",
+      },
+    });
   } catch (err: any) {
     console.error("Error in analytics api:", err);
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     return NextResponse.json({ error: "Failed to load analytics details" }, { status: 500 });
   }
 }

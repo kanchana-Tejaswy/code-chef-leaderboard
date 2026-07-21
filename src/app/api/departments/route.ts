@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+import { requireDashboardAccess } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
+
 export async function GET(request: NextRequest) {
   try {
+    await requireDashboardAccess();
     const { searchParams } = new URL(request.url);
     const platform = searchParams.get("platform") || "overall";
 
@@ -104,9 +109,16 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       departments: rankedDepartments,
+    }, {
+      headers: {
+        "Cache-Control": "private, no-store",
+      },
     });
   } catch (err: any) {
     console.error("Error in departments api:", err);
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     return NextResponse.json({ error: "Failed to load department standings" }, { status: 500 });
   }
 }

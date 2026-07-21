@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
 
 
+import { requireLeaderboardAccess } from "@/lib/auth";
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || "";
@@ -15,7 +17,7 @@ export async function GET(request: NextRequest) {
   const doExport = searchParams.get("export") === "true";
 
   try {
-
+    await requireLeaderboardAccess();
 
     // 1. Build Query Filters
     const whereClause: any = {};
@@ -109,6 +111,7 @@ export async function GET(request: NextRequest) {
           "Content-Type":
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "Content-Disposition": `attachment; filename=ace_developer_leaderboard_${new Date().toISOString().split("T")[0]}.xlsx`,
+          "Cache-Control": "private, no-store",
         },
       });
     }
@@ -193,9 +196,16 @@ export async function GET(request: NextRequest) {
         total,
         totalPages: Math.ceil(total / limit),
       },
+    }, {
+      headers: {
+        "Cache-Control": "private, no-store",
+      },
     });
   } catch (err: any) {
     console.error("Error fetching leaderboard API:", err);
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

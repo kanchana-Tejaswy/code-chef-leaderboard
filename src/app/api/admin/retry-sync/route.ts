@@ -4,9 +4,9 @@ import { SyncService } from "@/services/sync.service";
 
 export const maxDuration = 60; // Extend duration for long-running sync tasks
 
-export async function POST(req: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    const authHeader = req.headers.get("authorization");
+    const authHeader = request.headers.get("authorization");
     
     // Require an admin authorization secret
     const adminSecret = process.env.ADMIN_SECRET || process.env.CRON_SECRET;
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const body = await req.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({}));
     const identifiers = body.identifiers;
 
     if (!Array.isArray(identifiers) || identifiers.length === 0) {

@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import ContestPlatformCard from "../../components/leaderboard/ContestPlatformCard";
 import { getDisplayRank } from "@/utils/ranking";
+import { useAuth } from "@/app/providers";
 
 interface LeaderboardEntry {
   id: string;
@@ -220,6 +221,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
 }
 
 function LeaderboardContent() {
+  const { profile } = useAuth();
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1250,18 +1252,20 @@ function LeaderboardContent() {
                         {/* View Action */}
                         <td className="py-4 px-6 text-center">
                           <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleRefreshStudent(entry.student.id)}
-                              disabled={refreshingIds.has(entry.student.id)}
-                              title="Refresh metrics"
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-[#22C55E] hover:border-[#22C55E]/30 hover:bg-zinc-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              {refreshingIds.has(entry.student.id) ? (
-                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              ) : (
-                                <RefreshCw className="h-3.5 w-3.5" />
-                              )}
-                            </button>
+                            {profile?.role === "ADMIN" && (
+                              <button
+                                onClick={() => handleRefreshStudent(entry.student.id)}
+                                disabled={refreshingIds.has(entry.student.id)}
+                                title="Refresh metrics"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-[#22C55E] hover:border-[#22C55E]/30 hover:bg-zinc-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              >
+                                {refreshingIds.has(entry.student.id) ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            )}
                             <Link
                               href={`/student/${entry.student.id}`}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-[#EAB308] hover:border-[#EAB308]/30 hover:bg-zinc-900 transition-all"

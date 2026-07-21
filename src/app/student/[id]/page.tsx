@@ -20,6 +20,7 @@ import {
   Shield,
   RefreshCw
 } from "lucide-react";
+import { useAuth } from "@/app/providers";
 
 function Github(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -83,6 +84,7 @@ interface StudentDetails {
 
 
 export default function StudentProfileDashboard() {
+  const { profile } = useAuth();
   const params = useParams();
   const studentId = params?.id as string;
 
@@ -96,7 +98,7 @@ export default function StudentProfileDashboard() {
   const [isEditingName, setIsEditingName] = useState(false);
   const [editingName, setEditingName] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
-  const [publicDemoWriteMode, setPublicDemoWriteMode] = useState(true);
+  const publicDemoWriteMode = profile?.role === "ADMIN";
 
   const handleSaveName = async () => {
     if (!editingName.trim()) return;
@@ -232,12 +234,6 @@ export default function StudentProfileDashboard() {
 
   useEffect(() => {
     setMounted(true);
-    fetch("/api/config/public-mode", { cache: "no-store" })
-      .then((res) => res.json())
-      .then((data) => {
-        setPublicDemoWriteMode(Boolean(data.publicDemoWriteMode));
-      })
-      .catch((e) => console.error("Error fetching config:", e));
   }, []);
 
   useEffect(() => {

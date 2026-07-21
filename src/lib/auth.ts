@@ -33,6 +33,13 @@ export async function getAuthenticatedUserAccess(): Promise<UserAccess | null> {
     where: { authUserId: user.id }
   });
 
+  if (!userAccess) return null;
+
+  // Security Check: Ensure session email matches DB email (when DB email exists, mainly staff)
+  if (userAccess.email && user.email?.toLowerCase() !== userAccess.email.toLowerCase()) {
+    return null;
+  }
+
   return userAccess;
 }
 
@@ -134,4 +141,53 @@ export async function requireStudentProfileReadAccess(studentProfileId: string):
   }
 
   throw new AuthError("Forbidden", "FORBIDDEN");
+}
+
+export function getRoleHomePath(access: UserAccess | null): string {
+  if (!access || access.status !== AccountStatus.ACTIVE) {
+    return "/login";
+  }
+  switch (access.role) {
+    case UserRole.ADMIN:
+      return "/dashboard";
+    case UserRole.GK_SIR:
+    case UserRole.HOD:
+      return "/leaderboard";
+    case UserRole.STUDENT:
+      return access.studentProfileId ? `/student/${access.studentProfileId}` : "/login";
+    default:
+      return "/login";
+  }
+}
+
+export async function requireDashboardAccess(): Promise<UserAccess> {
+  return requireAdmin();
+}
+
+export async function requireLeaderboardAccess(): Promise<UserAccess> {
+  return requireRole(UserRole.ADMIN, UserRole.GK_SIR, UserRole.HOD, UserRole.STUDENT);
+}
+
+export async function requireDepartmentScope(): Promise<string | null> {
+  const access = await requireActiveUser();
+  if (access.role === UserRole.HOD) {
+    if (!access.departmentId) {
+      throw new AuthError("HOD missing department ID", "MISSING_DEPARTMENT");
+    }
+    return access.departmentId;
+  }
+  return null;
+}
+
+export async function requireStudentWriteAccess(): Promise<UserAccess> {
+  return requireAdmin();
+}
+
+export async function requireRefreshAccess(): Promise<UserAccess> {
+  return requireAdmin();
+}
+
+export async function requireProfileEditAccess(studentProfileId: string): Promise<UserAccess> {
+  // Only ADMIN can edit profiles right now
+  return requireAdmin();
 }

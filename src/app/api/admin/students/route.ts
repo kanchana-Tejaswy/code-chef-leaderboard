@@ -1,9 +1,11 @@
+import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canPerformWrite } from "@/lib/write-access";
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin();
     // Fetch all student profiles with their CodeChef status
     const students = await prisma.studentProfile.findMany({
       include: {
@@ -25,6 +27,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ students });
   } catch (err: any) {
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     console.error("Error in admin students list API:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
@@ -32,6 +37,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
+    await requireAdmin();
     const body = await request.json().catch(() => ({}));
     const { id, name } = body;
 
@@ -50,6 +56,9 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ success: true, student });
   } catch (err: any) {
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     console.error("Error updating student via admin endpoint:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }

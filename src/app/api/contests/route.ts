@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireLeaderboardAccess } from "@/lib/auth";
 
 // Simple in-memory cache
 let cachedContests: any[] = [];
@@ -210,13 +211,19 @@ async function fetchLeetCodeContests(): Promise<any[]> {
   }
 }
 
-export async function GET() {
-  const now = Date.now();
-  if (now - lastFetched < CACHE_DURATION && cachedContests.length > 0) {
-    return NextResponse.json({ success: true, contests: cachedContests });
-  }
+export const dynamic = "force-dynamic";
 
+export async function GET() {
   try {
+    await requireLeaderboardAccess();
+    
+    const now = Date.now();
+    if (now - lastFetched < CACHE_DURATION && cachedContests.length > 0) {
+      return NextResponse.json({ success: true, contests: cachedContests }, {
+        headers: { "Cache-Control": "private, no-store" }
+      });
+    }
+
     const [codechef, leetcode] = await Promise.all([
       fetchCodeChefContests().catch(() => []),
       fetchLeetCodeContests().catch(() => [])
@@ -231,9 +238,14 @@ export async function GET() {
     cachedContests = combined;
     lastFetched = now;
 
-    return NextResponse.json({ success: true, contests: combined });
+    return NextResponse.json({ success: true, contests: combined }, {
+      headers: { "Cache-Control": "private, no-store" }
+    });
   } catch (error: any) {
     console.error("Contests aggregation failed:", error);
-    return NextResponse.json({ success: false, contests: cachedContests, error: error.message });
+    if (error.name === "AuthError") {
+      return NextResponse.json({ success: false, contests: [], error: error.message }, { status: 403 });
+    }
+    return NextResponse.json({ success: false, contests: cachedContests, error: error.message }, { status: 500 });
   }
 }

@@ -1,12 +1,11 @@
-import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireAdmin();
     const { id: studentId } = await params;
 
     const student = await prisma.studentProfile.findUnique({

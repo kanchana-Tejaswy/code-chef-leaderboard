@@ -1,3 +1,4 @@
+import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canPerformWrite } from "@/lib/write-access";
@@ -5,11 +6,9 @@ import { SyncService } from "@/services/sync.service";
 import { revalidatePath } from "next/cache";
 import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireAdmin();
     if (!(await canPerformWrite(request))) {
       return NextResponse.json(
         { error: "Insufficient permissions. Admin role required or write access disabled." },
@@ -135,6 +134,9 @@ export async function PATCH(
 
     return NextResponse.json({ success: true, student: finalStudent });
   } catch (err: any) {
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message }, { status: 403 });
+    }
     console.error("Error updating student details:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
