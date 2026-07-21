@@ -5,7 +5,7 @@ import { createAdminClient } from "@/utils/supabase/admin";
 import { recordAuditEvent, AuditAction } from "./audit.service";
 import { normalizeEmail, normalizeRollNumber, normalizeStudentLoginId, normalizeStaffLoginId } from "@/utils/normalization";
 
-export type ProvisionResultType = "CREATED" | "LINKED" | "ALREADY_PROVISIONED" | "SKIPPED_INVALID" | "CONFLICT" | "FAILED";
+export type ProvisionResultType = "CREATED" | "LINKED" | "ALREADY_PROVISIONED" | "SKIPPED_INVALID" | "CONFLICT" | "FAILED" | "PARTIAL_FAILURE";
 
 export interface ProvisionResult {
   status: ProvisionResultType;
@@ -21,7 +21,7 @@ async function provisionAuthUser(email: string): Promise<{ authUserId: string; i
   // 1. Try to create the user
   const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
     email,
-    email_confirm: true,
+    email_confirm: false,
   });
 
   if (createData?.user && !createError) {
@@ -111,32 +111,42 @@ export async function provisionStudentAccount(studentProfileId: string): Promise
     }
 
     // Create or update UserAccess record within a short transaction
-    await prisma.$transaction(async (tx) => {
-      await tx.userAccess.upsert({
-        where: { email },
-        update: {
-          authUserId: authRes.authUserId,
-          loginId,
-          role: UserRole.STUDENT,
-          status: AccountStatus.PENDING,
-          studentProfileId,
-          departmentId: student.department,
-          mustSetPassword: true,
-          firstLoginCompleted: false,
-        },
-        create: {
-          authUserId: authRes.authUserId,
-          email,
-          loginId,
-          role: UserRole.STUDENT,
-          status: AccountStatus.PENDING,
-          studentProfileId,
-          departmentId: student.department,
-          mustSetPassword: true,
-          firstLoginCompleted: false,
-        }
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.userAccess.upsert({
+          where: { email },
+          update: {
+            authUserId: authRes.authUserId,
+            loginId,
+            role: UserRole.STUDENT,
+            status: AccountStatus.PENDING,
+            studentProfileId,
+            departmentId: student.department,
+            mustSetPassword: true,
+            firstLoginCompleted: false,
+          },
+          create: {
+            authUserId: authRes.authUserId,
+            email,
+            loginId,
+            role: UserRole.STUDENT,
+            status: AccountStatus.PENDING,
+            studentProfileId,
+            departmentId: student.department,
+            mustSetPassword: true,
+            firstLoginCompleted: false,
+          }
+        });
       });
-    });
+    } catch (txError) {
+      await recordAuditEvent({
+        action: AuditAction.ACCOUNT_CONFLICT,
+        targetType: "StudentProfile",
+        targetId: studentProfileId,
+        metadata: { reason: "Prisma write failed after Supabase user was ready", error: String(txError) }
+      });
+      return { status: "PARTIAL_FAILURE", message: "PARTIAL_FAILURE: Auth user ready but database write failed" };
+    }
 
     await recordAuditEvent({
       action: authRes.isNew ? AuditAction.AUTH_USER_CREATED : AuditAction.AUTH_USER_LINKED,
@@ -202,34 +212,43 @@ export async function provisionStaffAccount(params: StaffProvisionParams): Promi
       return { status: "FAILED", message: "Failed to create or locate Supabase user" };
     }
 
-    await prisma.$transaction(async (tx) => {
-      await tx.userAccess.upsert({
-        where: { email },
-        update: {
-          authUserId: authRes.authUserId,
-          loginId,
-          role,
-          status: AccountStatus.PENDING,
-          departmentId: departmentId || null,
-          mustSetPassword: true,
-          firstLoginCompleted: false,
-          approvedAt: new Date(),
-          approvedBy: approvedBy || null,
-        },
-        create: {
-          authUserId: authRes.authUserId,
-          email,
-          loginId,
-          role,
-          status: AccountStatus.PENDING,
-          departmentId: departmentId || null,
-          mustSetPassword: true,
-          firstLoginCompleted: false,
-          approvedAt: new Date(),
-          approvedBy: approvedBy || null,
-        }
+    try {
+      await prisma.$transaction(async (tx) => {
+        await tx.userAccess.upsert({
+          where: { email },
+          update: {
+            authUserId: authRes.authUserId,
+            loginId,
+            role,
+            status: AccountStatus.PENDING,
+            departmentId: departmentId || null,
+            mustSetPassword: true,
+            firstLoginCompleted: false,
+            approvedAt: new Date(),
+            approvedBy: approvedBy || null,
+          },
+          create: {
+            authUserId: authRes.authUserId,
+            email,
+            loginId,
+            role,
+            status: AccountStatus.PENDING,
+            departmentId: departmentId || null,
+            mustSetPassword: true,
+            firstLoginCompleted: false,
+            approvedAt: new Date(),
+            approvedBy: approvedBy || null,
+          }
+        });
       });
-    });
+    } catch (txError) {
+      await recordAuditEvent({
+        action: AuditAction.ACCOUNT_CONFLICT,
+        targetType: "UserAccess",
+        metadata: { reason: "Prisma write failed after Supabase staff user was ready", error: String(txError) }
+      });
+      return { status: "PARTIAL_FAILURE", message: "PARTIAL_FAILURE: Auth user ready but database write failed" };
+    }
 
     await recordAuditEvent({
       action: authRes.isNew ? AuditAction.AUTH_USER_CREATED : AuditAction.AUTH_USER_LINKED,

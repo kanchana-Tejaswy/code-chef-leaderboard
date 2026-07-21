@@ -19,12 +19,8 @@ export function normalizeRollNumber(rollNumber: string): string | null {
   
   if (cleaned.length === 0) return null;
   
-  // validate against standard 10-character alphanumeric college roll number format (e.g. 16X41A0501)
-  // CLOUDTEST001 is a special case seen in the codebase
-  if (cleaned === "CLOUDTEST001") return cleaned;
-
-  // Assuming standard college roll numbers are exactly 10 alphanumeric characters.
-  const rollRegex = /^[A-Z0-9]{10}$/;
+  // validate against standard 10 to 12-character alphanumeric college roll number format
+  const rollRegex = /^[A-Z0-9]{10,12}$/;
   if (!rollRegex.test(cleaned)) {
     return null;
   }
