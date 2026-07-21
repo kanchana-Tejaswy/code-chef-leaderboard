@@ -72,7 +72,7 @@ export default function AnalyticsPage() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overall" | "codechef" | "leetcode" | "github">("overall");
+  const [activeTab, setActiveTab] = useState<"overall" | "codechef" | "leetcode">("overall");
 
   useEffect(() => {
     const fetchAnalytics = async () => {
@@ -171,28 +171,24 @@ export default function AnalyticsPage() {
     overall: "#EAB308",
     codechef: "#8B5CF6",
     leetcode: "#F59E0B",
-    github: "#06B6D4",
   }[activeTab];
 
   const valueLabel = {
     overall: "Average Overall Score",
     codechef: "Global Avg Rating",
     leetcode: "Avg Problems Solved",
-    github: "Avg OS Score",
   }[activeTab];
 
   const bandLabel = {
     overall: "Overall Readiness Bands",
     codechef: "Rating Distribution Bands",
     leetcode: "LeetCode Solved Bands",
-    github: "Open Source Score Bands",
   }[activeTab];
 
   const activityLabel = {
     overall: "System Growth Activity",
     codechef: "Contest Participation Rounds",
     leetcode: "Monthly Submissions Activity",
-    github: "OS Contribution Commits",
   }[activeTab];
 
   return (
@@ -216,8 +212,7 @@ export default function AnalyticsPage() {
           {[
             { name: "Overall", value: "overall" },
             { name: "CodeChef", value: "codechef" },
-            { name: "LeetCode", value: "leetcode" },
-            { name: "GitHub", value: "github" }
+            { name: "LeetCode", value: "leetcode" }
           ].map((tab) => {
             const active = activeTab === tab.value;
             return (

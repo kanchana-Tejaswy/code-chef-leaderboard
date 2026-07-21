@@ -44,7 +44,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const refreshProfile = async () => {};
 
   const handleSignOut = async () => {
-    window.location.href = "/";
+    try {
+      const res = await fetch("/api/auth/logout", { method: "POST" });
+      if (!res.ok) {
+        console.error("Logout failed on server", await res.json());
+        alert("Failed to securely log out. Please try again.");
+        return;
+      }
+      window.location.href = "/";
+    } catch (e) {
+      console.error("Logout fetch failed:", e);
+      alert("Network error during logout. Please check your connection and try again.");
+    }
   };
 
   return (

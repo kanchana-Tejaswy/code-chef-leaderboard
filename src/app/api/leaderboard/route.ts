@@ -4,16 +4,23 @@ import { NextRequest, NextResponse } from "next/server";
 import { OverallScoreService } from "@/services/overallScore.service";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
+import { getAuthenticatedUserAccess } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const search = searchParams.get("search") || "";
-  const departments = searchParams.get("departments")?.split(",").filter(Boolean) || [];
+  let departments = searchParams.get("departments")?.split(",").filter(Boolean) || [];
   const years = searchParams.get("years")?.split(",").map(Number).filter((y) => !isNaN(y)) || [];
   const stars = searchParams.get("stars")?.split(",").map(Number).filter((s) => !isNaN(s)) || [];
   const doExport = searchParams.get("export") === "true";
 
   try {
+    const userAccess = await getAuthenticatedUserAccess();
+    if (userAccess && userAccess.role === "HOD" && userAccess.departmentId) {
+      // Force filter to HOD's department
+      departments = [userAccess.departmentId];
+    }
+
     // 1. Build Query Filters
     const whereClause: any = {};
 
@@ -76,7 +83,6 @@ export async function GET(request: NextRequest) {
         "Overall Score": e.overallScore,
         "CodeChef Score": e.codechefScore,
         "LeetCode Score": e.leetcodeScore,
-        "GitHub Score": e.githubScore,
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -119,7 +125,7 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get("sortBy") || "overallScore";
     const sortOrder = (searchParams.get("sortOrder") || "desc").toLowerCase() === "asc" ? "asc" : "desc";
 
-    const validSortFields = ["rank", "rating", "stars", "talentScore", "overallScore", "codechefScore", "leetcodeScore", "githubScore"];
+    const validSortFields = ["rank", "rating", "stars", "talentScore", "overallScore", "codechefScore", "leetcodeScore"];
     const finalSortBy = validSortFields.includes(sortBy) ? sortBy : "overallScore";
 
     const [entries, total] = await Promise.all([

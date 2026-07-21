@@ -5,6 +5,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
+import { getAuthenticatedUserAccess } from "@/lib/auth";
 
 type PlatformKey = "overall" | "codechef" | "leetcode";
 type SortOrder = "asc" | "desc";
@@ -142,9 +143,11 @@ const platformConfigs: Record<PlatformKey, PlatformConfig> = {
 const getPlatform = (value: string | null): PlatformKey =>
   value === "codechef" || value === "leetcode" ? value : "overall";
 
-const buildWhereClause = (platform: PlatformKey, searchParams: URLSearchParams) => {
+const buildWhereClause = (platform: PlatformKey, searchParams: URLSearchParams, forceDepartment?: string) => {
   const search = searchParams.get("search") || "";
-  const departments = searchParams.get("departments")?.split(",").filter(Boolean) || [];
+  const departments = forceDepartment 
+    ? [forceDepartment] 
+    : searchParams.get("departments")?.split(",").filter(Boolean) || [];
   const years = parseNumbers(searchParams.get("years"));
   const studentWhere: Prisma.StudentProfileWhereInput = {};
 
@@ -195,7 +198,10 @@ export async function GET(request: NextRequest) {
   const doExport = searchParams.get("export") === "true";
 
   try {
-    const whereClause = buildWhereClause(platform, searchParams);
+    const userAccess = await getAuthenticatedUserAccess();
+    const departmentFilter = userAccess?.role === "HOD" && userAccess.departmentId ? userAccess.departmentId : undefined;
+
+    const whereClause = buildWhereClause(platform, searchParams, departmentFilter);
     const orderBy = buildOrderBy(platform, searchParams);
 
     if (doExport) {
@@ -221,7 +227,6 @@ export async function GET(request: NextRequest) {
         "Overall Score": e.overallScore,
         "CodeChef Score": e.codechefScore,
         "LeetCode Score": e.leetcodeScore,
-        "GitHub Score": e.githubScore,
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportData);
@@ -276,7 +281,7 @@ export async function GET(request: NextRequest) {
         ]);
         return { entries, total };
       },
-      ["leaderboard-cache-data"],
+      [`leaderboard-cache-data-${departmentFilter || "ALL"}`],
       { revalidate: 60 }
     );
 

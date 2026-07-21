@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-
+import { getAuthenticatedUserAccess } from "./auth";
 export function isPublicDemoWriteEnabled(): boolean {
   return true;
 }
@@ -27,12 +27,20 @@ export function hasValidCronSecret(request: NextRequest): boolean {
   return suppliedToken === cronSecret;
 }
 
-export function canPerformWrite(request: NextRequest): boolean {
-  return true;
+export async function canPerformWrite(request: NextRequest): Promise<boolean> {
+  const userAccess = await getAuthenticatedUserAccess();
+  if (userAccess && (userAccess.role === "ADMIN" || userAccess.role === "GK_SIR")) {
+    return true;
+  }
+  return false;
 }
 
-export function canPerformDelete(request: NextRequest): boolean {
-  return true;
+export async function canPerformDelete(request: NextRequest): Promise<boolean> {
+  const userAccess = await getAuthenticatedUserAccess();
+  if (userAccess && (userAccess.role === "ADMIN" || userAccess.role === "GK_SIR")) {
+    return true;
+  }
+  return false;
 }
 
 export function getPublicDemoModeStatus() {

@@ -1,5 +1,4 @@
 import { IPlatformScraper, ScrapedData } from "../types/scraper";
-import { GithubService } from "./github.service";
 import { CodechefService } from "./codechef.service";
 import { LeetcodeService } from "./leetcode.service";
 
@@ -23,15 +22,7 @@ export class LeetcodeScraper implements IPlatformScraper {
   }
 }
 
-export class GithubScraper implements IPlatformScraper {
-  validate(input: string): { isValid: boolean; username: string; error?: string } {
-    return GithubService.validate(input);
-  }
 
-  async scrape(input: string): Promise<ScrapedData> {
-    return GithubService.fetchData(input, false);
-  }
-}
 
 export class CodeforcesScraper implements IPlatformScraper {
   validate(input: string) {
@@ -55,8 +46,6 @@ export class ScraperFactory {
         return new CodechefScraper();
       case "LEETCODE":
         return new LeetcodeScraper();
-      case "GITHUB":
-        return new GithubScraper();
       case "CODEFORCES":
         return new CodeforcesScraper();
       default:
@@ -75,7 +64,4 @@ export class ScraperService {
     return ScraperFactory.getScraper("LEETCODE").scrape(username);
   }
 
-  static async scrapeGithub(username: string): Promise<ScrapedData> {
-    return ScraperFactory.getScraper("GITHUB").scrape(username);
-  }
 }

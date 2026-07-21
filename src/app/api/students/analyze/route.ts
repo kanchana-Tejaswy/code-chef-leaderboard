@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
-import { CodechefScraper, LeetcodeScraper, GithubScraper } from "@/services/scraper.service";
+import { CodechefScraper, LeetcodeScraper } from "@/services/scraper.service";
+import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 import { ActivityService } from "@/services/activity.service";
 import { canPerformWrite } from "@/lib/write-access";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
-    const { name, url, codechefUrl, leetcodeUrl, githubUrl, rollNumber, department, year, branch, section } = body;
+    const { name, email, url, codechefUrl, leetcodeUrl, githubUrl, linkedinUrl, rollNumber, department, year, branch, section } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json({ error: "Student Name is required" }, { status: 400 });
+    }
+
+    if (!email || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
     }
 
     const parsedYear = year ? parseInt(String(year), 10) : 3;
@@ -25,11 +30,12 @@ export async function POST(request: NextRequest) {
     // Validate URLs and extract usernames
     const codechefScraper = new CodechefScraper();
     const leetcodeScraper = new LeetcodeScraper();
-    const githubScraper = new GithubScraper();
+
 
     let codechefUsername: string | null = null;
     let leetcodeUsername: string | null = null;
     let githubUsername: string | null = null;
+    let validatedLinkedinUrl: string | null = null;
 
     if (targetCodechefUrl && targetCodechefUrl.trim()) {
       const validation = codechefScraper.validate(targetCodechefUrl);
@@ -48,11 +54,19 @@ export async function POST(request: NextRequest) {
     }
 
     if (githubUrl && githubUrl.trim()) {
-      const validation = githubScraper.validate(githubUrl);
+      const validation = normalizeAndValidateUrl(githubUrl, "github");
       if (!validation.isValid) {
         return NextResponse.json({ error: validation.error || "Invalid GitHub URL" }, { status: 400 });
       }
-      githubUsername = validation.username;
+      githubUsername = validation.normalizedUrl;
+    }
+
+    if (linkedinUrl && linkedinUrl.trim()) {
+      const validation = normalizeAndValidateUrl(linkedinUrl, "linkedin");
+      if (!validation.isValid) {
+        return NextResponse.json({ error: validation.error || "Invalid LinkedIn URL" }, { status: 400 });
+      }
+      validatedLinkedinUrl = validation.normalizedUrl;
     }
 
     if (!codechefUsername && !leetcodeUsername && !githubUsername) {
@@ -101,14 +115,26 @@ export async function POST(request: NextRequest) {
       student = await prisma.studentProfile.create({
         data: {
           name: name.trim(),
+          email: email.trim(),
           codechefUsername,
           leetcodeUsername,
           githubUsername,
+          linkedinUrl: validatedLinkedinUrl,
           rollNumber: targetRollNumber,
           department: department ? department.trim() : "CSE",
           year: parsedYear,
           branch: branch ? branch.trim() : (department ? department.trim() : "CSE"),
           section: section ? section.trim().toUpperCase() : "A",
+          userAccess: {
+            create: {
+              email: email.trim(),
+              loginId: targetRollNumber,
+              role: "STUDENT",
+              status: "PENDING",
+              mustSetPassword: true,
+              departmentId: department ? department.trim() : "CSE",
+            }
+          }
         },
       });
 
@@ -123,6 +149,7 @@ export async function POST(request: NextRequest) {
         where: { id: student.id },
         data: {
           name: name.trim(),
+          email: email.trim(),
           rollNumber: targetRollNumber ? targetRollNumber : student.rollNumber,
           department: department ? department.trim() : student.department,
           year: body.hasOwnProperty("year") ? parsedYear : student.year,
@@ -131,7 +158,26 @@ export async function POST(request: NextRequest) {
           codechefUsername: codechefUsername || student.codechefUsername,
           leetcodeUsername: leetcodeUsername || student.leetcodeUsername,
           githubUsername: githubUsername || student.githubUsername,
+          linkedinUrl: validatedLinkedinUrl || student.linkedinUrl,
         },
+      });
+      
+      // Upsert UserAccess in case it doesn't exist
+      await prisma.userAccess.upsert({
+        where: { loginId: student.rollNumber! },
+        create: {
+          email: email.trim(),
+          loginId: student.rollNumber!,
+          role: "STUDENT",
+          status: "PENDING",
+          mustSetPassword: true,
+          studentProfileId: student.id,
+          departmentId: student.department,
+        },
+        update: {
+          email: email.trim(),
+          departmentId: student.department,
+        }
       });
 
       await ActivityService.logEvent(

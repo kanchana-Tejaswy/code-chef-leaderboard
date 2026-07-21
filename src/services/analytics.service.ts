@@ -1,7 +1,6 @@
 import { CodechefService } from "./codechef.service";
 import { LeetcodeService } from "./leetcode.service";
-import { GithubService } from "./github.service";
-import { CodechefAiEngine, LeetcodeAiEngine, GithubAiEngine, OverallAiEngine } from "./ai-engine.service";
+import { CodechefAiEngine, LeetcodeAiEngine, OverallAiEngine } from "./ai-engine.service";
 import { OverallScoreService } from "./overallScore.service";
 
 export class AnalyticsService {
@@ -91,7 +90,6 @@ export class AnalyticsService {
     const overallAi = OverallAiEngine.analyze(
       codechefAi,
       leetcodeAi,
-      null,
       weights
     );
 

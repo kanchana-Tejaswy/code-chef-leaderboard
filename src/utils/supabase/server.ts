@@ -35,20 +35,3 @@ export async function createClient() {
   );
 }
 
-export function createAdminClient() {
-  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.SUPABASE_SECRET_KEY;
-
-  if (!url || !key) {
-    console.error("[Supabase Admin Client] Missing credentials! SUPABASE_URL and SUPABASE_SECRET_KEY must be defined.");
-    throw new Error("Supabase Admin credentials missing");
-  }
-
-  // The admin client should not use cookies and ignores RLS.
-  return createServerClient(url, key, {
-    cookies: {
-      getAll() { return []; },
-      setAll() {}
-    }
-  });
-}

@@ -3,11 +3,13 @@ import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canPerformWrite } from "@/lib/write-access";
 import { SyncService } from "@/services/sync.service";
+import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 
 const MAX_ROWS = 100; // Limit for demo safety
 
 interface ImportRow {
   name?: string;
+  email?: string;
   roll_number?: string;
   department?: string;
   year?: string;
@@ -41,6 +43,7 @@ export async function POST(request: NextRequest) {
       select: {
         id: true,
         rollNumber: true,
+        email: true,
         codechefUsername: true,
         leetcodeUsername: true,
         githubUsername: true,
@@ -48,12 +51,14 @@ export async function POST(request: NextRequest) {
     });
 
     const dbRollMap = new Map(allDbStudents.filter(s => s.rollNumber).map(s => [s.rollNumber!.toUpperCase(), s]));
+    const dbEmailMap = new Map(allDbStudents.filter(s => s.email).map(s => [s.email!.toLowerCase(), s]));
     const dbCcMap = new Map(allDbStudents.filter(s => s.codechefUsername).map(s => [s.codechefUsername!.toLowerCase(), s]));
     const dbLcMap = new Map(allDbStudents.filter(s => s.leetcodeUsername).map(s => [s.leetcodeUsername!.toLowerCase(), s]));
     const dbGhMap = new Map(allDbStudents.filter(s => s.githubUsername).map(s => [s.githubUsername!.toLowerCase(), s]));
 
     const processedRows: any[] = [];
     const rollSeenInCsv = new Set<string>();
+    const emailSeenInCsv = new Set<string>();
     const ccSeenInCsv = new Set<string>();
     const lcSeenInCsv = new Set<string>();
     const ghSeenInCsv = new Set<string>();
@@ -64,14 +69,15 @@ export async function POST(request: NextRequest) {
     for (let index = 0; index < rows.length; index++) {
       const rawRow: ImportRow = rows[index];
       const name = rawRow.name?.trim() || "";
+      const email = rawRow.email?.trim() || "";
       const rollNumber = rawRow.roll_number?.trim().toUpperCase() || "";
       const department = rawRow.department?.trim() || "CSE";
       const branch = rawRow.branch?.trim() || department;
       const section = rawRow.section?.trim().toUpperCase() || "A";
       const ccUser = rawRow.codechef_username?.trim() || null;
       const lcUser = rawRow.leetcode_username?.trim() || null;
-      const ghUser = rawRow.github_username?.trim() || null;
-      const lnUrl = rawRow.linkedin_url?.trim() || null;
+      const { isValid: isGhValid, normalizedUrl: ghUser, error: ghError } = normalizeAndValidateUrl(rawRow.github_username, "github");
+      const { isValid: isLnValid, normalizedUrl: lnUrl, error: lnError } = normalizeAndValidateUrl(rawRow.linkedin_url, "linkedin");
       const rawYear = rawRow.year?.trim() || "3";
       
       const parsedYear = parseInt(rawYear, 10);
@@ -81,11 +87,22 @@ export async function POST(request: NextRequest) {
       if (!name) {
         errors.push("Name is required");
       }
+      if (!email) {
+        errors.push("Email is required");
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+        errors.push("Invalid email format");
+      }
       if (!rollNumber) {
         errors.push("Roll number is required");
       }
       if (isNaN(parsedYear) || parsedYear <= 0) {
         errors.push(`Invalid year value: ${rawYear}`);
+      }
+      if (!isGhValid && ghError) {
+        errors.push(ghError);
+      }
+      if (!isLnValid && lnError) {
+        errors.push(lnError);
       }
 
       // Check CSV duplicates
@@ -94,6 +111,15 @@ export async function POST(request: NextRequest) {
           errors.push(`Duplicate roll number in CSV: ${rollNumber}`);
         } else {
           rollSeenInCsv.add(rollNumber);
+        }
+      }
+      
+      if (email) {
+        const emailLower = email.toLowerCase();
+        if (emailSeenInCsv.has(emailLower)) {
+          errors.push(`Duplicate email in CSV: ${email}`);
+        } else {
+          emailSeenInCsv.add(emailLower);
         }
       }
       
@@ -132,18 +158,18 @@ export async function POST(request: NextRequest) {
         classification = "UPDATE";
       }
 
-      // Check database handle conflicts
       const checkHandleConflict = (username: string | null, map: Map<string, any>, platform: string) => {
         if (!username) return;
         const matchingDbStudent = map.get(username.toLowerCase());
         if (matchingDbStudent) {
           // If it is another student, it is a conflict
           if (!existingStudentByRoll || existingStudentByRoll.id !== matchingDbStudent.id) {
-            errors.push(`Database conflict: ${platform} handle '${username}' belongs to roll number ${matchingDbStudent.rollNumber}`);
+            errors.push(`Database conflict: ${platform} '${username}' belongs to roll number ${matchingDbStudent.rollNumber}`);
           }
         }
       };
 
+      checkHandleConflict(email, dbEmailMap, "Email");
       checkHandleConflict(ccUser, dbCcMap, "CodeChef");
       checkHandleConflict(lcUser, dbLcMap, "LeetCode");
       checkHandleConflict(ghUser, dbGhMap, "GitHub");
@@ -158,6 +184,7 @@ export async function POST(request: NextRequest) {
       processedRows.push({
         index,
         name,
+        email,
         rollNumber,
         department,
         branch,
@@ -196,6 +223,7 @@ export async function POST(request: NextRequest) {
             where: { rollNumber: row.rollNumber },
             data: {
               name: row.name,
+              email: row.email,
               department: row.department,
               branch: row.branch,
               section: row.section,
@@ -206,11 +234,31 @@ export async function POST(request: NextRequest) {
               linkedinUrl: row.linkedinUrl,
             }
           });
+          
+          // Upsert UserAccess in case it doesn't exist
+          await tx.userAccess.upsert({
+            where: { loginId: row.rollNumber },
+            create: {
+              email: row.email,
+              loginId: row.rollNumber,
+              role: "STUDENT",
+              status: "PENDING",
+              mustSetPassword: true,
+              studentProfileId: updated.id,
+              departmentId: row.department,
+            },
+            update: {
+              email: row.email, // sync email just in case it was updated
+              departmentId: row.department,
+            }
+          });
+
           importedIds.push(updated.id);
         } else {
           const created = await tx.studentProfile.create({
             data: {
               name: row.name,
+              email: row.email,
               rollNumber: row.rollNumber,
               department: row.department,
               branch: row.branch,
@@ -220,6 +268,16 @@ export async function POST(request: NextRequest) {
               leetcodeUsername: row.leetcodeUsername,
               githubUsername: row.githubUsername,
               linkedinUrl: row.linkedinUrl,
+              userAccess: {
+                create: {
+                  email: row.email,
+                  loginId: row.rollNumber,
+                  role: "STUDENT",
+                  status: "PENDING",
+                  mustSetPassword: true,
+                  departmentId: row.department,
+                }
+              }
             }
           });
           importedIds.push(created.id);

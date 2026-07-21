@@ -554,6 +554,7 @@ export default function LandingPage() {
 
   // Add Student Form States
   const [formName, setFormName] = useState("");
+  const [formEmail, setFormEmail] = useState("");
   const [formCodechefUrl, setFormCodechefUrl] = useState("");
   const [formLeetcodeUrl, setFormLeetcodeUrl] = useState("");
   const [formGithubUrl, setFormGithubUrl] = useState("");
@@ -785,6 +786,10 @@ export default function LandingPage() {
       setAnalysisError("Student Name is required.");
       return;
     }
+    if (!formEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formEmail)) {
+      setAnalysisError("Valid Email is required.");
+      return;
+    }
     if (!formRollNumber.trim()) {
       setAnalysisError("Roll Number is required.");
       return;
@@ -815,6 +820,7 @@ export default function LandingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formName,
+          email: formEmail,
           rollNumber: formRollNumber,
           department: formDepartment,
           year: formYear,
@@ -843,6 +849,7 @@ export default function LandingPage() {
 
         // Reset Form
         setFormName("");
+        setFormEmail("");
         setFormCodechefUrl("");
         setFormLeetcodeUrl("");
         setFormGithubUrl("");
@@ -877,6 +884,7 @@ export default function LandingPage() {
 
   const handleClearForm = () => {
     setFormName("");
+    setFormEmail("");
     setFormCodechefUrl("");
     setFormLeetcodeUrl("");
     setFormGithubUrl("");
@@ -1910,6 +1918,21 @@ export default function LandingPage() {
                     onChange={(e) => setFormName(e.target.value)}
                     disabled={isAnalyzing}
                     placeholder="Name"
+                    className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
+                  />
+                </div>
+                
+                <div className="flex flex-col gap-1.5 flex-1">
+                  <label className="text-[10px] uppercase font-bold text-brand-muted tracking-wider px-1 flex items-center gap-1">
+                    Student Email
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    disabled={isAnalyzing}
+                    placeholder="Email Address"
                     className="px-4 py-2.5 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50 disabled:opacity-50 transition-all duration-200"
                   />
                 </div>
@@ -3424,7 +3447,7 @@ export default function LandingPage() {
                 CSV STUDENT IMPORT
               </h3>
               <p className="text-xs text-brand-muted mt-1">
-                Paste comma-separated data to bulk-import student profiles. Required headers: <code className="text-zinc-300 font-mono">name</code>, <code className="text-zinc-300 font-mono">roll_number</code>, <code className="text-zinc-300 font-mono">department</code>, <code className="text-zinc-300 font-mono">year</code>. Optional: <code className="text-zinc-300 font-mono">branch</code>, <code className="text-zinc-300 font-mono">section</code>, <code className="text-zinc-300 font-mono">codechef_username</code>, <code className="text-zinc-300 font-mono">leetcode_username</code>, <code className="text-zinc-300 font-mono">github_username</code>.
+                Paste comma-separated data to bulk-import student profiles. Required headers: <code className="text-zinc-300 font-mono">name</code>, <code className="text-zinc-300 font-mono">roll_number</code>, <code className="text-zinc-300 font-mono">department</code>, <code className="text-zinc-300 font-mono">year</code>. Optional: <code className="text-zinc-300 font-mono">branch</code>, <code className="text-zinc-300 font-mono">section</code>, <code className="text-zinc-300 font-mono">codechef_username</code>, <code className="text-zinc-300 font-mono">leetcode_username</code>, <code className="text-zinc-300 font-mono">github_username</code>, <code className="text-zinc-300 font-mono">linkedin_url</code>.
               </p>
             </div>
 

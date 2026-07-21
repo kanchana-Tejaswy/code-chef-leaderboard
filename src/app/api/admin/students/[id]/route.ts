@@ -3,13 +3,14 @@ import { prisma } from "@/lib/prisma";
 import { canPerformWrite } from "@/lib/write-access";
 import { SyncService } from "@/services/sync.service";
 import { revalidatePath } from "next/cache";
+import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    if (!canPerformWrite(request)) {
+    if (!(await canPerformWrite(request))) {
       return NextResponse.json(
         { error: "Insufficient permissions. Admin role required or write access disabled." },
         { status: 403 }
@@ -21,6 +22,7 @@ export async function PATCH(
     
     const { 
       name, 
+      email,
       rollNumber, 
       department, 
       year, 
@@ -58,23 +60,15 @@ export async function PATCH(
 
     const newCodechef = normalizeUsername(codechefUsername);
     const newLeetcode = normalizeUsername(leetcodeUsername);
-    const newGithub = normalizeUsername(githubUsername);
-    const newLinkedin = normalizeUsername(linkedinUrl);
-
-    const isValidUrl = (urlStr: string) => {
-      try {
-        new URL(urlStr);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
-    if (newGithub && !isValidUrl(newGithub)) {
-        return NextResponse.json({ error: "GitHub must be a valid URL (e.g., https://github.com/username)" }, { status: 400 });
+    
+    const { isValid: isGithubValid, normalizedUrl: newGithub, error: githubError } = normalizeAndValidateUrl(githubUsername, "github");
+    if (!isGithubValid) {
+        return NextResponse.json({ error: githubError }, { status: 400 });
     }
-    if (newLinkedin && !isValidUrl(newLinkedin)) {
-        return NextResponse.json({ error: "LinkedIn must be a valid URL (e.g., https://linkedin.com/in/username)" }, { status: 400 });
+    
+    const { isValid: isLinkedinValid, normalizedUrl: newLinkedin, error: linkedinError } = normalizeAndValidateUrl(linkedinUrl, "linkedin");
+    if (!isLinkedinValid) {
+        return NextResponse.json({ error: linkedinError }, { status: 400 });
     }
 
     const isPlatformChanged = 
@@ -86,6 +80,7 @@ export async function PATCH(
       where: { id: studentId },
       data: { 
         name: name.trim(),
+        email: email?.trim() || null,
         rollNumber: rollNumber?.trim() || null,
         department: department?.trim() || null,
         year: year ? parseInt(year, 10) : null,
@@ -96,6 +91,16 @@ export async function PATCH(
         githubUsername: newGithub,
         linkedinUrl: newLinkedin,
       },
+    });
+
+    // Sync updates to UserAccess
+    await prisma.userAccess.updateMany({
+      where: { studentProfileId: studentId },
+      data: {
+        ...(email?.trim() ? { email: email.trim() } : {}),
+        ...(rollNumber?.trim() ? { loginId: rollNumber.trim() } : {}),
+        ...(department?.trim() ? { departmentId: department.trim() } : {}),
+      }
     });
 
     if (isPlatformChanged) {

@@ -3,16 +3,30 @@ datasource db {
 }
 
 generator client {
-  provider   = "prisma-client-js"
-  engineType = "library"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
+  engineType      = "library"
+}
+
+enum UserRole {
+  ADMIN
+  GK_SIR
+  HOD
+  STUDENT
 }
 
 enum Role {
   STUDENT
   FACULTY
-  PLACEMENT_OFFICER
-  PRINCIPAL
+  HOD
   ADMIN
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DISABLED
 }
 
 enum SyncStatus {
@@ -39,10 +53,12 @@ model StudentProfile {
   leetcodeUsername  String?           @unique @map("leetcode_username")
   githubUsername    String?           @unique @map("github_username")
   linkedinUrl       String?           @map("linkedin_url")
+  email             String?           @unique
   verificationStatus String            @default("UNABLE_TO_VERIFY") @map("verification_status")
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
   
+  userAccess       UserAccess?
   codechefProfile  CodechefProfile?
   leetcodeProfile  LeetcodeProfile?
   githubProfile    GithubProfile?
@@ -285,5 +301,43 @@ model Profile {
   updatedAt  DateTime @updatedAt @map("updated_at")
 
   @@map("profiles")
+}
+
+model UserAccess {
+  id                    String        @id @default(cuid())
+  authUserId            String?       @unique @map("auth_user_id")
+  email                 String        @unique
+  loginId               String        @unique @map("login_id")
+  role                  UserRole
+  status                AccountStatus @default(PENDING)
+  departmentId          String?       @map("department_id")
+  studentProfileId      String?       @unique @map("student_profile_id")
+  firstLoginCompleted   Boolean       @default(false) @map("first_login_completed")
+  mustSetPassword       Boolean       @default(true) @map("must_set_password")
+  approvedBy            String?       @map("approved_by")
+  approvedAt            DateTime?     @map("approved_at")
+  passwordSetAt         DateTime?     @map("password_set_at")
+  lastLoginAt           DateTime?     @map("last_login_at")
+  createdAt             DateTime      @default(now()) @map("created_at")
+  updatedAt             DateTime      @updatedAt @map("updated_at")
+
+  studentProfile        StudentProfile? @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  auditLogs             AuditLog[]
+
+  @@map("user_access")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?  @map("user_id")
+  action      String
+  details     Json?
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  userAccess  UserAccess? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("audit_logs")
 }
 

@@ -103,7 +103,7 @@ interface InsightsData {
     overall: PlatformInsightsSegment;
     codechef: PlatformInsightsSegment;
     leetcode: PlatformInsightsSegment;
-    github: PlatformInsightsSegment;
+
   };
 }
 
@@ -111,7 +111,7 @@ export default function InsightsPage() {
   const [data, setData] = useState<InsightsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activePlatform, setActivePlatform] = useState<"overall" | "codechef" | "leetcode" | "github">("overall");
+  const [activePlatform, setActivePlatform] = useState<"overall" | "codechef" | "leetcode">("overall");
 
   useEffect(() => {
     const fetchInsights = async () => {
@@ -254,8 +254,7 @@ export default function InsightsPage() {
           {[
             { name: "Overall", value: "overall" },
             { name: "CodeChef", value: "codechef" },
-            { name: "LeetCode", value: "leetcode" },
-            { name: "GitHub", value: "github" }
+            { name: "LeetCode", value: "leetcode" }
           ].map((tab) => {
             const active = activePlatform === tab.value;
             return (
@@ -435,9 +434,8 @@ export default function InsightsPage() {
                       <th className="py-3 px-5">Student</th>
                       <th className="py-3 px-4 text-center">
                         {activePlatform === "overall" && "Overall Score"}
-                        {activePlatform === "codechef" && "CP Rating"}
-                        {activePlatform === "leetcode" && "Solved"}
-                        {activePlatform === "github" && "OS Score"}
+                        {activePlatform === "codechef" && "Rating"}
+                        {activePlatform === "leetcode" && "Score"}
                       </th>
                       <th className="py-3 px-4 text-center">Tiers/Stars</th>
                       <th className="py-3 px-4 text-center">Talent Score</th>
@@ -523,8 +521,7 @@ export default function InsightsPage() {
                   const barColor = {
                     overall: "#EAB308",
                     codechef: "#8B5CF6",
-                    leetcode: "#F59E0B",
-                    github: "#06B6D4",
+                    leetcode: "#F59E0B"
                   }[activePlatform];
                   return (
                     <div key={p.target} className="flex flex-col gap-2">

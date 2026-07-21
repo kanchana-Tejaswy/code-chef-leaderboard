@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { unstable_cache } from "next/cache";
+import { getAuthenticatedUserAccess } from "@/lib/auth";
 
 export const revalidate = 60;
 
-const getCachedAnalytics = unstable_cache(
-  async () => {
-    const students = await prisma.studentProfile.findMany({
-      select: {
+const getCachedAnalytics = async (departmentFilter?: string) => {
+  return unstable_cache(
+    async () => {
+      const studentWhere = departmentFilter ? { department: departmentFilter } : {};
+
+      const students = await prisma.studentProfile.findMany({
+        where: studentWhere,
+        select: {
         department: true,
         createdAt: true,
         codechefProfile: {
@@ -39,7 +44,7 @@ const getCachedAnalytics = unstable_cache(
       }
     });
 
-    const depts = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
+    const depts = departmentFilter ? [departmentFilter] : ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
 
     // 1. Department Performance (CodeChef Average rating)
     const departmentPerformance = depts.map((dept) => {
@@ -292,13 +297,17 @@ const getCachedAnalytics = unstable_cache(
       }
     };
   },
-  ["dashboard-analytics-cache"],
+  [`dashboard-analytics-cache-${departmentFilter || "ALL"}`],
   { revalidate: 60 }
-);
+)();
+};
 
 export async function GET(request: NextRequest) {
   try {
-    const data = await getCachedAnalytics();
+    const userAccess = await getAuthenticatedUserAccess();
+    const departmentFilter = userAccess?.role === "HOD" && userAccess.departmentId ? userAccess.departmentId : undefined;
+    
+    const data = await getCachedAnalytics(departmentFilter);
     return NextResponse.json(data);
   } catch (err: any) {
     console.error("Error in analytics api:", err);

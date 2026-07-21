@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { CodechefService } from "./codechef.service";
 import { LeetcodeService } from "./leetcode.service";
-import { GithubService } from "./github.service";
+
 import { NormalizationService } from "./normalization.service";
 import { AiEngineService } from "./ai-engine.service";
 import { OverallScoreService } from "./overallScore.service";
@@ -107,7 +107,6 @@ export class SyncService {
           overallScore: 0,
           codechefScore: 0,
           leetcodeScore: 0,
-          githubScore: 0,
           trendDirection: "NEUTRAL",
           rank: 0,
         },
@@ -118,7 +117,6 @@ export class SyncService {
           overallScore: 0,
           codechefScore: 0,
           leetcodeScore: 0,
-          githubScore: 0,
           trendDirection: "NEUTRAL",
           rank: 0,
         },
@@ -438,7 +436,6 @@ export class SyncService {
             overallScore: 0, // Computed later
             codechefScore: 0, // Computed later
             leetcodeScore: 0, // Computed later
-            githubScore: 0, // Computed later
             trendDirection: "NEUTRAL",
             rank: 0,
           },
@@ -477,7 +474,6 @@ export class SyncService {
 
       const ccScore = codechefProfile ? OverallScoreService.calculateCodechefScore(codechefProfile) : 0;
       const lcScore = leetcodeProfile ? OverallScoreService.calculateLeetcodeScore(leetcodeProfile) : 0;
-      const ghScore = 0; // GitHub no longer scraped or scored
 
       const active = {
         codechef: !!codechefProfile,
@@ -512,7 +508,6 @@ export class SyncService {
           overallScore: overallScore,
           codechefScore: ccScore,
           leetcodeScore: lcScore,
-          githubScore: ghScore,
           trendDirection,
           rank: 0,
         },
@@ -523,7 +518,6 @@ export class SyncService {
           overallScore: overallScore,
           codechefScore: ccScore,
           leetcodeScore: lcScore,
-          githubScore: ghScore,
           trendDirection,
         },
       });
@@ -646,8 +640,7 @@ export class SyncService {
           student: {
             OR: [
               { codechefUsername: { not: null } },
-              { leetcodeUsername: { not: null } },
-              { githubUsername: { not: null } }
+              { leetcodeUsername: { not: null } }
             ]
           }
         },

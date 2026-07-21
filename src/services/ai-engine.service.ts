@@ -229,85 +229,13 @@ export class LeetcodeAiEngine {
   }
 }
 
-export class GithubAiEngine {
-  static analyze(analytics: GitHubAnalytics): AiEngineResult {
-    if (!analytics || !analytics.totalRepositories || analytics.totalRepositories === 0) {
-      return {
-        talentScore: 0,
-        consistencyScore: 0,
-        problemSolvingScore: 0,
-        competitiveProgrammingScore: 0,
-        contestScore: 0,
-        learningScore: 0,
-        growthScore: 0,
-        disciplineScore: 0,
-        overallPotential: "Insufficient verified data to generate this analysis.",
-        placementReadiness: "Insufficient verified data to generate this analysis.",
-        expectedRating6Months: 0,
-        strengths: ["Insufficient verified data to generate this analysis."],
-        weaknesses: ["Insufficient verified data to generate this analysis."],
-        improvementAreas: ["Unable to determine improvement because project history is unavailable."],
-        careerRecommendation: "Insufficient verified data to generate this analysis.",
-        suggestedCompanies: [],
-        recommendedLearningPath: []
-      };
-    }
-
-    const rating = analytics.developerScore.score;
-
-    let overallPotential = "Emerging Technology Engineer";
-    if (rating >= 80) overallPotential = "Elite Open Source Builder";
-    else if (rating >= 60) overallPotential = "Capable Full-Stack Developer";
-
-    let placementReadiness = "Standard SDE Ready";
-    if (rating >= 80) placementReadiness = "Immediate Product SDE Ready";
-
-    const strengths = analytics.careerInsights?.strongestSkills || ["Open Source Contributor"];
-    const weaknesses = analytics.careerInsights?.weaknesses || ["Documentation coverage"];
-    const improvementAreas = analytics.careerInsights?.recommendedLearningPath || ["Write more unit tests"];
-    const careerRecommendation = analytics.careerInsights?.hiringReadiness || "Full Stack Developer / Open Source Engineer";
-
-    let suggestedCompanies = ["ServiceNow", "Cognizant", "TCS"];
-    let recommendedLearningPath = ["Git Branching & Collaboration Workflow", "Building Personal Project Portfolio", "Markdown Documentation & Readmes"];
-
-    if (rating >= 80) {
-      suggestedCompanies = ["GitHub", "Vercel", "Stripe", "RedHat"];
-      recommendedLearningPath = ["Advanced CI/CD & Devops Pipelines", "Kubernetes & Cloud Infrastructure", "Contributing to Major OSS Projects"];
-    } else if (rating >= 50) {
-      suggestedCompanies = ["HashiCorp", "Postman", "GitLab", "Razorpay"];
-      recommendedLearningPath = ["Clean Code & Refactoring", "API Design Best Practices", "Database Migration & Schema Design"];
-    }
-
-    return {
-      talentScore: rating,
-      consistencyScore: analytics.developerScore.consistency,
-      problemSolvingScore: rating,
-      competitiveProgrammingScore: rating,
-      contestScore: analytics.developerScore.codingActivity,
-      learningScore: analytics.developerScore.documentation,
-      growthScore: rating,
-      disciplineScore: analytics.developerScore.consistency,
-      overallPotential,
-      placementReadiness,
-      expectedRating6Months: 0,
-      strengths,
-      weaknesses,
-      improvementAreas,
-      careerRecommendation,
-      suggestedCompanies,
-      recommendedLearningPath
-    };
-  }
-}
-
 export class OverallAiEngine {
   /**
-   * Combines CodeChef, LeetCode, and GitHub AI analyses dynamically.
+   * Combines CodeChef and LeetCode AI analyses dynamically.
    */
   static analyze(
-    codechefAnalysis: AiEngineResult | null,
-    leetcodeAnalysis: AiEngineResult | null,
-    githubAnalysis: AiEngineResult | null,
+    codechefAnalysis: any,
+    leetcodeAnalysis: any,
     weights: { codechef: number; leetcode: number }
   ): AiEngineResult {
     let talentSum = 0;
@@ -355,12 +283,6 @@ export class OverallAiEngine {
       count++;
     }
 
-    // Keep GitHub analysis for merging textual insights (strengths, weaknesses, etc.) 
-    // but exclude it from competitive numerical scoring calculation.
-    if (githubAnalysis) {
-      list.push(githubAnalysis);
-      // Removed Github numerical scoring contributions
-    }
 
     if (totalWeight === 0) {
       return {
@@ -500,36 +422,10 @@ export class AiEngineService {
       });
     }
 
-    // 3. GitHub AI
-    let githubAi = null;
-    const githubProfile = await prisma.githubProfile.findUnique({
-      where: { studentId }
-    });
-    if (githubProfile) {
-      const repos = githubProfile.repos as any;
-      const analytics = {
-        totalRepositories: githubProfile.totalRepositories,
-        totalStars: githubProfile.totalStars,
-        totalForks: githubProfile.totalForks,
-        followers: githubProfile.followers,
-        openSourceScore: githubProfile.openSourceScore,
-        contributions: githubProfile.contributions,
-        languages: githubProfile.languages,
-        repos: repos?.list || [],
-        commitTimeline: githubProfile.commitTimeline,
-        repoQualityScore: githubProfile.repoQualityScore,
-        developerScore: repos?.developerScore || { score: githubProfile.openSourceScore, consistency: 50, codingActivity: 50, documentation: 50 },
-        careerInsights: repos?.careerInsights || { hiringReadiness: "Capable Software Builder", strongestSkills: ["Git"], weaknesses: ["No documented repositories"], recommendedLearningPath: ["Expand project portfolio"] },
-        portfolio: repos?.portfolio || { web: 0, fullStack: 0, ai: 0, mobile: 0 }
-      };
-      githubAi = GithubAiEngine.analyze(analytics as any);
-    }
-
     const weights = OverallScoreService.getWeights();
     const overallAi = OverallAiEngine.analyze(
       codechefAi,
       leetcodeAi,
-      githubAi,
       weights
     );
 
@@ -585,7 +481,6 @@ export class AiEngineService {
       overall: overallAi,
       codechef: codechefAi,
       leetcode: leetcodeAi,
-      github: githubAi,
     };
   }
 }

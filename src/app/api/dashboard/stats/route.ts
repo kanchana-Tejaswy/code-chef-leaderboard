@@ -1,87 +1,93 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { unstable_cache } from "next/cache";
+import { getAuthenticatedUserAccess } from "@/lib/auth";
 
 export const revalidate = 60;
 
-const getCachedStats = unstable_cache(
-  async () => {
-    // 1. Group 1: Core Aggregates
-    const [totalStudents, activeCodechefCount] = await Promise.all([
-      prisma.studentProfile.count(),
-      prisma.codechefProfile.count({ where: { username: { not: "" }, currentRating: { not: null } } }),
-    ]);
+const getCachedStats = async (departmentFilter?: string) => {
+  return unstable_cache(
+    async () => {
+      const studentWhere = departmentFilter ? { department: departmentFilter } : {};
+      const lbWhere = departmentFilter ? { student: { department: departmentFilter } } : {};
 
-    const [activeLeetcodeCount, activeGithubCount] = await Promise.all([
-      prisma.leetcodeProfile.count({ where: { username: { not: "" }, problemsSolved: { not: null } } }),
-      prisma.githubProfile.count({ where: { username: { not: "" }, totalRepositories: { not: null } } }),
-    ]);
+      // 1. Group 1: Core Aggregates
+      const [totalStudents, activeCodechefCount] = await Promise.all([
+        prisma.studentProfile.count({ where: studentWhere }),
+        prisma.codechefProfile.count({ where: { username: { not: "" }, currentRating: { not: null }, student: studentWhere } }),
+      ]);
 
-    const [activeOverallCount, ratingAgg] = await Promise.all([
-      prisma.studentProfile.count({
-        where: { OR: [{ codechefProfile: { isNot: null } }, { leetcodeProfile: { isNot: null } }, { githubProfile: { isNot: null } }] }
-      }),
-      prisma.leaderboardEntry.aggregate({
-        where: { OR: [{ student: { codechefUsername: { not: null } } }, { student: { leetcodeUsername: { not: null } } }, { student: { githubUsername: { not: null } } }] },
+      const [activeLeetcodeCount, activeGithubCount] = await Promise.all([
+        prisma.leetcodeProfile.count({ where: { username: { not: "" }, problemsSolved: { not: null }, student: studentWhere } }),
+        prisma.githubProfile.count({ where: { username: { not: "" }, totalRepositories: { not: null }, student: studentWhere } }),
+      ]);
+
+      const [activeOverallCount, ratingAgg] = await Promise.all([
+        prisma.studentProfile.count({
+          where: { ...studentWhere, OR: [{ codechefProfile: { isNot: null } }, { leetcodeProfile: { isNot: null } }, { githubProfile: { isNot: null } }] }
+        }),
+        prisma.leaderboardEntry.aggregate({
+          where: { ...lbWhere, OR: [{ student: { codechefUsername: { not: null } } }, { student: { leetcodeUsername: { not: null } } }, { student: { githubUsername: { not: null } } }] },
         _avg: { overallScore: true }, _max: { overallScore: true }
       })
     ]);
 
-    const [leetcodeAgg] = await Promise.all([
-      prisma.leaderboardEntry.aggregate({ where: { student: { leetcodeUsername: { not: null } } }, _avg: { leetcodeScore: true } }),
-    ]);
+      const [leetcodeAgg] = await Promise.all([
+        prisma.leaderboardEntry.aggregate({ where: { ...lbWhere, student: { ...lbWhere.student, leetcodeUsername: { not: null } } }, _avg: { leetcodeScore: true } }),
+      ]);
 
-    const [codechefAgg, lcSolvedAgg] = await Promise.all([
-      prisma.leaderboardEntry.aggregate({ where: { student: { codechefUsername: { not: null } } }, _avg: { codechefScore: true } }),
-      prisma.leetcodeProfile.aggregate({ _avg: { problemsSolved: true, acceptanceRate: true } }),
-    ]);
+      const [codechefAgg, lcSolvedAgg] = await Promise.all([
+        prisma.leaderboardEntry.aggregate({ where: { ...lbWhere, student: { ...lbWhere.student, codechefUsername: { not: null } } }, _avg: { codechefScore: true } }),
+        prisma.leetcodeProfile.aggregate({ where: { student: studentWhere }, _avg: { problemsSolved: true, acceptanceRate: true } }),
+      ]);
 
-    const [ccProfileAgg, ghProfileAgg] = await Promise.all([
-      prisma.codechefProfile.aggregate({ _avg: { currentRating: true, stars: true, contestCount: true } }),
-      prisma.githubProfile.aggregate({ _avg: { totalRepositories: true, totalStars: true, openSourceScore: true } })
-    ]);
+      const [ccProfileAgg, ghProfileAgg] = await Promise.all([
+        prisma.codechefProfile.aggregate({ where: { student: studentWhere }, _avg: { currentRating: true, stars: true, contestCount: true } }),
+        prisma.githubProfile.aggregate({ where: { student: studentWhere }, _avg: { totalRepositories: true, totalStars: true, openSourceScore: true } })
+      ]);
 
-    const [activeContestParticipants, fourStarCoders] = await Promise.all([
-      prisma.leaderboardEntry.count({ where: { OR: [{ rating: { gt: 0 } }, { leetcodeScore: { gt: 0 } }] } }),
-      prisma.leaderboardEntry.count({ where: { overallScore: { gte: 70, lt: 85 } } }),
-    ]);
+      const [activeContestParticipants, fourStarCoders] = await Promise.all([
+        prisma.leaderboardEntry.count({ where: { ...lbWhere, OR: [{ rating: { gt: 0 } }, { leetcodeScore: { gt: 0 } }] } }),
+        prisma.leaderboardEntry.count({ where: { ...lbWhere, overallScore: { gte: 70, lt: 85 } } }),
+      ]);
 
-    const [fiveStarCoders, deptCounts] = await Promise.all([
-      prisma.leaderboardEntry.count({ where: { overallScore: { gte: 85 } } }),
-      prisma.studentProfile.groupBy({
-        by: ["department"],
-        where: { OR: [{ codechefProfile: { isNot: null } }, { leetcodeProfile: { isNot: null } }, { githubProfile: { isNot: null } }] },
-        _count: { id: true },
-      }),
-    ]);
+      const [fiveStarCoders, deptCounts] = await Promise.all([
+        prisma.leaderboardEntry.count({ where: { ...lbWhere, overallScore: { gte: 85 } } }),
+        prisma.studentProfile.groupBy({
+          by: ["department"],
+          where: { ...studentWhere, OR: [{ codechefProfile: { isNot: null } }, { leetcodeProfile: { isNot: null } }, { githubProfile: { isNot: null } }] },
+          _count: { id: true },
+        }),
+      ]);
 
-    const activeStudents = await prisma.leaderboardEntry.findMany({
-      where: { OR: [{ student: { codechefUsername: { not: null } } }, { student: { leetcodeUsername: { not: null } } }, { student: { githubUsername: { not: null } } }] },
-      select: { overallScore: true },
-    });
+      const activeStudents = await prisma.leaderboardEntry.findMany({
+        where: { ...lbWhere, OR: [{ student: { codechefUsername: { not: null } } }, { student: { leetcodeUsername: { not: null } } }, { student: { githubUsername: { not: null } } }] },
+        select: { overallScore: true },
+      });
 
-    // 2. Group 2: Yesterday's Stats
-    const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const [yesterdayTotalStudents, yesterdayActiveCodechef] = await Promise.all([
-      prisma.studentProfile.count({ where: { createdAt: { lt: yesterdayDate } } }),
-      prisma.codechefProfile.count({ where: { createdAt: { lt: yesterdayDate } } }),
-    ]);
+      // 2. Group 2: Yesterday's Stats
+      const yesterdayDate = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const [yesterdayTotalStudents, yesterdayActiveCodechef] = await Promise.all([
+        prisma.studentProfile.count({ where: { ...studentWhere, createdAt: { lt: yesterdayDate } } }),
+        prisma.codechefProfile.count({ where: { student: studentWhere, createdAt: { lt: yesterdayDate } } }),
+      ]);
 
-    const [yesterdayRatingAgg, yesterdayActiveContestParticipants] = await Promise.all([
-      prisma.leaderboardEntry.aggregate({
-        where: {
-          OR: [{ student: { codechefUsername: { not: null } } }, { student: { leetcodeUsername: { not: null } } }, { student: { githubUsername: { not: null } } }],
-          updatedAt: { lt: yesterdayDate }
-        },
-        _avg: { overallScore: true },
-      }),
-      prisma.codechefProfile.count({ where: { createdAt: { lt: yesterdayDate } } }),
-    ]);
+      const [yesterdayRatingAgg, yesterdayActiveContestParticipants] = await Promise.all([
+        prisma.leaderboardEntry.aggregate({
+          where: {
+            ...lbWhere,
+            OR: [{ student: { codechefUsername: { not: null } } }, { student: { leetcodeUsername: { not: null } } }, { student: { githubUsername: { not: null } } }],
+            updatedAt: { lt: yesterdayDate }
+          },
+          _avg: { overallScore: true },
+        }),
+        prisma.codechefProfile.count({ where: { student: studentWhere, createdAt: { lt: yesterdayDate } } }),
+      ]);
 
-    const [yesterdayFourStar, yesterdayFiveStar] = await Promise.all([
-      prisma.leaderboardEntry.count({ where: { overallScore: { gte: 70, lt: 85 }, updatedAt: { lt: yesterdayDate } } }),
-      prisma.leaderboardEntry.count({ where: { overallScore: { gte: 85 }, updatedAt: { lt: yesterdayDate } } })
-    ]);
+      const [yesterdayFourStar, yesterdayFiveStar] = await Promise.all([
+        prisma.leaderboardEntry.count({ where: { ...lbWhere, overallScore: { gte: 70, lt: 85 }, updatedAt: { lt: yesterdayDate } } }),
+        prisma.leaderboardEntry.count({ where: { ...lbWhere, overallScore: { gte: 85 }, updatedAt: { lt: yesterdayDate } } })
+      ]);
 
     const averageRating = Math.round(ratingAgg._avg.overallScore || 0);
     const highestRating = Math.round(ratingAgg._max.overallScore || 0);
@@ -159,32 +165,32 @@ const getCachedStats = unstable_cache(
         averageProblemsSolved: [], averageContestParticipation: []
     };
 
-    const sparklineResults = [];
-    for (let i = 5; i >= 0; i--) {
-      const dateLimit = new Date();
-      dateLimit.setDate(dateLimit.getDate() - i);
-      dateLimit.setHours(23, 59, 59, 999);
+      const sparklineResults = [];
+      for (let i = 5; i >= 0; i--) {
+        const dateLimit = new Date();
+        dateLimit.setDate(dateLimit.getDate() - i);
+        dateLimit.setHours(23, 59, 59, 999);
 
-      const [sCount, ccCount] = await Promise.all([
-        prisma.studentProfile.count({ where: { createdAt: { lt: dateLimit } } }),
-        prisma.codechefProfile.count({ where: { createdAt: { lt: dateLimit } } }),
-      ]);
-      const [rAggLimit, talentS] = await Promise.all([
-        prisma.leaderboardEntry.aggregate({ where: { updatedAt: { lt: dateLimit } }, _avg: { overallScore: true } }),
-        prisma.leaderboardEntry.aggregate({ where: { student: { codechefUsername: { not: null } }, updatedAt: { lt: dateLimit } }, _avg: { codechefScore: true } }),
-      ]);
-      const [cpS] = await Promise.all([
-        prisma.leaderboardEntry.aggregate({ where: { student: { leetcodeUsername: { not: null } }, updatedAt: { lt: dateLimit } }, _avg: { leetcodeScore: true } }),
-      ]);
-      const consS = { _avg: { githubScore: 0 } };
-      const [f4Count, f5Count] = await Promise.all([
-        prisma.leaderboardEntry.count({ where: { overallScore: { gte: 70, lt: 85 }, updatedAt: { lt: dateLimit } } }),
-        prisma.leaderboardEntry.count({ where: { overallScore: { gte: 85 }, updatedAt: { lt: dateLimit } } }),
-      ]);
-      const [tdCount, hrAggLimit] = await Promise.all([
-        topDepartment !== "Unknown" ? prisma.studentProfile.count({ where: { department: topDepartment, createdAt: { lt: dateLimit } } }) : Promise.resolve(0),
-        prisma.leaderboardEntry.aggregate({ where: { updatedAt: { lt: dateLimit } }, _max: { overallScore: true } })
-      ]);
+        const [sCount, ccCount] = await Promise.all([
+          prisma.studentProfile.count({ where: { ...studentWhere, createdAt: { lt: dateLimit } } }),
+          prisma.codechefProfile.count({ where: { student: studentWhere, createdAt: { lt: dateLimit } } }),
+        ]);
+        const [rAggLimit, talentS] = await Promise.all([
+          prisma.leaderboardEntry.aggregate({ where: { ...lbWhere, updatedAt: { lt: dateLimit } }, _avg: { overallScore: true } }),
+          prisma.leaderboardEntry.aggregate({ where: { ...lbWhere, student: { ...lbWhere.student, codechefUsername: { not: null } }, updatedAt: { lt: dateLimit } }, _avg: { codechefScore: true } }),
+        ]);
+        const [cpS] = await Promise.all([
+          prisma.leaderboardEntry.aggregate({ where: { ...lbWhere, student: { ...lbWhere.student, leetcodeUsername: { not: null } }, updatedAt: { lt: dateLimit } }, _avg: { leetcodeScore: true } }),
+        ]);
+
+        const [f4Count, f5Count] = await Promise.all([
+          prisma.leaderboardEntry.count({ where: { ...lbWhere, overallScore: { gte: 70, lt: 85 }, updatedAt: { lt: dateLimit } } }),
+          prisma.leaderboardEntry.count({ where: { ...lbWhere, overallScore: { gte: 85 }, updatedAt: { lt: dateLimit } } }),
+        ]);
+        const [tdCount, hrAggLimit] = await Promise.all([
+          topDepartment !== "Unknown" ? prisma.studentProfile.count({ where: { ...studentWhere, department: topDepartment, createdAt: { lt: dateLimit } } }) : Promise.resolve(0),
+          prisma.leaderboardEntry.aggregate({ where: { ...lbWhere, updatedAt: { lt: dateLimit } }, _max: { overallScore: true } })
+        ]);
 
       const avgVal = Math.round(rAggLimit._avg.overallScore || 0);
       const pRate = sCount > 0 ? Math.round((ccCount / sCount) * 100) : 0;
@@ -193,7 +199,7 @@ const getCachedStats = unstable_cache(
         sCount, ccCount, avgVal,
         talentScore: Math.round(talentS._avg.codechefScore || 0),
         cpScore: Math.round(cpS._avg.leetcodeScore || 0),
-        consScore: Math.round(consS._avg.githubScore || 0),
+        consScore: 0,
         pRate, f4Count, f5Count, tdCount,
         highestRating: Math.round(hrAggLimit._max.overallScore || 0)
       });
@@ -216,61 +222,66 @@ const getCachedStats = unstable_cache(
       sparklines.highestRating.push(res.highestRating);
     });
 
-    // 4. Fetch Top Performers
-    const topPerformers = await prisma.leaderboardEntry.findMany({
-      orderBy: { overallScore: "desc" },
-      take: 5,
-      include: {
-        student: {
-          select: {
-            id: true,
-            name: true,
-            rollNumber: true,
-            department: true,
+      // 4. Fetch Top Performers
+      const topPerformers = await prisma.leaderboardEntry.findMany({
+        where: lbWhere,
+        orderBy: { overallScore: "desc" },
+        take: 5,
+        include: {
+          student: {
+            select: {
+              id: true,
+              name: true,
+              rollNumber: true,
+              department: true,
+            },
           },
         },
-      },
-    });
+      });
 
-    return {
-      stats: {
-        totalStudents: { value: totalStudents, trend: formatPctTrend(totalStudents, yesterdayTotalStudents), sparkline: sparklines.totalStudents },
-        activeCodechef: { value: activeCodechefCount, trend: formatPctTrend(activeCodechefCount, yesterdayActiveCodechef), sparkline: sparklines.activeProfiles },
-        activeLeetcode: { value: activeLeetcodeCount, trend: "LeetCode Active", sparkline: sparklines.activeProfiles },
-        activeGithub: { value: activeGithubCount, trend: "GitHub Active", sparkline: sparklines.activeProfiles },
-        activeOverall: { value: activeOverallCount, trend: "Overall Active Profiles", sparkline: sparklines.activeProfiles },
-        averageRating: { value: averageRating, trend: formatDiffTrend(averageRating, yesterdayAverageRating, "pts"), sparkline: sparklines.averageRating },
-        activeContestParticipants: { value: activeContestParticipants, trend: formatDiffTrend(activeContestParticipants, yesterdayActiveContestParticipants, "active"), sparkline: sparklines.participationPercent },
-        fourStarCoders: { value: fourStarCoders, trend: formatDiffTrend(fourStarCoders, yesterdayFourStar, "coders"), sparkline: sparklines.fourStar },
-        fiveStarCoders: { value: fiveStarCoders, trend: formatDiffTrend(fiveStarCoders, yesterdayFiveStar, "coders"), sparkline: sparklines.fiveStar },
-        highestRating: { value: highestRating, trend: "Peak record", sparkline: sparklines.highestRating },
-        topDepartment: { value: topDepartment, trend: topDepartment !== "Unknown" ? `${maxDeptCount} students` : "No data", sparkline: sparklines.topDept },
-        contestParticipationPercent: { value: contestParticipationPercent, trend: formatIndexTrend(contestParticipationPercent, yesterdayParticipationPercent), sparkline: sparklines.participationPercent },
-        placementReadinessIndex: { value: placementReadinessIndex, trend: formatIndexTrend(placementReadinessIndex, yesterdayPlacementReadinessIndex), sparkline: sparklines.placementIndex },
-        averageTalentScore: { value: Math.round(codechefAgg._avg.codechefScore || 0), trend: "CodeChef Avg", sparkline: sparklines.averageTalentScore },
-        averageCPScore: { value: Math.round(leetcodeAgg._avg.leetcodeScore || 0), trend: "LeetCode Avg", sparkline: sparklines.averageCPScore },
-        averageConsistencyScore: { value: 0, trend: "GitHub Avg (Deprecated)", sparkline: sparklines.averageConsistencyScore },
-        averageProblemsSolved: { value: lcProblemsSolvedAvg, trend: "", sparkline: sparklines.averageProblemsSolved },
-        averageContestParticipation: { value: ccContestCountAvg, trend: "", sparkline: sparklines.averageContestParticipation },
-        averageCodechefRating: { value: ccRatingAvg, trend: "", sparkline: sparklines.averageRating },
-        averageCodechefStars: { value: ccStarsAvg, trend: "", sparkline: [ccStarsAvg, ccStarsAvg, ccStarsAvg, ccStarsAvg, ccStarsAvg, ccStarsAvg] },
-        averageRepositories: { value: ghRepositoriesAvg, trend: "", sparkline: [0, 0, 0, 0, 0, 0] },
-        averageStars: { value: ghStarsAvg, trend: "", sparkline: [0, 0, 0, 0, 0, 0] },
-        averageOpenSourceScore: { value: ghOpenSourceAvg, trend: "", sparkline: [0, 0, 0, 0, 0, 0] },
-        averageAcceptanceRate: { value: lcAcceptanceRateAvg, trend: "", sparkline: [0, 0, 0, 0, 0, 0] }
-      },
-      departmentDistribution,
-      topPerformers,
-      globalActivityHeatmap: {},
-    };
-  },
-  ["dashboard-stats-cache"],
-  { revalidate: 60 }
-);
+      return {
+        stats: {
+          totalStudents: { value: totalStudents, trend: formatPctTrend(totalStudents, yesterdayTotalStudents), sparkline: sparklines.totalStudents },
+          activeCodechef: { value: activeCodechefCount, trend: formatPctTrend(activeCodechefCount, yesterdayActiveCodechef), sparkline: sparklines.activeProfiles },
+          activeLeetcode: { value: activeLeetcodeCount, trend: "LeetCode Active", sparkline: sparklines.activeProfiles },
+          activeGithub: { value: activeGithubCount, trend: "GitHub Active", sparkline: sparklines.activeProfiles },
+          activeOverall: { value: activeOverallCount, trend: "Overall Active Profiles", sparkline: sparklines.activeProfiles },
+          averageRating: { value: averageRating, trend: formatDiffTrend(averageRating, yesterdayAverageRating, "pts"), sparkline: sparklines.averageRating },
+          activeContestParticipants: { value: activeContestParticipants, trend: formatDiffTrend(activeContestParticipants, yesterdayActiveContestParticipants, "active"), sparkline: sparklines.participationPercent },
+          fourStarCoders: { value: fourStarCoders, trend: formatDiffTrend(fourStarCoders, yesterdayFourStar, "coders"), sparkline: sparklines.fourStar },
+          fiveStarCoders: { value: fiveStarCoders, trend: formatDiffTrend(fiveStarCoders, yesterdayFiveStar, "coders"), sparkline: sparklines.fiveStar },
+          highestRating: { value: highestRating, trend: "Peak record", sparkline: sparklines.highestRating },
+          topDepartment: { value: topDepartment, trend: topDepartment !== "Unknown" ? `${maxDeptCount} students` : "No data", sparkline: sparklines.topDept },
+          contestParticipationPercent: { value: contestParticipationPercent, trend: formatIndexTrend(contestParticipationPercent, yesterdayParticipationPercent), sparkline: sparklines.participationPercent },
+          placementReadinessIndex: { value: placementReadinessIndex, trend: formatIndexTrend(placementReadinessIndex, yesterdayPlacementReadinessIndex), sparkline: sparklines.placementIndex },
+          averageTalentScore: { value: Math.round(codechefAgg._avg.codechefScore || 0), trend: "CodeChef Avg", sparkline: sparklines.averageTalentScore },
+          averageCPScore: { value: Math.round(leetcodeAgg._avg.leetcodeScore || 0), trend: "LeetCode Avg", sparkline: sparklines.averageCPScore },
+          averageConsistencyScore: { value: 0, trend: "GitHub Avg (Deprecated)", sparkline: sparklines.averageConsistencyScore },
+          averageProblemsSolved: { value: lcProblemsSolvedAvg, trend: "", sparkline: sparklines.averageProblemsSolved },
+          averageContestParticipation: { value: ccContestCountAvg, trend: "", sparkline: sparklines.averageContestParticipation },
+          averageCodechefRating: { value: ccRatingAvg, trend: "", sparkline: sparklines.averageRating },
+          averageCodechefStars: { value: ccStarsAvg, trend: "", sparkline: [ccStarsAvg, ccStarsAvg, ccStarsAvg, ccStarsAvg, ccStarsAvg, ccStarsAvg] },
+          averageRepositories: { value: ghRepositoriesAvg, trend: "", sparkline: [0, 0, 0, 0, 0, 0] },
+          averageStars: { value: ghStarsAvg, trend: "", sparkline: [0, 0, 0, 0, 0, 0] },
+          averageOpenSourceScore: { value: ghOpenSourceAvg, trend: "", sparkline: [0, 0, 0, 0, 0, 0] },
+          averageAcceptanceRate: { value: lcAcceptanceRateAvg, trend: "", sparkline: [0, 0, 0, 0, 0, 0] }
+        },
+        departmentDistribution,
+        topPerformers,
+        globalActivityHeatmap: {},
+      };
+    },
+    [`dashboard-stats-cache-${departmentFilter || "ALL"}`],
+    { revalidate: 60 }
+  )();
+};
 
 export async function GET(request: NextRequest) {
   try {
-    const data = await getCachedStats();
+    const userAccess = await getAuthenticatedUserAccess();
+    const departmentFilter = userAccess?.role === "HOD" && userAccess.departmentId ? userAccess.departmentId : undefined;
+    
+    const data = await getCachedStats(departmentFilter);
     return NextResponse.json(data);
   } catch (err: any) {
     console.error("Error in stats api:", err);

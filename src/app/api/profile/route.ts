@@ -4,6 +4,7 @@ import { SyncService } from "@/services/sync.service";
 import { ActivityService } from "@/services/activity.service";
 import crypto from "crypto";
 import { canPerformWrite, canPerformDelete } from "@/lib/write-access";
+import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 import { revalidatePath } from "next/cache";
 
 export async function GET(request: NextRequest) {
@@ -66,28 +67,21 @@ export async function POST(request: NextRequest) {
     const normalizedSection = section ? String(section).trim().toUpperCase() : "A";
     const normalizedCodechef = (codechefUsername || codechef_username) ? String(codechefUsername || codechef_username).trim() : null;
     const normalizedLeetcode = (leetcodeUsername || leetcode_username) ? String(leetcodeUsername || leetcode_username).trim() : null;
-    const normalizedGithub = (githubUsername || github_username) ? String(githubUsername || github_username).trim() : null;
-    const normalizedLinkedin = (linkedinUrl || linkedin_url) ? String(linkedinUrl || linkedin_url).trim() : null;
+    
+    const { isValid: isGhValid, normalizedUrl: normalizedGithub, error: ghError } = normalizeAndValidateUrl(githubUsername || github_username, "github");
+    const { isValid: isLnValid, normalizedUrl: normalizedLinkedin, error: lnError } = normalizeAndValidateUrl(linkedinUrl || linkedin_url, "linkedin");
+    
     const normalizedPicUrl = (profilePictureUrl || profile_picture_url) ? String(profilePictureUrl || profile_picture_url).trim() : null;
 
     if (!normalizedName) {
       return NextResponse.json({ error: "Student Name is required." }, { status: 400 });
     }
 
-    const isValidUrl = (urlStr: string) => {
-      try {
-        new URL(urlStr);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
-    if (normalizedGithub && !isValidUrl(normalizedGithub)) {
-      return NextResponse.json({ error: "GitHub must be a valid URL (e.g., https://github.com/username)" }, { status: 400 });
+    if (!isGhValid && ghError) {
+      return NextResponse.json({ error: ghError }, { status: 400 });
     }
-    if (normalizedLinkedin && !isValidUrl(normalizedLinkedin)) {
-      return NextResponse.json({ error: "LinkedIn must be a valid URL (e.g., https://linkedin.com/in/username)" }, { status: 400 });
+    if (!isLnValid && lnError) {
+      return NextResponse.json({ error: lnError }, { status: 400 });
     }
 
     if (isNaN(normalizedYear) || normalizedYear < 1 || normalizedYear > 4) {
@@ -186,7 +180,6 @@ export async function POST(request: NextRequest) {
             overallScore: 0,
             codechefScore: 0,
             leetcodeScore: 0,
-            githubScore: 0,
             trendDirection: "UP",
           }
         }
@@ -317,15 +310,6 @@ export async function PATCH(request: NextRequest) {
       updateData.section = body.section ? String(body.section).trim().toUpperCase() : null;
     }
 
-    const isValidUrl = (urlStr: string) => {
-      try {
-        new URL(urlStr);
-        return true;
-      } catch {
-        return false;
-      }
-    };
-
     if (body.hasOwnProperty("profilePictureUrl") || body.hasOwnProperty("profile_picture_url")) {
       const pic = body.hasOwnProperty("profilePictureUrl") ? body.profilePictureUrl : body.profile_picture_url;
       updateData.profilePictureUrl = pic ? String(pic).trim() : null;
@@ -333,9 +317,9 @@ export async function PATCH(request: NextRequest) {
 
     if (body.hasOwnProperty("linkedinUrl") || body.hasOwnProperty("linkedin_url")) {
       const linked = body.hasOwnProperty("linkedinUrl") ? body.linkedinUrl : body.linkedin_url;
-      const lnUrl = linked ? String(linked).trim() : null;
-      if (lnUrl && !isValidUrl(lnUrl)) {
-        return NextResponse.json({ error: "LinkedIn must be a valid URL." }, { status: 400 });
+      const { isValid: isLnValid, normalizedUrl: lnUrl, error: lnError } = normalizeAndValidateUrl(linked, "linkedin");
+      if (!isLnValid && lnError) {
+        return NextResponse.json({ error: lnError }, { status: 400 });
       }
       updateData.linkedinUrl = lnUrl;
     }
@@ -378,9 +362,9 @@ export async function PATCH(request: NextRequest) {
 
     if (body.hasOwnProperty("githubUsername") || body.hasOwnProperty("github_username")) {
       const gh = body.hasOwnProperty("githubUsername") ? body.githubUsername : body.github_username;
-      const ghUser = gh ? String(gh).trim() : null;
-      if (ghUser && !isValidUrl(ghUser)) {
-        return NextResponse.json({ error: "GitHub must be a valid URL." }, { status: 400 });
+      const { isValid: isGhValid, normalizedUrl: ghUser, error: ghError } = normalizeAndValidateUrl(gh, "github");
+      if (!isGhValid && ghError) {
+        return NextResponse.json({ error: ghError }, { status: 400 });
       }
       if (ghUser) {
         const existingGH = await prisma.studentProfile.findFirst({

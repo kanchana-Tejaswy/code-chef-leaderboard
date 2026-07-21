@@ -62,10 +62,7 @@ export async function GET(request: NextRequest) {
       where: { student: { leetcodeUsername: { not: null } } },
       _avg: { leetcodeScore: true }
     });
-    const githubAgg = await prisma.leaderboardEntry.aggregate({
-      where: { student: { githubUsername: { not: null } } },
-      _avg: { githubScore: true }
-    });
+
     const codechefAgg = await prisma.leaderboardEntry.aggregate({
       where: { student: { codechefUsername: { not: null } } },
       _avg: { codechefScore: true }
@@ -74,14 +71,10 @@ export async function GET(request: NextRequest) {
     // Database aggregates for platform-specific averages (ignoring nulls/unregistered)
     const lcSolvedAgg = await prisma.leetcodeProfile.aggregate({ _avg: { problemsSolved: true, acceptanceRate: true } });
     const ccContestAgg = await prisma.codechefProfile.aggregate({ _avg: { contestCount: true } });
-    const ghProfileAgg = await prisma.githubProfile.aggregate({ _avg: { totalRepositories: true, totalStars: true, openSourceScore: true } });
 
     const lcProblemsSolvedAvg = Math.round(lcSolvedAgg._avg.problemsSolved || 0);
     const lcAcceptanceRateAvg = Math.round(lcSolvedAgg._avg.acceptanceRate || 0);
     const ccContestCountAvg = Math.round(ccContestAgg._avg.contestCount || 0);
-    const ghRepositoriesAvg = Math.round(ghProfileAgg._avg.totalRepositories || 0);
-    const ghStarsAvg = Math.round(ghProfileAgg._avg.totalStars || 0);
-    const ghOpenSourceAvg = Math.round(ghProfileAgg._avg.openSourceScore || 0);
 
     // Active contest participants
     const activeContestParticipants = await prisma.leaderboardEntry.count({
@@ -268,14 +261,11 @@ export async function GET(request: NextRequest) {
         where: { student: { leetcodeUsername: { not: null } }, updatedAt: { lt: dateLimit } },
         _avg: { leetcodeScore: true }
       });
-      const consS = await prisma.leaderboardEntry.aggregate({
-        where: { student: { githubUsername: { not: null } }, updatedAt: { lt: dateLimit } },
-        _avg: { githubScore: true }
-      });
+
       
       sparklines.averageTalentScore.push(Math.round(talentS._avg.codechefScore || 0));
       sparklines.averageCPScore.push(Math.round(cpS._avg.leetcodeScore || 0));
-      sparklines.averageConsistencyScore.push(Math.round(consS._avg.githubScore || 0));
+      sparklines.averageConsistencyScore.push(0);
       sparklines.averageProblemsSolved.push(lcProblemsSolvedAvg);
       sparklines.averageContestParticipation.push(ccContestCountAvg);
 
@@ -401,7 +391,7 @@ export async function GET(request: NextRequest) {
           sparkline: sparklines.averageCPScore,
         },
         averageConsistencyScore: {
-          value: Math.round(githubAgg._avg.githubScore || 0),
+          value: 0,
           trend: "GitHub Avg",
           sparkline: sparklines.averageConsistencyScore,
         },
@@ -416,17 +406,17 @@ export async function GET(request: NextRequest) {
           sparkline: sparklines.averageContestParticipation,
         },
         averageRepositories: {
-          value: ghRepositoriesAvg,
+          value: 0,
           trend: "",
           sparkline: [0, 0, 0, 0, 0, 0],
         },
         averageStars: {
-          value: ghStarsAvg,
+          value: 0,
           trend: "",
           sparkline: [0, 0, 0, 0, 0, 0],
         },
         averageOpenSourceScore: {
-          value: ghOpenSourceAvg,
+          value: 0,
           trend: "",
           sparkline: [0, 0, 0, 0, 0, 0],
         },
