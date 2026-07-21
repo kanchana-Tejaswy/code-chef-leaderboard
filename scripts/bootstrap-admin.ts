@@ -10,6 +10,16 @@ import { normalizeEmail } from "../src/utils/normalization";
 import { prisma } from "../src/lib/prisma";
 
 async function bootstrapAdmin() {
+  const args = process.argv.slice(2);
+  const isDryRun = args.includes("--dry-run");
+  const isExecute = args.includes("--execute");
+  const hasConfirmation = args.includes("--confirmation=BOOTSTRAP_FIRST_ADMIN");
+
+  if (!isDryRun && (!isExecute || !hasConfirmation)) {
+    console.error("Safety Error: You must specify either --dry-run or --execute --confirmation=BOOTSTRAP_FIRST_ADMIN");
+    process.exit(1);
+  }
+
   const email = process.env.BOOTSTRAP_ADMIN_EMAIL;
   
   if (!email) {
@@ -33,6 +43,21 @@ async function bootstrapAdmin() {
     process.exit(1);
   }
 
+  if (isDryRun) {
+    console.log(`[DRY-RUN] Admin bootstrap preview for ${normalized}`);
+    if (existing) {
+      console.log(`[DRY-RUN] Account already exists. Status: ${existing.status}`);
+    } else {
+      console.log(`[DRY-RUN] Account would be provisioned as ADMIN`);
+    }
+    await recordAuditEvent({
+      action: AuditAction.ADMIN_BOOTSTRAP_PREVIEWED,
+      metadata: { email: normalized, status: existing ? "EXISTS" : "WILL_CREATE" }
+    });
+    return;
+  }
+
+  console.log(`[LIVE] Bootstrapping Admin for ${normalized}`);
   const result = await provisionStaffAccount({
     email: normalized,
     role: UserRole.ADMIN,
