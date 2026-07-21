@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable prefer-const */
 import { strict as assert } from "node:assert";
 import { normalizeEmail, normalizeRollNumber, normalizeStudentLoginId, normalizeStaffLoginId } from "../src/utils/normalization";
 import { UserRole, AccountStatus } from "@prisma/client";
