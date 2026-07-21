@@ -28,6 +28,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ profile: student });
   } catch (err: any) {
     console.error("Error fetching detailed profile:", err);
-    return NextResponse.json({ error: `Internal server error: ${err?.message || err?.toString()}` }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

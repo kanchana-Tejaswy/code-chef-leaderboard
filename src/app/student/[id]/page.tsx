@@ -247,14 +247,7 @@ export default function StudentProfileDashboard() {
       try {
         const res = await fetch(`/api/profile/details?userId=${studentId}`);
         if (!res.ok) {
-          let errorText = "Student profile could not be loaded.";
-          try {
-            const errData = await res.json();
-            if (errData.error) errorText = errData.error;
-          } catch (e) {
-            errorText = `Server error ${res.status}: ${await res.text()}`;
-          }
-          throw new Error(errorText);
+          throw new Error("Student profile could not be loaded.");
         }
         const data = await res.json();
         setStudent(data.profile);
