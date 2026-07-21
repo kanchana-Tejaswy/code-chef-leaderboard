@@ -40,7 +40,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     });
   } catch (err: any) {
     if (err.name === "AuthError") {
-      return NextResponse.json({ error: err.message }, { status: 403 });
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
     }
     console.error("Error in job status API:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

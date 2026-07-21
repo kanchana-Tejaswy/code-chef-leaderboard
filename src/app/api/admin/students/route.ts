@@ -28,7 +28,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ students });
   } catch (err: any) {
     if (err.name === "AuthError") {
-      return NextResponse.json({ error: err.message }, { status: 403 });
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
     }
     console.error("Error in admin students list API:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -57,7 +59,9 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true, student });
   } catch (err: any) {
     if (err.name === "AuthError") {
-      return NextResponse.json({ error: err.message }, { status: 403 });
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
     }
     console.error("Error updating student via admin endpoint:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

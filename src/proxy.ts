@@ -42,6 +42,9 @@ export async function proxy(request: NextRequest) {
   
   // Broad deflection
   if (!user && !isPublicRoute) {
+    if (pathname.startsWith("/api/")) {
+      return supabaseResponse;
+    }
     const loginUrl = request.nextUrl.clone();
     loginUrl.pathname = "/login";
     return NextResponse.redirect(loginUrl);

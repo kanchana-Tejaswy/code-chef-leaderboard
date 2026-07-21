@@ -244,7 +244,9 @@ export async function GET() {
   } catch (error: any) {
     console.error("Contests aggregation failed:", error);
     if (error.name === "AuthError") {
-      return NextResponse.json({ success: false, contests: [], error: error.message }, { status: 403 });
+      const status = error.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = error.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
     }
     return NextResponse.json({ success: false, contests: cachedContests, error: error.message }, { status: 500 });
   }
