@@ -5,7 +5,7 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
-import { getAuthenticatedUserAccess } from "@/lib/auth";
+
 
 type PlatformKey = "overall" | "codechef" | "leetcode";
 type SortOrder = "asc" | "desc";
@@ -198,8 +198,7 @@ export async function GET(request: NextRequest) {
   const doExport = searchParams.get("export") === "true";
 
   try {
-    const userAccess = await getAuthenticatedUserAccess();
-    const departmentFilter = userAccess?.role === "HOD" && userAccess.departmentId ? userAccess.departmentId : undefined;
+    const departmentFilter = undefined;
 
     const whereClause = buildWhereClause(platform, searchParams, departmentFilter);
     const orderBy = buildOrderBy(platform, searchParams);

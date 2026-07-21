@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { OverallScoreService } from "@/services/overallScore.service";
 import { prisma } from "@/lib/prisma";
 import * as XLSX from "xlsx";
-import { getAuthenticatedUserAccess } from "@/lib/auth";
+
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -15,11 +15,7 @@ export async function GET(request: NextRequest) {
   const doExport = searchParams.get("export") === "true";
 
   try {
-    const userAccess = await getAuthenticatedUserAccess();
-    if (userAccess && userAccess.role === "HOD" && userAccess.departmentId) {
-      // Force filter to HOD's department
-      departments = [userAccess.departmentId];
-    }
+
 
     // 1. Build Query Filters
     const whereClause: any = {};

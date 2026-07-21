@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { unstable_cache } from "next/cache";
-import { getAuthenticatedUserAccess } from "@/lib/auth";
+
 
 export const revalidate = 60;
 
@@ -304,8 +304,7 @@ const getCachedAnalytics = async (departmentFilter?: string) => {
 
 export async function GET(request: NextRequest) {
   try {
-    const userAccess = await getAuthenticatedUserAccess();
-    const departmentFilter = userAccess?.role === "HOD" && userAccess.departmentId ? userAccess.departmentId : undefined;
+    const departmentFilter = undefined;
     
     const data = await getCachedAnalytics(departmentFilter);
     return NextResponse.json(data);

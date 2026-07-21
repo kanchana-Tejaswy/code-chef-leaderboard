@@ -1,5 +1,5 @@
 import { ScrapedData } from "../types/scraper";
-import { GitHubAnalytics } from "../types/github";
+
 import { prisma } from "@/lib/prisma";
 import { OverallScoreService } from "./overallScore.service";
 
