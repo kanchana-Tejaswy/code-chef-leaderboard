@@ -324,20 +324,28 @@ model UserAccess {
   studentProfile        StudentProfile? @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
   auditLogs             AuditLog[]
 
+  @@index([role])
+  @@index([status])
+  @@index([departmentId])
   @@map("user_access")
 }
 
 model AuditLog {
   id          String   @id @default(cuid())
-  userId      String?  @map("user_id")
+  actorUserId String?  @map("user_id")
   action      String
-  details     Json?
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  metadata    Json?    @map("details")
   ipAddress   String?  @map("ip_address")
   userAgent   String?  @map("user_agent")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  userAccess  UserAccess? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userAccess  UserAccess? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
+  @@index([actorUserId])
+  @@index([action])
+  @@index([createdAt])
   @@map("audit_logs")
 }
 
