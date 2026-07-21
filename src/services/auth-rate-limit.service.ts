@@ -7,6 +7,7 @@ export const RATE_LIMIT_CONFIG = {
   OTP_REQUEST_COOLDOWN_SECONDS: 60,
   OTP_REQUEST_MAX_PER_HOUR: 5,
   OTP_VERIFY_MAX_FAILED_PER_15_MIN: 5,
+  PASSWORD_LOGIN_MAX_FAILED_PER_15_MIN: 5,
 } as const;
 
 export function hashIdentifier(identifier: string): string {
@@ -79,6 +80,40 @@ export async function checkOtpVerifyRateLimit(
   });
 
   if (failedCount >= RATE_LIMIT_CONFIG.OTP_VERIFY_MAX_FAILED_PER_15_MIN) {
+    return { allowed: false, reason: "MAX_FAILED_ATTEMPTS_EXCEEDED" };
+  }
+
+  return { allowed: true };
+}
+
+export async function checkPasswordLoginRateLimit(
+  targetId: string
+): Promise<{ allowed: boolean; reason?: string }> {
+  const fifteenMinsAgo = new Date(Date.now() - 15 * 60 * 1000);
+
+  // Get the most recent successful password login
+  const lastSuccess = await prisma.auditLog.findFirst({
+    where: {
+      action: AuditAction.PASSWORD_LOGIN_SUCCESS,
+      targetId: targetId,
+      createdAt: { gte: fifteenMinsAgo },
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true },
+  });
+
+  // Count failed attempts since the last success (or since 15 mins ago)
+  const failedCount = await prisma.auditLog.count({
+    where: {
+      action: AuditAction.PASSWORD_LOGIN_FAILED,
+      targetId: targetId,
+      createdAt: {
+        gte: lastSuccess ? lastSuccess.createdAt : fifteenMinsAgo,
+      },
+    },
+  });
+
+  if (failedCount >= RATE_LIMIT_CONFIG.PASSWORD_LOGIN_MAX_FAILED_PER_15_MIN) {
     return { allowed: false, reason: "MAX_FAILED_ATTEMPTS_EXCEEDED" };
   }
 
