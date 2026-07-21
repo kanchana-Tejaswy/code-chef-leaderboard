@@ -7,6 +7,8 @@ import { canPerformWrite, canPerformDelete } from "@/lib/write-access";
 import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 import { revalidatePath } from "next/cache";
 
+import { requireStudentProfileReadAccess, requireStudentWriteAccess } from "@/lib/auth";
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const studentId = searchParams.get("id") || searchParams.get("userId") || searchParams.get("studentId");
@@ -16,6 +18,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    await requireStudentProfileReadAccess(studentId);
+
     const profile = await prisma.studentProfile.findUnique({
       where: { id: studentId },
       include: {
@@ -32,12 +36,19 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ profile });
   } catch (err: any) {
     console.error("Error fetching profile API:", err);
+    if (err.name === "AuthError") {
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
+    await requireStudentWriteAccess();
+    
     const body = await request.json();
     const {
       name,
@@ -240,12 +251,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, profile: finalProfile });
   } catch (err: any) {
     console.error("Error creating profile API:", err);
+    if (err.name === "AuthError") {
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function PATCH(request: NextRequest) {
   try {
+    await requireStudentWriteAccess();
     const body = await request.json();
     const id = body.id || body.studentId || body.userId;
 
@@ -457,12 +474,18 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ success: true, profile: updatedProfile });
   } catch (err: any) {
     console.error("Error updating profile API (PATCH):", err);
+    if (err.name === "AuthError") {
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
+    await requireStudentWriteAccess();
     const { searchParams } = new URL(request.url);
     const studentId = searchParams.get("id") || searchParams.get("studentId") || searchParams.get("userId");
 
@@ -485,6 +508,11 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, deletedId: studentId });
   } catch (err: any) {
     console.error("Error deleting profile API:", err);
+    if (err.name === "AuthError") {
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
+    }
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

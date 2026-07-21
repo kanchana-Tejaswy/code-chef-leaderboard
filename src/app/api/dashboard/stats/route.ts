@@ -291,7 +291,9 @@ export async function GET(request: NextRequest) {
   } catch (err: any) {
     console.error("Error in stats api:", err);
     if (err.name === "AuthError") {
-      return NextResponse.json({ error: err.message }, { status: 403 });
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
     }
     return NextResponse.json({ error: "Failed to load stats details" }, { status: 500 });
   }
