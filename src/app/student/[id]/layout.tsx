@@ -1,4 +1,4 @@
-import { requireStudentProfileReadAccess } from "@/lib/auth";
+import { requireStudentProfileReadPageAccess } from "@/lib/auth";
 
 export default async function StudentProfileLayout({
   children,
@@ -8,6 +8,6 @@ export default async function StudentProfileLayout({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = await params;
-  await requireStudentProfileReadAccess(resolvedParams.id);
+  await requireStudentProfileReadPageAccess(resolvedParams.id);
   return <>{children}</>;
 }

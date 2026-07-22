@@ -2,6 +2,7 @@ import "server-only";
 import { createClient } from "@/utils/supabase/server";
 import { prisma } from "@/lib/prisma";
 import { UserRole, AccountStatus, UserAccess } from "@prisma/client";
+import { redirect } from "next/navigation";
 
 export class AuthError extends Error {
   constructor(message: string, public code: string) {
@@ -45,6 +46,7 @@ export async function getAuthenticatedUserAccess(): Promise<UserAccess | null> {
 
 /**
  * Ensures an authenticated user exists and returns their UserAccess.
+ * Used by API routes (throws AuthError for 401 JSON).
  */
 export async function requireAuthenticatedUser(): Promise<UserAccess> {
   const access = await getAuthenticatedUserAccess();
@@ -56,6 +58,7 @@ export async function requireAuthenticatedUser(): Promise<UserAccess> {
 
 /**
  * Ensures the authenticated user exists and is ACTIVE.
+ * Used by API routes (throws AuthError for 401/403 JSON).
  */
 export async function requireActiveUser(): Promise<UserAccess> {
   const access = await requireAuthenticatedUser();
@@ -70,6 +73,7 @@ export async function requireActiveUser(): Promise<UserAccess> {
 
 /**
  * Ensures the authenticated user is ACTIVE and has one of the allowed roles.
+ * Used by API routes (throws AuthError for 403 JSON).
  */
 export async function requireRole(...roles: UserRole[]): Promise<UserAccess> {
   const access = await requireActiveUser();
@@ -80,21 +84,21 @@ export async function requireRole(...roles: UserRole[]): Promise<UserAccess> {
 }
 
 /**
- * Ensures the user is an ADMIN.
+ * Ensures the user is an ADMIN (API Routes).
  */
 export async function requireAdmin(): Promise<UserAccess> {
   return requireRole(UserRole.ADMIN);
 }
 
 /**
- * Ensures the user is an ADMIN, GK_SIR, or HOD.
+ * Ensures the user is an ADMIN, GK_SIR, or HOD (API Routes).
  */
 export async function requireStaffReadAccess(): Promise<UserAccess> {
   return requireRole(UserRole.ADMIN, UserRole.GK_SIR, UserRole.HOD);
 }
 
 /**
- * Ensures the user is a STUDENT and owns the specified profile.
+ * Ensures the user is a STUDENT and owns the specified profile (API Routes).
  */
 export async function requireOwnStudentProfile(studentProfileId: string): Promise<UserAccess> {
   const access = await requireActiveUser();
@@ -108,10 +112,7 @@ export async function requireOwnStudentProfile(studentProfileId: string): Promis
 }
 
 /**
- * General student profile read access check.
- * - ADMIN / GK_SIR: full access
- * - HOD: access only if department matches
- * - STUDENT: access only if it's their own profile
+ * General student profile read access check (API Routes).
  */
 export async function requireStudentProfileReadAccess(studentProfileId: string): Promise<UserAccess> {
   const access = await requireActiveUser();
@@ -197,6 +198,103 @@ export async function requireRefreshAccess(): Promise<UserAccess> {
 }
 
 export async function requireProfileEditAccess(studentProfileId: string): Promise<UserAccess> {
-  // Only ADMIN can edit profiles right now
   return requireAdmin();
+}
+
+// -----------------------------------------------------------------------------
+// PAGE AUTH HELPERS (Used strictly by Server Component Layouts & Pages)
+// -----------------------------------------------------------------------------
+
+export async function requireAuthenticatedPageUser(): Promise<UserAccess> {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    redirect("/login");
+  }
+
+  const access = await prisma.userAccess.findUnique({
+    where: { authUserId: user.id }
+  });
+
+  if (!access) {
+    redirect("/login?error=unauthorized");
+  }
+
+  if (access.email && user.email?.toLowerCase() !== access.email.toLowerCase()) {
+    redirect("/login?error=session_mismatch");
+  }
+
+  return access;
+}
+
+export async function requireActivePageUser(): Promise<UserAccess> {
+  const access = await requireAuthenticatedPageUser();
+
+  if (access.status === AccountStatus.SUSPENDED) {
+    redirect("/login?error=account_suspended");
+  }
+  if (access.status === AccountStatus.DISABLED) {
+    redirect("/login?error=account_disabled");
+  }
+  if (access.status === AccountStatus.PENDING || access.mustSetPassword) {
+    redirect("/auth/set-password");
+  }
+  if (access.status !== AccountStatus.ACTIVE) {
+    redirect("/login?error=inactive_account");
+  }
+
+  return access;
+}
+
+export async function requirePageRole(...roles: UserRole[]): Promise<UserAccess> {
+  const access = await requireActivePageUser();
+  if (!roles.includes(access.role)) {
+    redirect(getRoleHomePath(access));
+  }
+  return access;
+}
+
+export async function requireAdminPageAccess(): Promise<UserAccess> {
+  return requirePageRole(UserRole.ADMIN);
+}
+
+export async function requireStaffReadPageAccess(): Promise<UserAccess> {
+  return requirePageRole(UserRole.ADMIN, UserRole.GK_SIR, UserRole.HOD);
+}
+
+export async function requireDashboardPageAccess(): Promise<UserAccess> {
+  return requireAdminPageAccess();
+}
+
+export async function requireLeaderboardPageAccess(): Promise<UserAccess> {
+  return requirePageRole(UserRole.ADMIN, UserRole.GK_SIR, UserRole.HOD, UserRole.STUDENT);
+}
+
+export async function requireStudentProfileReadPageAccess(studentProfileId: string): Promise<UserAccess> {
+  const access = await requireActivePageUser();
+
+  if (access.role === UserRole.ADMIN || access.role === UserRole.GK_SIR) {
+    return access;
+  }
+
+  if (access.role === UserRole.HOD) {
+    if (!access.departmentId) {
+      redirect("/login?error=missing_department");
+    }
+    const targetStudent = await prisma.studentProfile.findUnique({
+      where: { id: studentProfileId }
+    });
+    if (!targetStudent || targetStudent.department !== access.departmentId) {
+      redirect("/leaderboard");
+    }
+    return access;
+  }
+
+  if (access.role === UserRole.STUDENT) {
+    if (access.studentProfileId !== studentProfileId) {
+      redirect(getRoleHomePath(access));
+    }
+    return access;
+  }
+
+  redirect("/login");
 }

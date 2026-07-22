@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireAdminPageAccess } from "@/lib/auth";
 import AdminAccessClient from "./AdminAccessClient";
 
 export const metadata = {
@@ -6,7 +6,7 @@ export const metadata = {
 };
 
 export default async function AdminAccessPage() {
-  await requireAdmin();
+  await requireAdminPageAccess();
 
   return (
     <div className="container mx-auto px-4 py-8">
