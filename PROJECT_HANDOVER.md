@@ -413,9 +413,10 @@ Current Branch: main
 Stack: Next.js 16 (App Router), TypeScript, Prisma 7 ORM, Supabase Auth & PostgreSQL, TailwindCSS, Vitest.
 
 Current State:
-- Phase 6 (Admin Access Management & Account Provisioning) is fully implemented, tested (125 tests passing), and deployed to Production Vercel.
-- Protected API routes correctly return Direct HTTP 401 JSON (unauthenticated) and Direct HTTP 403 JSON (unauthorized roles).
-- Server-side gatekeepers in src/lib/auth.ts enforce role permissions (ADMIN, GK_SIR, HOD, STUDENT).
+- Phase 6 (Admin Access Management & Account Provisioning) and Phase B (Authentication & Authorization Security Enhancements) are fully implemented, tested (274 tests passing), and deployed to Production Vercel.
+- First Production Admin bootstrap completed (`mail2tejaswy@gmail.com`) with role `ADMIN` and status `PENDING` (0 duplicate Supabase users created, 0 migrations run, 0 student records modified).
+- Protected API routes correctly return Direct HTTP 401 JSON (unauthenticated) and Direct HTTP 403 JSON (unauthorized roles) with `Cache-Control: private, no-store`.
+- Server-side gatekeepers in `src/lib/auth.ts` enforce role permissions (`ADMIN`, `GK_SIR`, `HOD`, `STUDENT`).
 
 Rules & Safety Instructions:
 1. Do not modify schema.prisma or run database migrations without explicit user instruction.
@@ -425,5 +426,6 @@ Rules & Safety Instructions:
 5. Always inspect source code and run verification tests (npx vitest run) after making changes.
 
 Next Priority Task:
-Execute or configure Phase 7 First-Admin Bootstrap & Account Onboarding. Refer to PROJECT_HANDOVER.md for full details.
+Admin user performs first-time OTP verification and password activation on deployed Production login page (`/login`).
 ```
+
