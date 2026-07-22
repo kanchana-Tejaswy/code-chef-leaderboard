@@ -1,10 +1,10 @@
-import { requireDashboardAccess } from "@/lib/auth";
+import { requireDashboardPageAccess } from "@/lib/auth";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireDashboardAccess();
+  await requireDashboardPageAccess();
   return <>{children}</>;
 }

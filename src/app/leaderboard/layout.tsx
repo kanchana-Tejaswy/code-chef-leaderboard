@@ -1,10 +1,10 @@
-import { requireLeaderboardAccess } from "@/lib/auth";
+import { requireLeaderboardPageAccess } from "@/lib/auth";
 
 export default async function LeaderboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireLeaderboardAccess();
+  await requireLeaderboardPageAccess();
   return <>{children}</>;
 }
