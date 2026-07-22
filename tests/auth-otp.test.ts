@@ -15,6 +15,8 @@ let mockSupabaseOtpVerified = false;
 let mockRateLimitAllowed = true;
 let lastAuditEvents: any[] = [];
 let lastSignInOtpConfig: any = null;
+let mockSupabaseUserEmailOverride: string | null = null;
+let mockSupabaseVerifyError: any = null;
 
 // Mock implementations replacing Prisma/Supabase/Audit service for the test runner
 async function mockRecordAuditEvent(params: any) {
@@ -39,14 +41,15 @@ const mockSupabaseClient = {
       return { error: null };
     },
     verifyOtp: async (config: any) => {
-      if (config.token === "000000") return { data: { user: null }, error: { message: "Invalid code" } };
+      if (mockSupabaseVerifyError) return { data: { user: null }, error: mockSupabaseVerifyError };
+      if (config.token === "000000" || config.token === "999999") return { data: { user: null }, error: { message: "Invalid code" } };
       mockSupabaseOtpVerified = true;
-      // return mock user
+      const returnedEmail = mockSupabaseUserEmailOverride || config.email;
       return {
         data: {
           user: {
             id: "supa-1",
-            email: config.email,
+            email: returnedEmail,
           }
         },
         error: null
@@ -117,9 +120,10 @@ async function handleRequestOtp(body: any, contentLength: number = 100) {
 
 async function handleVerifyOtp(body: any) {
   const { accountType, identifier, token } = body;
-  if (!accountType || (accountType !== "STAFF" && accountType !== "STUDENT")) return { status: 400, data: { success: false } };
-  if (!identifier || typeof identifier !== "string") return { status: 400, data: { success: false } };
-  if (!token || typeof token !== "string" || !/^\d{6}$/.test(token)) return { status: 400, data: { success: false, message: "Invalid code format" } };
+  const cleanToken = typeof token === "string" ? token.trim() : "";
+  if (!accountType || (accountType !== "STAFF" && accountType !== "STUDENT")) return { status: 400, data: { success: false, message: "Invalid account type" } };
+  if (!identifier || typeof identifier !== "string") return { status: 400, data: { success: false, message: "Invalid identifier" } };
+  if (!cleanToken || !/^\d{6}$/.test(cleanToken)) return { status: 400, data: { success: false, message: "Invalid code format" } };
 
   let resolvedEmail: string | null = null;
   let targetUserAccess: any = null;
@@ -130,7 +134,7 @@ async function handleVerifyOtp(body: any) {
       targetUserAccess = mockUserAccess.find(u => u.loginId === loginId);
       if (targetUserAccess && targetUserAccess.role === UserRole.STUDENT && targetUserAccess.studentProfileId) {
         const studentProfile = mockStudentProfiles.find(s => s.id === targetUserAccess.studentProfileId);
-        if (studentProfile) resolvedEmail = targetUserAccess.email;
+        if (studentProfile) resolvedEmail = targetUserAccess.email ? targetUserAccess.email.trim().toLowerCase() : null;
         else targetUserAccess = null;
       } else targetUserAccess = null;
     }
@@ -140,7 +144,7 @@ async function handleVerifyOtp(body: any) {
       targetUserAccess = mockUserAccess.find(u => u.email === normEmail || u.loginId === normalizeStaffLoginId(normEmail));
       if (targetUserAccess && [UserRole.ADMIN, UserRole.GK_SIR, UserRole.HOD].includes(targetUserAccess.role)) {
         if (targetUserAccess.role === UserRole.HOD && !targetUserAccess.departmentId) targetUserAccess = null;
-        else resolvedEmail = targetUserAccess.email;
+        else resolvedEmail = targetUserAccess.email ? targetUserAccess.email.trim().toLowerCase() : null;
       } else targetUserAccess = null;
     }
   }
@@ -150,18 +154,18 @@ async function handleVerifyOtp(body: any) {
   const rateLimit = await mockCheckOtpVerifyRateLimit(auditTargetId);
   if (!rateLimit.allowed) {
     await mockRecordAuditEvent({ action: "FIRST_LOGIN_OTP_RATE_LIMITED" });
-    return { status: 429, data: { success: false } };
+    return { status: 429, data: { success: false, message: "Too many failed attempts. Please try again later." } };
   }
 
   if (!resolvedEmail || !targetUserAccess) {
     await mockRecordAuditEvent({ action: "FIRST_LOGIN_OTP_FAILED" });
-    return { status: 400, data: { success: false } };
+    return { status: 400, data: { success: false, message: "Invalid verification code" } };
   }
 
-  const { data: verifyData, error: verifyError } = await mockSupabaseClient.auth.verifyOtp({ email: resolvedEmail, token, type: "email" });
+  const { data: verifyData, error: verifyError } = await mockSupabaseClient.auth.verifyOtp({ email: resolvedEmail, token: cleanToken, type: "email" });
   if (verifyError || !verifyData.user) {
     await mockRecordAuditEvent({ action: "FIRST_LOGIN_OTP_FAILED" });
-    return { status: 400, data: { success: false } };
+    return { status: 400, data: { success: false, message: "Invalid verification code" } };
   }
 
   const isValid = verifyData.user.id === targetUserAccess.authUserId &&
@@ -173,7 +177,7 @@ async function handleVerifyOtp(body: any) {
   if (!isValid) {
     await mockSupabaseClient.auth.signOut();
     await mockRecordAuditEvent({ action: "FIRST_LOGIN_OTP_FAILED" });
-    return { status: 400, data: { success: false } };
+    return { status: 400, data: { success: false, message: "Invalid verification code" } };
   }
 
   await mockRecordAuditEvent({ action: "FIRST_LOGIN_OTP_VERIFIED" });
@@ -195,6 +199,8 @@ function runTest(name: string, fn: () => void | Promise<void>) {
     mockRateLimitAllowed = true;
     lastAuditEvents = [];
     lastSignInOtpConfig = null;
+    mockSupabaseUserEmailOverride = null;
+    mockSupabaseVerifyError = null;
     await fn();
   });
 }
@@ -428,6 +434,75 @@ describe("Auth OTP Tests", () => {
 
   runTest("40. Set-password placeholder denies ACTIVE completed users", async () => {
     assert.ok(true); // Placeholder page checks `userAccess.status !== AccountStatus.PENDING`
+  });
+
+  runTest("41. Correct numeric email OTP verifies successfully", async () => {
+    mockUserAccess.push({ email: "mail2tejaswy@gmail.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
+    const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "mail2tejaswy@gmail.com", token: "654321" });
+    assert.equal(res.status, 200);
+    assert.equal(res.data.success, true);
+    assert.equal(res.data.next, "/auth/set-password");
+  });
+
+  runTest("42. OTP beginning with zero (e.g., 012345) preserves leading zero as string", async () => {
+    mockUserAccess.push({ email: "mail2tejaswy@gmail.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
+    const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "mail2tejaswy@gmail.com", token: "012345" });
+    assert.equal(res.status, 200);
+    assert.equal(res.data.success, true);
+  });
+
+  runTest("43. Incorrect OTP fails with generic error", async () => {
+    mockUserAccess.push({ email: "mail2tejaswy@gmail.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
+    const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "mail2tejaswy@gmail.com", token: "999999" });
+    assert.equal(res.status, 400);
+    assert.equal(res.data.success, false);
+    assert.equal(res.data.message, "Invalid verification code");
+  });
+
+  runTest("44. Expired OTP returns generic error", async () => {
+    mockSupabaseVerifyError = { message: "Token has expired" };
+    mockUserAccess.push({ email: "mail2tejaswy@gmail.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
+    const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "mail2tejaswy@gmail.com", token: "123456" });
+    assert.equal(res.status, 400);
+    assert.equal(res.data.success, false);
+    assert.equal(res.data.message, "Invalid verification code");
+  });
+
+  runTest("45. OTP containing spaces is trimmed and succeeds", async () => {
+    mockUserAccess.push({ email: "mail2tejaswy@gmail.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
+    const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "mail2tejaswy@gmail.com", token: "  012345  " });
+    assert.equal(res.status, 200);
+    assert.equal(res.data.success, true);
+  });
+
+  runTest("46. Wrong account type returns 400", async () => {
+    mockUserAccess.push({ email: "mail2tejaswy@gmail.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
+    const res = await handleVerifyOtp({ accountType: "STUDENT", identifier: "mail2tejaswy@gmail.com", token: "123456" });
+    assert.equal(res.status, 400);
+    assert.equal(res.data.success, false);
+  });
+
+  runTest("47. Mismatched registered email fails and signs out session", async () => {
+    mockSupabaseUserEmailOverride = "different@gmail.com";
+    mockUserAccess.push({ email: "mail2tejaswy@gmail.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
+    const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "mail2tejaswy@gmail.com", token: "123456" });
+    assert.equal(res.status, 400);
+    assert.equal(res.data.success, false);
+    assert.equal(mockSupabaseSignOutCalled, true);
+  });
+
+  runTest("48. Successful verification logs session creation event", async () => {
+    mockUserAccess.push({ email: "mail2tejaswy@gmail.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
+    const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "mail2tejaswy@gmail.com", token: "123456" });
+    assert.equal(res.status, 200);
+    assert.ok(lastAuditEvents.find(e => e.action === "FIRST_LOGIN_SESSION_CREATED"));
+  });
+
+  runTest("49. Redirect to /auth/set-password for PENDING Admin", async () => {
+    mockUserAccess.push({ email: "mail2tejaswy@gmail.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
+    const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "mail2tejaswy@gmail.com", token: "123456" });
+    assert.equal(res.status, 200);
+    assert.equal(res.data.next, "/auth/set-password");
   });
 });
 

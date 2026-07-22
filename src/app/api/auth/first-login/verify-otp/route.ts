@@ -26,6 +26,7 @@ export async function POST(req: Request) {
     }
 
     const { accountType, identifier, token } = body;
+    const cleanToken = typeof token === "string" ? token.trim() : "";
 
     if (!accountType || (accountType !== "STAFF" && accountType !== "STUDENT")) {
       return NextResponse.json({ success: false, message: "Invalid account type" }, { status: 400, headers: { "Cache-Control": "no-store" } });
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
     if (!identifier || typeof identifier !== "string") {
       return NextResponse.json({ success: false, message: "Invalid identifier" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
-    if (!token || typeof token !== "string" || !/^\d{6}$/.test(token)) {
+    if (!cleanToken || !/^\d{6}$/.test(cleanToken)) {
       return NextResponse.json({ success: false, message: "Invalid code format" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
             where: { id: targetUserAccess.studentProfileId },
           });
           if (studentProfile && studentProfile.id === targetUserAccess.studentProfileId) {
-            resolvedEmail = targetUserAccess.email;
+            resolvedEmail = targetUserAccess.email ? targetUserAccess.email.trim().toLowerCase() : null;
           } else {
             targetUserAccess = null;
           }
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
           if (targetUserAccess.role === UserRole.HOD && !targetUserAccess.departmentId) {
             targetUserAccess = null;
           } else {
-            resolvedEmail = targetUserAccess.email;
+            resolvedEmail = targetUserAccess.email ? targetUserAccess.email.trim().toLowerCase() : null;
           }
         } else {
           targetUserAccess = null;
@@ -114,7 +115,7 @@ export async function POST(req: Request) {
     const supabase = await createClient();
     const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
       email: resolvedEmail,
-      token,
+      token: cleanToken,
       type: "email",
     });
 

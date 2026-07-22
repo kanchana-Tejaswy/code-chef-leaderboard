@@ -38,7 +38,8 @@ export default function VerifyOtpPage() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (code.length !== 6 || !/^\d{6}$/.test(code)) {
+    const cleanCode = code.trim();
+    if (cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
       setError("Please enter a valid 6-digit code.");
       return;
     }
@@ -51,7 +52,7 @@ export default function VerifyOtpPage() {
       const response = await fetch("/api/auth/first-login/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accountType, identifier, token: code }),
+        body: JSON.stringify({ accountType, identifier, token: cleanCode }),
       });
 
       const data = await response.json();
