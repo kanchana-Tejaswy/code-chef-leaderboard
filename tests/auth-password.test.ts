@@ -147,9 +147,6 @@ async function handleLogout() {
   return { status: 200, data: { success: true } };
 }
 
-let passed = 0;
-let failed = 0;
-
 function reset() {
   mockUserAccess = [];
   mockAuditLogs = [];
@@ -162,294 +159,283 @@ function reset() {
   mockDbTransactionFail = false;
 }
 
-function runTest(name: string, fn: () => Promise<void> | void) {
-  reset();
-  try {
-    const res = fn();
-    if (res instanceof Promise) {
-      return res.then(() => { passed++; }).catch(e => { failed++; console.log(`❌ ${name}\\n  ${e.message}`); });
-    } else {
-      passed++;
-    }
-  } catch (e: any) {
-    failed++;
-    console.log(`❌ ${name}\\n  ${e.message}`);
-  }
+import { describe, it } from "vitest";
+
+function runTest(name: string, fn: () => void | Promise<void>) {
+  it(name, async () => {
+    reset();
+    await fn();
+  });
 }
 
-async function main() {
-  console.log("\\nRunning Auth Password tests...");
+describe("Auth Password Tests", () => {
 
-  await runTest("1. Valid 12-character password", () => {
+  runTest("1. Valid 12-character password", () => {
     assert.equal(validatePassword("validpass123", "validpass123").isValid, true);
   });
-  await runTest("2. Valid passphrase with spaces", () => {
+  runTest("2. Valid passphrase with spaces", () => {
     assert.equal(validatePassword("correct horse battery staple", "correct horse battery staple").isValid, true);
   });
-  await runTest("3. Too-short password rejected", () => {
+  runTest("3. Too-short password rejected", () => {
     assert.equal(validatePassword("short", "short").isValid, false);
   });
-  await runTest("4. Over-128-character password rejected", () => {
+  runTest("4. Over-128-character password rejected", () => {
     assert.equal(validatePassword("a".repeat(129), "a".repeat(129)).isValid, false);
   });
-  await runTest("5. All-whitespace password rejected", () => {
+  runTest("5. All-whitespace password rejected", () => {
     assert.equal(validatePassword("            ", "            ").isValid, false);
   });
-  await runTest("6. Password containing roll number rejected", () => {
+  runTest("6. Password containing roll number rejected", () => {
     assert.equal(validatePassword("my24AG1A05F7pass", "my24AG1A05F7pass", { rollNumber: "24AG1A05F7" }).isValid, false);
   });
-  await runTest("7. Password equal to email rejected", () => {
+  runTest("7. Password equal to email rejected", () => {
     assert.equal(validatePassword("test@example.com", "test@example.com", { email: "test@example.com" }).isValid, false);
   });
-  await runTest("8. Password containing full name rejected where available", () => {
+  runTest("8. Password containing full name rejected where available", () => {
     assert.equal(validatePassword("johnsmith123", "johnsmith123", { fullName: "John Smith" }).isValid, false);
   });
-  await runTest("9. Password confirmation mismatch rejected", () => {
+  runTest("9. Password confirmation mismatch rejected", () => {
     assert.equal(validatePassword("validpass123", "validpass456").isValid, false);
   });
-  await runTest("10. Password never appears in logs", () => {
+  runTest("10. Password never appears in logs", () => {
     assert(true);
   });
-  await runTest("11. Unauthenticated user denied", async () => {
+  runTest("11. Unauthenticated user denied", async () => {
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, null);
     assert.equal(res.status, 401);
   });
-  await runTest("12. Missing UserAccess denied", async () => {
+  runTest("12. Missing UserAccess denied", async () => {
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1" });
     assert.equal(res.status, 401);
   });
-  await runTest("13. PENDING eligible user allowed", async () => {
+  runTest("13. PENDING eligible user allowed", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(res.status, 200);
   });
-  await runTest("14. ACTIVE user redirected", async () => {
+  runTest("14. ACTIVE user redirected", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(res.data.redirectTo, "/dashboard");
   });
-  await runTest("15. SUSPENDED user denied", async () => {
+  runTest("15. SUSPENDED user denied", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.SUSPENDED, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(res.status, 401);
   });
-  await runTest("16. DISABLED user denied", async () => {
+  runTest("16. DISABLED user denied", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.DISABLED, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(res.status, 401);
   });
-  await runTest("17. User ID mismatch signs out", async () => {
+  runTest("17. User ID mismatch signs out", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "diff", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(res.status, 401);
     assert.equal(mockSupabaseSignOutCalled, true);
   });
-  await runTest("18. Email mismatch signs out", async () => {
+  runTest("18. Email mismatch signs out", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "diff@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(res.status, 401);
   });
-  await runTest("19. STUDENT without profile denied", async () => {
+  runTest("19. STUDENT without profile denied", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.STUDENT, studentProfileId: null, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(res.status, 401);
   });
-  await runTest("20. HOD without department denied", async () => {
+  runTest("20. HOD without department denied", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.HOD, departmentId: null, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(res.status, 401);
   });
-  await runTest("21. updateUser receives password only", async () => {
+  runTest("21. updateUser receives password only", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(mockUpdateUserArgs.password, "validpass123");
   });
-  await runTest("22. Admin client is not used", async () => { assert(true); });
-  await runTest("23. Password is not written to Prisma", async () => {
+  runTest("22. Admin client is not used", async () => { assert(true); });
+  runTest("23. Password is not written to Prisma", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(mockUserAccess[0].password, undefined);
   });
-  await runTest("24. Successful setup activates account", async () => {
+  runTest("24. Successful setup activates account", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(mockUserAccess[0].status, AccountStatus.ACTIVE);
   });
-  await runTest("25. mustSetPassword becomes false", async () => {
+  runTest("25. mustSetPassword becomes false", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(mockUserAccess[0].mustSetPassword, false);
   });
-  await runTest("26. firstLoginCompleted becomes true", async () => {
+  runTest("26. firstLoginCompleted becomes true", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(mockUserAccess[0].firstLoginCompleted, true);
   });
-  await runTest("27. passwordSetAt is recorded", async () => {
+  runTest("27. passwordSetAt is recorded", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.notEqual(mockUserAccess[0].passwordSetAt, undefined);
   });
-  await runTest("28. lastLoginAt is recorded", async () => {
+  runTest("28. lastLoginAt is recorded", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.notEqual(mockUserAccess[0].lastLoginAt, undefined);
   });
-  await runTest("29. Correct role redirect returned", async () => {
+  runTest("29. Correct role redirect returned", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.GK_SIR, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(res.data.redirectTo, "/leaderboard");
   });
-  await runTest("30. Supabase success plus Prisma failure returns safe partial failure", async () => {
+  runTest("30. Supabase success plus Prisma failure returns safe partial failure", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     mockDbTransactionFail = true;
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
     assert.equal(res.status, 500);
   });
-  await runTest("31. Partial failure retry succeeds", async () => { assert(true); });
-  await runTest("32. Already activated retry redirects safely", async () => { assert(true); });
-  await runTest("33. Valid student roll-number login", async () => {
+  runTest("31. Partial failure retry succeeds", async () => { assert(true); });
+  runTest("32. Already activated retry redirects safely", async () => { assert(true); });
+  runTest("33. Valid student roll-number login", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.status, 200);
   });
-  await runTest("34. Valid staff email login", async () => {
+  runTest("34. Valid staff email login", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STAFF", identifier: "test@ex.com", password: "validpass123" });
     assert.equal(res.status, 200);
   });
-  await runTest("35. Unknown identifier returns generic failure", async () => {
+  runTest("35. Unknown identifier returns generic failure", async () => {
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.status, 400);
     assert.equal(res.data.message, "Unable to sign in with the provided credentials.");
   });
-  await runTest("36. Wrong password returns generic failure", async () => {
+  runTest("36. Wrong password returns generic failure", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "wrong" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.status, 400);
   });
-  await runTest("37. PENDING account returns generic failure", async () => {
+  runTest("37. PENDING account returns generic failure", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.PENDING, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.status, 400);
   });
-  await runTest("38. SUSPENDED account returns generic failure", async () => {
+  runTest("38. SUSPENDED account returns generic failure", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.SUSPENDED, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.status, 400);
   });
-  await runTest("39. DISABLED account returns generic failure", async () => {
+  runTest("39. DISABLED account returns generic failure", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.DISABLED, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.status, 400);
   });
-  await runTest("40. STUDENT cannot use staff flow", async () => {
+  runTest("40. STUDENT cannot use staff flow", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.STUDENT, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STAFF", identifier: "test@ex.com", password: "validpass123" });
     assert.equal(res.status, 400);
   });
-  await runTest("41. Staff cannot use student flow", async () => {
+  runTest("41. Staff cannot use student flow", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.ADMIN, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.status, 400);
   });
-  await runTest("42. HOD without department denied", async () => {
+  runTest("42. HOD without department denied", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.HOD, departmentId: null, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STAFF", identifier: "test@ex.com", password: "validpass123" });
     assert.equal(res.status, 400);
   });
-  await runTest("43. Auth user ID mismatch signs out", async () => {
+  runTest("43. Auth user ID mismatch signs out", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "diff", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.status, 400);
     assert.equal(mockSupabaseSignOutCalled, true);
   });
-  await runTest("44. Auth email mismatch signs out", async () => {
+  runTest("44. Auth email mismatch signs out", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "diff@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.status, 400);
     assert.equal(mockSupabaseSignOutCalled, true);
   });
-  await runTest("45. Successful login updates lastLoginAt", async () => {
+  runTest("45. Successful login updates lastLoginAt", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.notEqual(mockUserAccess[0].lastLoginAt, undefined);
   });
-  await runTest("46. Correct redirect for ADMIN", async () => {
+  runTest("46. Correct redirect for ADMIN", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STAFF", identifier: "test@ex.com", password: "validpass123" });
     assert.equal(res.data.redirectTo, "/dashboard");
   });
-  await runTest("47. Correct redirect for GK_SIR", async () => {
+  runTest("47. Correct redirect for GK_SIR", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.GK_SIR, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STAFF", identifier: "test@ex.com", password: "validpass123" });
     assert.equal(res.data.redirectTo, "/leaderboard");
   });
-  await runTest("48. Correct redirect for HOD", async () => {
+  runTest("48. Correct redirect for HOD", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.HOD, departmentId: "d1", status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STAFF", identifier: "test@ex.com", password: "validpass123" });
     assert.equal(res.data.redirectTo, "/leaderboard");
   });
-  await runTest("49. Correct redirect for STUDENT", async () => {
+  runTest("49. Correct redirect for STUDENT", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.data.redirectTo, "/student/p1");
   });
-  await runTest("50. No resolved email returned to browser", async () => {
+  runTest("50. No resolved email returned to browser", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.data.email, undefined);
   });
-  await runTest("51. No token returned to browser", async () => {
+  runTest("51. No token returned to browser", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.data.token, undefined);
   });
-  await runTest("52. Failed-login rate limiting works", async () => {
+  runTest("52. Failed-login rate limiting works", async () => {
     mockRateLimitAllowed = false;
     const res = await handleLoginPassword({ accountType: "STUDENT", identifier: "24AG1A05F7", password: "validpass123" });
     assert.equal(res.status, 429);
   });
-  await runTest("53. Successful login is not counted as failure", async () => { assert(true); });
-  await runTest("54. Logout uses POST", async () => {
+  runTest("53. Successful login is not counted as failure", async () => { assert(true); });
+  runTest("54. Logout uses POST", async () => {
     const res = await handleLogout();
     assert.equal(res.status, 200);
   });
-  await runTest("55. Logout clears session", async () => {
+  runTest("55. Logout clears session", async () => {
     await handleLogout();
     assert.equal(mockSupabaseSignOutCalled, true);
   });
-  await runTest("56. Refresh remains logged out", async () => { assert(true); });
-  await runTest("57. Double login submission prevented", async () => { assert(true); });
-  await runTest("58. Double password-set submission prevented", async () => { assert(true); });
-  await runTest("59. SessionStorage identifier cleared after activation", async () => { assert(true); });
-  await runTest("60. SessionStorage identifier cleared after logout", async () => { assert(true); });
-  await runTest("61. Password never stored in sessionStorage", async () => { assert(true); });
-  await runTest("62. OTP never stored persistently", async () => { assert(true); });
-  await runTest("63. ACTIVE user visiting login redirects", async () => { assert(true); });
-  await runTest("64. PENDING verified user visiting login goes to set-password", async () => { assert(true); });
+  runTest("56. Refresh remains logged out", async () => { assert(true); });
+  runTest("57. Double login submission prevented", async () => { assert(true); });
+  runTest("58. Double password-set submission prevented", async () => { assert(true); });
+  runTest("59. SessionStorage identifier cleared after activation", async () => { assert(true); });
+  runTest("60. SessionStorage identifier cleared after logout", async () => { assert(true); });
+  runTest("61. Password never stored in sessionStorage", async () => { assert(true); });
+  runTest("62. OTP never stored persistently", async () => { assert(true); });
+  runTest("63. ACTIVE user visiting login redirects", async () => { assert(true); });
+  runTest("64. PENDING verified user visiting login goes to set-password", async () => { assert(true); });
+});
 
-  console.log(`\nTotal tests executed: 64`);
-  console.log(`Passed: ${passed}`);
-  console.log(`Failed: ${failed}`);
-}
 
-main().catch(console.error);

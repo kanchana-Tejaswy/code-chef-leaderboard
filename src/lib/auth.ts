@@ -59,6 +59,9 @@ export async function requireAuthenticatedUser(): Promise<UserAccess> {
  */
 export async function requireActiveUser(): Promise<UserAccess> {
   const access = await requireAuthenticatedUser();
+  if (access.status === AccountStatus.PENDING) {
+    throw new AuthError("Password setup required", "PENDING_ACCOUNT");
+  }
   if (access.status !== AccountStatus.ACTIVE) {
     throw new AuthError("Account is not active", "INACTIVE_ACCOUNT");
   }
@@ -144,7 +147,13 @@ export async function requireStudentProfileReadAccess(studentProfileId: string):
 }
 
 export function getRoleHomePath(access: UserAccess | null): string {
-  if (!access || access.status !== AccountStatus.ACTIVE) {
+  if (!access) {
+    return "/login";
+  }
+  if (access.status === AccountStatus.PENDING) {
+    return "/auth/set-password";
+  }
+  if (access.status !== AccountStatus.ACTIVE) {
     return "/login";
   }
   switch (access.role) {

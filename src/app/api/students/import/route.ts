@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canPerformWrite } from "@/lib/write-access";
+import { requireAdmin } from "@/lib/auth";
 import { SyncService } from "@/services/sync.service";
 import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 
@@ -23,6 +23,7 @@ interface ImportRow {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin();
     const body = await request.json().catch(() => ({}));
     const { action, rows, autoSync } = body;
 
@@ -317,10 +318,16 @@ export async function POST(request: NextRequest) {
         rejected: invalidCount,
       },
       importedIds
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
 
   } catch (err: any) {
+    if (err.name === "AuthError") {
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
+    }
     console.error("Error in CSV import API:", err);
-    return NextResponse.json({ error: "Internal server error: " + err.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }
+

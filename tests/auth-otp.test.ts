@@ -182,15 +182,10 @@ async function handleVerifyOtp(body: any) {
   return { status: 200, data: { success: true, next: "/auth/set-password" } };
 }
 
-// TEST RUNNER
-let testsRun = 0;
-let testsPassed = 0;
-let testsFailed = 0;
-const failures: string[] = [];
-async function runTest(name: string, fn: () => void | Promise<void>) {
-  testsRun++;
-  try {
-    // Reset mocks
+import { describe, it } from "vitest";
+
+function runTest(name: string, fn: () => void | Promise<void>) {
+  it(name, async () => {
     mockUserAccess = [];
     mockStudentProfiles = [];
     mockAuditLogs = [];
@@ -200,20 +195,14 @@ async function runTest(name: string, fn: () => void | Promise<void>) {
     mockRateLimitAllowed = true;
     lastAuditEvents = [];
     lastSignInOtpConfig = null;
-
-    const res = fn();
-    if (res instanceof Promise) await res;
-    testsPassed++;
-  } catch (e: any) {
-    testsFailed++;
-    failures.push(`${name}: ${e.message}`);
-  }
+    await fn();
+  });
 }
 
-async function runAllTests() {
-  console.log("Running Auth OTP tests...\n");
+describe("Auth OTP Tests", () => {
 
-  await runTest("1. Student valid first-login request", async () => {
+
+  runTest("1. Student valid first-login request", async () => {
     mockStudentProfiles.push({ id: "s1" });
     mockUserAccess.push({ loginId: "1234567810", role: UserRole.STUDENT, studentProfileId: "s1", email: "stu@t.com", authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleRequestOtp({ accountType: "STUDENT", identifier: "1234567810" });
@@ -222,62 +211,62 @@ async function runAllTests() {
     assert.ok(lastAuditEvents.find(e => e.action === "FIRST_LOGIN_OTP_REQUESTED"));
   });
 
-  await runTest("2. Staff valid first-login request", async () => {
+  runTest("2. Staff valid first-login request", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleRequestOtp({ accountType: "STAFF", identifier: "staff@t.com" });
     assert.equal(res.status, 200);
     assert.equal(mockSupabaseOtpSent, true);
   });
 
-  await runTest("3. Unknown student returns generic success", async () => {
+  runTest("3. Unknown student returns generic success", async () => {
     const res = await handleRequestOtp({ accountType: "STUDENT", identifier: "UNKNOWN999" });
     assert.equal(res.status, 200);
     assert.equal(mockSupabaseOtpSent, false);
     assert.ok(lastAuditEvents.find(e => e.action === "FIRST_LOGIN_OTP_REJECTED"));
   });
 
-  await runTest("4. Unknown staff returns generic success", async () => {
+  runTest("4. Unknown staff returns generic success", async () => {
     const res = await handleRequestOtp({ accountType: "STAFF", identifier: "unknown@t.com" });
     assert.equal(res.status, 200);
     assert.equal(mockSupabaseOtpSent, false);
   });
 
-  await runTest("5. Suspended account returns generic success without OTP", async () => {
+  runTest("5. Suspended account returns generic success without OTP", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.SUSPENDED, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleRequestOtp({ accountType: "STAFF", identifier: "staff@t.com" });
     assert.equal(res.status, 200);
     assert.equal(mockSupabaseOtpSent, false);
   });
 
-  await runTest("6. Disabled account returns generic success without OTP", async () => {
+  runTest("6. Disabled account returns generic success without OTP", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.DISABLED, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleRequestOtp({ accountType: "STAFF", identifier: "staff@t.com" });
     assert.equal(res.status, 200);
     assert.equal(mockSupabaseOtpSent, false);
   });
 
-  await runTest("7. Active completed account returns generic success without OTP", async () => {
+  runTest("7. Active completed account returns generic success without OTP", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     const res = await handleRequestOtp({ accountType: "STAFF", identifier: "staff@t.com" });
     assert.equal(res.status, 200);
     assert.equal(mockSupabaseOtpSent, false);
   });
 
-  await runTest("8. Missing authUserId does not send OTP", async () => {
+  runTest("8. Missing authUserId does not send OTP", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: null, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleRequestOtp({ accountType: "STAFF", identifier: "staff@t.com" });
     assert.equal(res.status, 200);
     assert.equal(mockSupabaseOtpSent, false);
   });
 
-  await runTest("9. HOD missing department does not send OTP", async () => {
+  runTest("9. HOD missing department does not send OTP", async () => {
     mockUserAccess.push({ email: "hod@t.com", role: UserRole.HOD, departmentId: null, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleRequestOtp({ accountType: "STAFF", identifier: "hod@t.com" });
     assert.equal(res.status, 200);
     assert.equal(mockSupabaseOtpSent, false);
   });
 
-  await runTest("10. Student missing StudentProfile link does not send OTP", async () => {
+  runTest("10. Student missing StudentProfile link does not send OTP", async () => {
     mockUserAccess.push({ loginId: "1234567810", role: UserRole.STUDENT, studentProfileId: "s1", email: "stu@t.com", authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     // mockStudentProfiles is empty, so it's missing the link
     const res = await handleRequestOtp({ accountType: "STUDENT", identifier: "1234567810" });
@@ -285,49 +274,49 @@ async function runAllTests() {
     assert.equal(mockSupabaseOtpSent, false);
   });
 
-  await runTest("11. shouldCreateUser is false", async () => {
+  runTest("11. shouldCreateUser is false", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     await handleRequestOtp({ accountType: "STAFF", identifier: "staff@t.com" });
     assert.equal(lastSignInOtpConfig.options.shouldCreateUser, false);
   });
 
-  await runTest("12. Browser cannot supply destination email", async () => {
+  runTest("12. Browser cannot supply destination email", async () => {
     // Our handler only takes `identifier` and strictly resolves `email` from Prisma.
     assert.ok(true);
   });
 
-  await runTest("13. Browser cannot supply role", async () => {
+  runTest("13. Browser cannot supply role", async () => {
     // Handled by hardcoded UserRole checks in the route based on accountType.
     assert.ok(true);
   });
 
-  await runTest("14. OTP value is never logged", async () => {
+  runTest("14. OTP value is never logged", async () => {
     assert.ok(true); // Token is never added to metadata object in verify handler.
   });
 
-  await runTest("15. Full identifier is never logged", async () => {
+  runTest("15. Full identifier is never logged", async () => {
     assert.ok(true); // Handled by hashIdentifier logic on unknown
   });
 
-  await runTest("16. Request rate limit works", async () => {
+  runTest("16. Request rate limit works", async () => {
     mockRateLimitAllowed = false;
     const res = await handleRequestOtp({ accountType: "STAFF", identifier: "staff@t.com" });
     assert.equal(mockSupabaseOtpSent, false);
     assert.ok(lastAuditEvents.find(e => e.action === "FIRST_LOGIN_OTP_RATE_LIMITED"));
   });
 
-  await runTest("17. Resend cooldown works", async () => {
+  runTest("17. Resend cooldown works", async () => {
     assert.ok(true); // Included in rate limit service test technically
   });
 
-  await runTest("18. Verification attempt limit works", async () => {
+  runTest("18. Verification attempt limit works", async () => {
     mockRateLimitAllowed = false;
     const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "staff@t.com", token: "123456" });
     assert.equal(res.status, 429);
     assert.equal(mockSupabaseOtpVerified, false);
   });
 
-  await runTest("19. Valid six-digit OTP verifies", async () => {
+  runTest("19. Valid six-digit OTP verifies", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "staff@t.com", token: "123456" });
     assert.equal(res.status, 200);
@@ -336,37 +325,37 @@ async function runAllTests() {
     assert.ok(lastAuditEvents.find(e => e.action === "FIRST_LOGIN_OTP_VERIFIED"));
   });
 
-  await runTest("20. Invalid OTP fails generically", async () => {
+  runTest("20. Invalid OTP fails generically", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "staff@t.com", token: "000000" }); // 000000 mocked to fail
     assert.equal(res.status, 400);
     assert.equal(res.data.success, false);
   });
 
-  await runTest("21. Non-numeric OTP rejected", async () => {
+  runTest("21. Non-numeric OTP rejected", async () => {
     const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "staff@t.com", token: "12345A" });
     assert.equal(res.status, 400);
     assert.equal(res.data.success, false);
   });
 
-  await runTest("22. Short OTP rejected", async () => {
+  runTest("22. Short OTP rejected", async () => {
     const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "staff@t.com", token: "12345" });
     assert.equal(res.status, 400);
   });
 
-  await runTest("23. Long OTP rejected", async () => {
+  runTest("23. Long OTP rejected", async () => {
     const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "staff@t.com", token: "1234567" });
     assert.equal(res.status, 400);
   });
 
-  await runTest("24. Returned Auth user ID mismatch signs out", async () => {
+  runTest("24. Returned Auth user ID mismatch signs out", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: "supa-DIFFERENT", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "staff@t.com", token: "123456" });
     assert.equal(res.status, 400);
     assert.equal(mockSupabaseSignOutCalled, true);
   });
 
-  await runTest("25. Returned email mismatch signs out", async () => {
+  runTest("25. Returned email mismatch signs out", async () => {
     mockUserAccess.push({ email: "DIFFERENT@t.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "staff@t.com", token: "123456" });
     // Resolves to targetUserAccess if loginId matches (staff@t.com login ID is staff). So resolved email is DIFFERENT@t.com.
@@ -375,79 +364,70 @@ async function runAllTests() {
     assert.ok(true);
   });
 
-  await runTest("26. Account suspended during verification signs out", async () => {
+  runTest("26. Account suspended during verification signs out", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.SUSPENDED, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "staff@t.com", token: "123456" });
     assert.equal(res.status, 400);
     assert.equal(mockSupabaseSignOutCalled, true);
   });
 
-  await runTest("27. Successful verification leaves status PENDING", async () => {
+  runTest("27. Successful verification leaves status PENDING", async () => {
     assert.ok(true); // Verification route does not contain any Prisma update logic.
   });
 
-  await runTest("28. Successful verification leaves mustSetPassword true", async () => {
+  runTest("28. Successful verification leaves mustSetPassword true", async () => {
     assert.ok(true); // Verification route does not contain any Prisma update logic.
   });
 
-  await runTest("29. Successful verification leaves firstLoginCompleted false", async () => {
+  runTest("29. Successful verification leaves firstLoginCompleted false", async () => {
     assert.ok(true); // Verification route does not contain any Prisma update logic.
   });
 
-  await runTest("30. Successful verification returns /auth/set-password", async () => {
+  runTest("30. Successful verification returns /auth/set-password", async () => {
     mockUserAccess.push({ email: "staff@t.com", role: UserRole.ADMIN, authUserId: "supa-1", status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleVerifyOtp({ accountType: "STAFF", identifier: "staff@t.com", token: "123456" });
     assert.equal(res.data.next, "/auth/set-password");
   });
 
-  await runTest("31. Verified session cookies are written", async () => {
+  runTest("31. Verified session cookies are written", async () => {
     assert.ok(true); // @supabase/ssr setAll handles this
   });
 
-  await runTest("32. No password is created", async () => {
+  runTest("32. No password is created", async () => {
     assert.ok(true); // No password logic present
   });
 
-  await runTest("33. No account is activated", async () => {
+  runTest("33. No account is activated", async () => {
     assert.ok(true); // No Prisma update logic present
   });
 
-  await runTest("34. Unknown OTP request does not create Supabase user", async () => {
+  runTest("34. Unknown OTP request does not create Supabase user", async () => {
     await handleRequestOtp({ accountType: "STAFF", identifier: "unknown@t.com" });
     assert.equal(lastSignInOtpConfig, null);
   });
 
-  await runTest("35. Audit metadata contains no OTP", async () => {
+  runTest("35. Audit metadata contains no OTP", async () => {
     assert.ok(true); // Token is strictly never added to metadata object in verify handler.
   });
 
-  await runTest("36. Audit metadata contains no full email or roll number", async () => {
+  runTest("36. Audit metadata contains no full email or roll number", async () => {
     assert.ok(true); // Rate limit mock gets "hash_..."
   });
 
-  await runTest("37. Client prevents double submission", async () => {
+  runTest("37. Client prevents double submission", async () => {
     assert.ok(true); // UI has disabled={loading}
   });
 
-  await runTest("38. Resend countdown is displayed", async () => {
+  runTest("38. Resend countdown is displayed", async () => {
     assert.ok(true); // UI has setCountdown(60)
   });
 
-  await runTest("39. Set-password placeholder denies unauthenticated users", async () => {
+  runTest("39. Set-password placeholder denies unauthenticated users", async () => {
     assert.ok(true); // Placeholder page checks `if (!user) redirect("/login");`
   });
 
-  await runTest("40. Set-password placeholder denies ACTIVE completed users", async () => {
+  runTest("40. Set-password placeholder denies ACTIVE completed users", async () => {
     assert.ok(true); // Placeholder page checks `userAccess.status !== AccountStatus.PENDING`
   });
+});
 
-  console.log(`\nTests Run: ${testsRun}`);
-  console.log(`Tests Passed: ${testsPassed}`);
-  console.log(`Tests Failed: ${testsFailed}`);
-  
-  if (testsFailed > 0) {
-    console.error("Failures:", failures);
-  }
-}
-
-runAllTests();

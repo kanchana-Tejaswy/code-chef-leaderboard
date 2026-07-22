@@ -1,11 +1,11 @@
 import { NextRequest } from "next/server";
 
 export function isPublicDemoWriteEnabled(): boolean {
-  return true;
+  return process.env.ALLOW_PUBLIC_DEMO_WRITES === "true" && process.env.NODE_ENV !== "production";
 }
 
 export function isPublicDemoDeleteEnabled(): boolean {
-  return true;
+  return process.env.ALLOW_PUBLIC_DEMO_WRITES === "true" && process.env.NODE_ENV !== "production";
 }
 
 export function hasValidCronSecret(request: NextRequest): boolean {
@@ -23,21 +23,23 @@ export function hasValidCronSecret(request: NextRequest): boolean {
 
   const suppliedToken = normalizedHeader.slice("Bearer ".length).trim();
   
-  // Use a simple constant-time comparison or direct comparison
   return suppliedToken === cronSecret;
 }
 
-export function canPerformWrite(request: NextRequest): boolean {
-  return true;
+export function canPerformWrite(request?: NextRequest): boolean {
+  return isPublicDemoWriteEnabled();
 }
 
-export function canPerformDelete(request: NextRequest): boolean {
-  return true;
+export function canPerformDelete(request?: NextRequest): boolean {
+  return isPublicDemoDeleteEnabled();
 }
 
 export function getPublicDemoModeStatus() {
+  const enabled = isPublicDemoWriteEnabled();
   return {
-    publicDemoWriteMode: true,
-    publicDemoDeleteMode: true,
+    publicDemoWriteMode: enabled,
+    publicDemoDeleteMode: enabled,
+    publicDemoModeActive: enabled,
   };
 }
+
