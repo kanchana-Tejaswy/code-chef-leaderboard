@@ -124,7 +124,7 @@ export async function POST(req: Request) {
 
     // Attempt to send OTP / Magic Link with production callback URL
     const origin = req.headers.get("origin") || (req.headers.get("x-forwarded-host") ? `${req.headers.get("x-forwarded-proto") || "https"}://${req.headers.get("x-forwarded-host")}` : null);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin || "https://code-chef-leaderboard-fp24om7pw-kanchana-tejaswys-projects.vercel.app";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || origin || "https://code-chef-leaderboard.vercel.app";
     const emailRedirectTo = `${appUrl}/auth/callback`;
 
     const supabase = await createClient();
