@@ -4,10 +4,11 @@ import { SyncService } from "@/services/sync.service";
 import { CodechefScraper, LeetcodeScraper } from "@/services/scraper.service";
 import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 import { ActivityService } from "@/services/activity.service";
-import { canPerformWrite } from "@/lib/write-access";
+import { requireAdmin } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin();
     const body = await request.json().catch(() => ({}));
     const { name, email, url, codechefUrl, leetcodeUrl, githubUrl, linkedinUrl, rollNumber, department, year, branch, section } = body;
 
@@ -216,9 +217,15 @@ export async function POST(request: NextRequest) {
       success: true,
       message: "Student profile registered successfully. Data sync has been queued in the background.",
       student: finalStudent,
-    });
+    }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err: any) {
+    if (err.name === "AuthError") {
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
+    }
     console.error("Error in student analyze API:", err);
-    return NextResponse.json({ error: "Internal server error: " + err.message }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }
+

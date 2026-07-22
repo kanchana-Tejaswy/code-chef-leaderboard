@@ -219,202 +219,184 @@ async function requireOwnStudentProfile(studentProfileId: string): Promise<any> 
   return access;
 }
 
-// TEST RUNNER
-let testsRun = 0;
-let testsPassed = 0;
-let testsFailed = 0;
-const failures: string[] = [];
-async function runTest(name: string, fn: () => void | Promise<void>) {
-  testsRun++;
-  try {
-    const res = fn();
-    if (res instanceof Promise) await res;
-    testsPassed++;
-  } catch (e: any) {
-    testsFailed++;
-    failures.push(`${name}: ${e.message}`);
-  }
+import { describe, it } from "vitest";
+
+function runTest(name: string, fn: () => void | Promise<void>) {
+  it(name, async () => {
+    await fn();
+  });
 }
 
-async function runAllTests() {
-  console.log("Running Authentication Core tests...\n");
+describe("Authentication Core Tests", () => {
 
-  await runTest("1. Valid email normalization", () => { assert.equal(normalizeEmail(" TEST@Example.com "), "test@example.com"); });
-  await runTest("2. Invalid email rejection", () => { assert.equal(normalizeEmail("invalid"), null); });
-  await runTest("3. Roll-number normalization", () => { assert.equal(normalizeRollNumber(" 16X 41A050 1 "), "16X41A0501"); });
-  await runTest("4. Valid 10-character roll number", () => { assert.equal(normalizeRollNumber("16X41A0501"), "16X41A0501"); });
-  await runTest("5. Valid 11-character roll number", () => { assert.equal(normalizeRollNumber("16X41A0501A"), "16X41A0501A"); });
-  await runTest("6. Valid 12-character roll number", () => { assert.equal(normalizeRollNumber("16X41A0501AB"), "16X41A0501AB"); });
-  await runTest("7. Too-short roll number rejected", () => { assert.equal(normalizeRollNumber("short"), null); });
-  await runTest("8. Too-long roll number rejected", () => { assert.equal(normalizeRollNumber("16X41A0501ABC"), null); });
-  await runTest("9. CLOUDTEST001 has no special bypass", () => { assert.equal(normalizeRollNumber("CLOUDTEST001"), "CLOUDTEST001"); assert.equal(normalizeRollNumber("CLOUDTEST001XX"), null); });
 
-  await runTest("10. Duplicate student provisioning returns ALREADY_PROVISIONED", async () => {
+  runTest("1. Valid email normalization", () => { assert.equal(normalizeEmail(" TEST@Example.com "), "test@example.com"); });
+  runTest("2. Invalid email rejection", () => { assert.equal(normalizeEmail("invalid"), null); });
+  runTest("3. Roll-number normalization", () => { assert.equal(normalizeRollNumber(" 16X 41A050 1 "), "16X41A0501"); });
+  runTest("4. Valid 10-character roll number", () => { assert.equal(normalizeRollNumber("16X41A0501"), "16X41A0501"); });
+  runTest("5. Valid 11-character roll number", () => { assert.equal(normalizeRollNumber("16X41A0501A"), "16X41A0501A"); });
+  runTest("6. Valid 12-character roll number", () => { assert.equal(normalizeRollNumber("16X41A0501AB"), "16X41A0501AB"); });
+  runTest("7. Too-short roll number rejected", () => { assert.equal(normalizeRollNumber("short"), null); });
+  runTest("8. Too-long roll number rejected", () => { assert.equal(normalizeRollNumber("16X41A0501ABC"), null); });
+  runTest("9. CLOUDTEST001 has no special bypass", () => { assert.equal(normalizeRollNumber("CLOUDTEST001"), "CLOUDTEST001"); assert.equal(normalizeRollNumber("CLOUDTEST001XX"), null); });
+
+  runTest("10. Duplicate student provisioning returns ALREADY_PROVISIONED", async () => {
     mockStudentProfiles.push({ id: "s1", email: "s1@t.com", rollNumber: "1234567890", department: "CSE" });
     mockUserAccess.push({ studentProfileId: "s1", authUserId: "supa-1", email: "s1@t.com" });
     const res = await provisionStudentAccount("s1");
     assert.equal(res.status, "ALREADY_PROVISIONED");
   });
-  await runTest("11. Existing UserAccess is reused", async () => {
+  runTest("11. Existing UserAccess is reused", async () => {
     mockStudentProfiles.push({ id: "s2", email: "s2@t.com", rollNumber: "1234567891", department: "CSE" });
     mockSupabaseUsers.push({ id: "supa-124", email: "s2@t.com" });
     const res = await provisionStudentAccount("s2");
     assert.equal(res.status, "LINKED");
   });
-  await runTest("12. Email conflict returns CONFLICT", async () => {
+  runTest("12. Email conflict returns CONFLICT", async () => {
     mockStudentProfiles.push({ id: "s3", email: "con@t.com", rollNumber: "1234567892", department: "CSE" });
     mockUserAccess.push({ studentProfileId: "other", email: "con@t.com" });
     const res = await provisionStudentAccount("s3");
     assert.equal(res.status, "CONFLICT");
   });
-  await runTest("13. Login ID conflict returns CONFLICT", async () => {
+  runTest("13. Login ID conflict returns CONFLICT", async () => {
     mockStudentProfiles.push({ id: "s4", email: "ok@t.com", rollNumber: "1234567810", department: "CSE" });
     mockUserAccess.push({ loginId: "1234567810", email: "other@t.com" });
     const res = await provisionStudentAccount("s4");
     assert.equal(res.status, "CONFLICT");
   });
-  await runTest("14. Auth user created but Prisma write fails returns PARTIAL_FAILURE", async () => {
+  runTest("14. Auth user created but Prisma write fails returns PARTIAL_FAILURE", async () => {
     mockStudentProfiles.push({ id: "s5", email: "partial@t.com", rollNumber: "1234567895", department: "CSE" });
     mockPrismaTransactionFail = true;
     const res = await provisionStudentAccount("s5");
     assert.equal(res.status, "PARTIAL_FAILURE");
     mockPrismaTransactionFail = false;
   });
-  await runTest("15. Retry links the existing Auth user", async () => {
+  runTest("15. Retry links the existing Auth user", async () => {
     const res = await provisionStudentAccount("s5");
     assert.equal(res.status, "LINKED");
   });
-  await runTest("16. Existing Auth user owned by another UserAccess returns CONFLICT", async () => {
+  runTest("16. Existing Auth user owned by another UserAccess returns CONFLICT", async () => {
     mockStudentProfiles.push({ id: "s6", email: "steal@t.com", rollNumber: "1234567896", department: "CSE" });
     mockSupabaseUsers.push({ id: "supa-steal", email: "steal@t.com" });
     mockUserAccess.push({ authUserId: "supa-steal", email: "other@t.com" });
     const res = await provisionStudentAccount("s6");
     assert.equal(res.status, "CONFLICT");
   });
-  await runTest("17. No duplicate Auth user is created on retry", async () => {
+  runTest("17. No duplicate Auth user is created on retry", async () => {
     createUserCalled = false;
     const res = await provisionStudentAccount("s5");
     assert.equal(res.status, "ALREADY_PROVISIONED");
     assert.equal(createUserCalled, false);
   });
   
-  await runTest("18. HOD without department is rejected", async () => {
+  runTest("18. HOD without department is rejected", async () => {
     const res = await provisionStaffAccount({ email: "hod@t.com", role: UserRole.HOD });
     assert.equal(res.status, "FAILED");
   });
-  await runTest("19. STUDENT is rejected from staff provisioning", async () => {
+  runTest("19. STUDENT is rejected from staff provisioning", async () => {
     const res = await provisionStaffAccount({ email: "student@t.com", role: UserRole.STUDENT });
     assert.equal(res.status, "FAILED");
   });
-  await runTest("20. ADMIN provisioning succeeds", async () => {
+  runTest("20. ADMIN provisioning succeeds", async () => {
     const res = await provisionStaffAccount({ email: "admin@t.com", role: UserRole.ADMIN });
     assert.equal(res.status, "CREATED");
   });
-  await runTest("21. GK_SIR provisioning succeeds", async () => {
+  runTest("21. GK_SIR provisioning succeeds", async () => {
     const res = await provisionStaffAccount({ email: "gksir@t.com", role: UserRole.GK_SIR });
     assert.equal(res.status, "CREATED");
   });
 
-  await runTest("22. PENDING account denied normal access", async () => {
+  runTest("22. PENDING account denied normal access", async () => {
     mockAuthenticatedUser = { id: "p-1" };
     mockUserAccess.push({ authUserId: "p-1", status: AccountStatus.PENDING, role: UserRole.STUDENT });
     await assert.rejects(requireActiveUser(), /Account is not active/);
   });
-  await runTest("23. SUSPENDED account denied", async () => {
+  runTest("23. SUSPENDED account denied", async () => {
     mockAuthenticatedUser = { id: "s-1" };
     mockUserAccess.push({ authUserId: "s-1", status: AccountStatus.SUSPENDED, role: UserRole.STUDENT });
     await assert.rejects(requireActiveUser(), /Account is not active/);
   });
-  await runTest("24. DISABLED account denied", async () => {
+  runTest("24. DISABLED account denied", async () => {
     mockAuthenticatedUser = { id: "d-1" };
     mockUserAccess.push({ authUserId: "d-1", status: AccountStatus.DISABLED, role: UserRole.STUDENT });
     await assert.rejects(requireActiveUser(), /Account is not active/);
   });
-  await runTest("25. ACTIVE account allowed", async () => {
+  runTest("25. ACTIVE account allowed", async () => {
     mockAuthenticatedUser = { id: "a-1" };
     mockUserAccess.push({ authUserId: "a-1", status: AccountStatus.ACTIVE, role: UserRole.STUDENT });
     await requireActiveUser();
   });
-  await runTest("26. Student own profile allowed", async () => {
+  runTest("26. Student own profile allowed", async () => {
     mockAuthenticatedUser = { id: "a-1" };
     mockUserAccess.find(u => u.authUserId === "a-1").studentProfileId = "prof-1";
     await requireOwnStudentProfile("prof-1");
   });
-  await runTest("27. Student other profile denied", async () => {
+  runTest("27. Student other profile denied", async () => {
     mockAuthenticatedUser = { id: "a-1" };
     await assert.rejects(requireOwnStudentProfile("prof-2"), /Forbidden/);
   });
-  await runTest("28. HOD own-department profile allowed", async () => {
+  runTest("28. HOD own-department profile allowed", async () => {
     mockAuthenticatedUser = { id: "h-1" };
     mockUserAccess.push({ authUserId: "h-1", status: AccountStatus.ACTIVE, role: UserRole.HOD, departmentId: "CSE" });
     mockStudentProfiles.push({ id: "p-cse", department: "CSE" });
     await requireStudentProfileReadAccess("p-cse");
   });
-  await runTest("29. HOD other-department profile denied", async () => {
+  runTest("29. HOD other-department profile denied", async () => {
     mockStudentProfiles.push({ id: "p-ece", department: "ECE" });
     await assert.rejects(requireStudentProfileReadAccess("p-ece"), /Forbidden/);
   });
-  await runTest("30. GK_SIR can read every profile", async () => {
+  runTest("30. GK_SIR can read every profile", async () => {
     mockAuthenticatedUser = { id: "gk-1" };
     mockUserAccess.push({ authUserId: "gk-1", status: AccountStatus.ACTIVE, role: UserRole.GK_SIR });
     await requireStudentProfileReadAccess("p-ece");
   });
-  await runTest("31. ADMIN can read every profile", async () => {
+  runTest("31. ADMIN can read every profile", async () => {
     mockAuthenticatedUser = { id: "ad-1" };
     mockUserAccess.push({ authUserId: "ad-1", status: AccountStatus.ACTIVE, role: UserRole.ADMIN });
     await requireStudentProfileReadAccess("p-ece");
   });
 
-  await runTest("32. Audit password field redacted", async () => {
+  runTest("32. Audit password field redacted", async () => {
     await recordAuditEvent({ action: "TEST", metadata: { password: "secret_password" } });
     assert.equal(mockAuditLogs[mockAuditLogs.length - 1].metadata.password, "[REDACTED]");
   });
-  await runTest("33. Audit OTP field redacted", async () => {
+  runTest("33. Audit OTP field redacted", async () => {
     await recordAuditEvent({ action: "TEST", metadata: { otp: "123456" } });
     assert.equal(mockAuditLogs[mockAuditLogs.length - 1].metadata.otp, "[REDACTED]");
   });
-  await runTest("34. Audit token fields redacted", async () => {
+  runTest("34. Audit token fields redacted", async () => {
     await recordAuditEvent({ action: "TEST", metadata: { token: "secret_token", accessToken: "xyz" } });
     assert.equal(mockAuditLogs[mockAuditLogs.length - 1].metadata.token, "[REDACTED]");
     assert.equal(mockAuditLogs[mockAuditLogs.length - 1].metadata.accessToken, "[REDACTED]");
   });
-  await runTest("35. Oversized audit metadata is limited", async () => {
+  runTest("35. Oversized audit metadata is limited", async () => {
     await recordAuditEvent({ action: "TEST", metadata: { big: "x".repeat(11000) } });
     assert.ok(mockAuditLogs[mockAuditLogs.length - 1].metadata.big.length <= 10000);
   });
-  await runTest("36. Audit failure does not fail provisioning", async () => {
+  runTest("36. Audit failure does not fail provisioning", async () => {
     // In this mocked runner, this is effectively true as audit fails don't break transactions here
     assert.ok(true);
   });
 
-  await runTest("37. Dry-run creates no Auth user", async () => {
+  runTest("37. Dry-run creates no Auth user", async () => {
     // Will run actual dry run script separately
     assert.ok(true);
   });
-  await runTest("38. Dry-run performs no Prisma writes", async () => {
+  runTest("38. Dry-run performs no Prisma writes", async () => {
     assert.ok(true);
   });
 
-  await runTest("39. Provisioning creates users with email_confirm false", async () => {
+  runTest("39. Provisioning creates users with email_confirm false", async () => {
     assert.equal(lastCreateUserConfig.email_confirm, false);
   });
-  await runTest("40. Provisioning creates no password", async () => {
+  runTest("40. Provisioning creates no password", async () => {
     assert.equal(lastCreateUserConfig.password, undefined);
   });
-  await runTest("41. Provisioning sends no OTP or invitation", async () => {
+  runTest("41. Provisioning sends no OTP or invitation", async () => {
     assert.equal(lastCreateUserConfig.email_confirm, false);
   });
-  await runTest("42. Admin client remains server-only", async () => {
+  runTest("42. Admin client remains server-only", async () => {
     assert.ok(true);
   });
+});
 
-  console.log(`\nTests Run: ${testsRun}`);
-  console.log(`Tests Passed: ${testsPassed}`);
-  console.log(`Tests Failed: ${testsFailed}`);
-  
-  if (testsFailed > 0) {
-    console.error("Failures:", failures);
-  }
-}
-
-runAllTests();
