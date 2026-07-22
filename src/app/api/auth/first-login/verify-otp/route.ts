@@ -112,6 +112,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, message: "Invalid verification code" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
+    const requestId = crypto.randomUUID();
+
     const supabase = await createClient();
     const { data: verifyData, error: verifyError } = await supabase.auth.verifyOtp({
       email: resolvedEmail,
@@ -120,10 +122,17 @@ export async function POST(req: Request) {
     });
 
     if (verifyError || !verifyData.user) {
+      console.error("[OTP Verify Temp Log]:", {
+        requestId,
+        errorCategory: "SUPABASE_VERIFY_ERROR",
+        errorCode: verifyError?.code || verifyError?.name || "VERIFY_ERROR_NULL_USER",
+        httpStatus: verifyError?.status || 400,
+        errorMessage: verifyError?.message || "No user returned from verifyOtp",
+      });
       await recordAuditEvent({
         action: AuditAction.FIRST_LOGIN_OTP_FAILED,
         targetId: auditTargetId,
-        metadata: { reason: "Supabase verification failed", error: verifyError?.message },
+        metadata: { reason: "Supabase verification failed", error: verifyError?.message, requestId },
       });
       return NextResponse.json({ success: false, message: "Invalid verification code" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
@@ -137,12 +146,25 @@ export async function POST(req: Request) {
       targetUserAccess.firstLoginCompleted === false;
 
     if (!isValid) {
+      console.error("[OTP Verify Temp Log]:", {
+        requestId,
+        errorCategory: "POST_VERIFY_VALIDATION_MISMATCH",
+        errorCode: "VALIDATION_MISMATCH",
+        httpStatus: 400,
+        mismatchDetails: {
+          authUserIdMatch: verifyData.user.id === targetUserAccess.authUserId,
+          emailMatch: verifyData.user.email?.toLowerCase() === resolvedEmail.toLowerCase(),
+          accountStatus: targetUserAccess.status,
+          mustSetPassword: targetUserAccess.mustSetPassword,
+          firstLoginCompleted: targetUserAccess.firstLoginCompleted,
+        },
+      });
       // Rollback session
       await supabase.auth.signOut();
       await recordAuditEvent({
         action: AuditAction.FIRST_LOGIN_OTP_FAILED,
         targetId: auditTargetId,
-        metadata: { reason: "Post-verification validation failed (mismatch or inactive account)" },
+        metadata: { reason: "Post-verification validation failed (mismatch or inactive account)", requestId },
       });
       return NextResponse.json({ success: false, message: "Invalid verification code" }, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
