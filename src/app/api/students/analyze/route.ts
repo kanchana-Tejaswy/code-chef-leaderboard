@@ -1,201 +1,53 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
-import { CodechefScraper, LeetcodeScraper } from "@/services/scraper.service";
-import { normalizeAndValidateUrl } from "@/utils/urlValidation";
-import { ActivityService } from "@/services/activity.service";
+import { StudentProfileService } from "@/services/student-profile.service";
 import { requireAdmin } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
     const body = await request.json().catch(() => ({}));
-    const { name, email, url, codechefUrl, leetcodeUrl, githubUrl, linkedinUrl, rollNumber, department, year, branch, section } = body;
+    const { name, email, rollNumber, department, year, branch, section, contactNumber, cgpa, codechefUrl, leetcodeUrl, codeforcesUrl, githubUrl, linkedinUrl, url } = body;
 
-    if (!name || !name.trim()) {
-      return NextResponse.json({ error: "Student Name is required" }, { status: 400 });
+    const rawInput = {
+      name,
+      email,
+      rollNumber,
+      department,
+      year,
+      branch,
+      section,
+      contactNumber,
+      cgpa,
+      codechefUrl: codechefUrl || url,
+      leetcodeUrl,
+      codeforcesUrl,
+      githubUrl,
+      linkedinUrl,
+    };
+
+    const evaluated = await StudentProfileService.evaluateRows([rawInput]);
+    const row = evaluated[0];
+
+    if (row.classification !== "READY" && row.classification !== "INCOMPLETE") {
+      const errorMsg = row.reasons.join(" ") || "Invalid student profile data.";
+      return NextResponse.json({ error: errorMsg, details: row }, { status: 400 });
     }
 
-    if (!email || !email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
+    const res = await StudentProfileService.createProfile(row.normalized);
+    if (!res.success || !res.profile) {
+      return NextResponse.json({ error: res.error || "Failed to create student profile." }, { status: 400 });
     }
 
-    const parsedYear = year ? parseInt(String(year), 10) : 3;
-    if (isNaN(parsedYear) || parsedYear < 1 || parsedYear > 4) {
-      return NextResponse.json({ error: "Academic year must be between 1 and 4." }, { status: 400 });
-    }
-
-    // Determine URLs from request body (support original 'url' parameter as codechefUrl fallback)
-    const targetCodechefUrl = codechefUrl || url;
-    
-    // Validate URLs and extract usernames
-    const codechefScraper = new CodechefScraper();
-    const leetcodeScraper = new LeetcodeScraper();
-
-
-    let codechefUsername: string | null = null;
-    let leetcodeUsername: string | null = null;
-    let githubUsername: string | null = null;
-    let validatedLinkedinUrl: string | null = null;
-
-    if (targetCodechefUrl && targetCodechefUrl.trim()) {
-      const validation = codechefScraper.validate(targetCodechefUrl);
-      if (!validation.isValid) {
-        return NextResponse.json({ error: validation.error || "Invalid CodeChef URL" }, { status: 400 });
-      }
-      codechefUsername = validation.username;
-    }
-
-    if (leetcodeUrl && leetcodeUrl.trim()) {
-      const validation = leetcodeScraper.validate(leetcodeUrl);
-      if (!validation.isValid) {
-        return NextResponse.json({ error: validation.error || "Invalid LeetCode URL" }, { status: 400 });
-      }
-      leetcodeUsername = validation.username;
-    }
-
-    if (githubUrl && githubUrl.trim()) {
-      const validation = normalizeAndValidateUrl(githubUrl, "github");
-      if (!validation.isValid) {
-        return NextResponse.json({ error: validation.error || "Invalid GitHub URL" }, { status: 400 });
-      }
-      githubUsername = validation.normalizedUrl;
-    }
-
-    if (linkedinUrl && linkedinUrl.trim()) {
-      const validation = normalizeAndValidateUrl(linkedinUrl, "linkedin");
-      if (!validation.isValid) {
-        return NextResponse.json({ error: validation.error || "Invalid LinkedIn URL" }, { status: 400 });
-      }
-      validatedLinkedinUrl = validation.normalizedUrl;
-    }
-
-    if (!codechefUsername && !leetcodeUsername && !githubUsername) {
-      return NextResponse.json({ error: "At least one platform profile URL is required (CodeChef, LeetCode, or GitHub)" }, { status: 400 });
-    }
-
-    if (!rollNumber || !rollNumber.trim()) {
-      return NextResponse.json({ error: "Roll number is required." }, { status: 400 });
-    }
-
-    let targetRollNumber = rollNumber.trim().toUpperCase();
-
-    // Check if student already exists by roll number or usernames
-    let student = null;
-    if (targetRollNumber) {
-      student = await prisma.studentProfile.findUnique({
-        where: { rollNumber: targetRollNumber },
-      });
-    }
-
-    if (!student && codechefUsername) {
-      student = await prisma.studentProfile.findFirst({
-        where: { codechefUsername },
-      });
-    }
-
-    if (!student && leetcodeUsername) {
-      student = await prisma.studentProfile.findFirst({
-        where: { leetcodeUsername },
-      });
-    }
-
-    if (!student && githubUsername) {
-      student = await prisma.studentProfile.findFirst({
-        where: { githubUsername },
-      });
-    }
-
-    if (!student) {
-      const checkRoll = await prisma.studentProfile.findUnique({ where: { rollNumber: targetRollNumber } });
-      if (checkRoll) {
-        return NextResponse.json({ error: "Roll number is already registered by another student." }, { status: 400 });
-      }
-
-      // Create new student profile
-      student = await prisma.studentProfile.create({
-        data: {
-          name: name.trim(),
-          email: email.trim(),
-          codechefUsername,
-          leetcodeUsername,
-          githubUsername,
-          linkedinUrl: validatedLinkedinUrl,
-          rollNumber: targetRollNumber,
-          department: department ? department.trim() : "CSE",
-          year: parsedYear,
-          branch: branch ? branch.trim() : (department ? department.trim() : "CSE"),
-          section: section ? section.trim().toUpperCase() : "A",
-          userAccess: {
-            create: {
-              email: email.trim(),
-              loginId: targetRollNumber,
-              role: "STUDENT",
-              status: "PENDING",
-              mustSetPassword: true,
-              departmentId: department ? department.trim() : "CSE",
-            }
-          }
-        },
-      });
-
-      await ActivityService.logEvent(
-        "STUDENT_ADD",
-        student.id,
-        `${name.trim()} (${student.department || "CSE"}) profile was registered.`
-      );
-    } else {
-      // If student already exists, update details
-      student = await prisma.studentProfile.update({
-        where: { id: student.id },
-        data: {
-          name: name.trim(),
-          email: email.trim(),
-          rollNumber: targetRollNumber ? targetRollNumber : student.rollNumber,
-          department: department ? department.trim() : student.department,
-          year: body.hasOwnProperty("year") ? parsedYear : student.year,
-          branch: branch ? branch.trim() : student.branch,
-          section: section ? section.trim().toUpperCase() : student.section,
-          codechefUsername: codechefUsername || student.codechefUsername,
-          leetcodeUsername: leetcodeUsername || student.leetcodeUsername,
-          githubUsername: githubUsername || student.githubUsername,
-          linkedinUrl: validatedLinkedinUrl || student.linkedinUrl,
-        },
-      });
-      
-      // Upsert UserAccess in case it doesn't exist
-      await prisma.userAccess.upsert({
-        where: { loginId: student.rollNumber! },
-        create: {
-          email: email.trim(),
-          loginId: student.rollNumber!,
-          role: "STUDENT",
-          status: "PENDING",
-          mustSetPassword: true,
-          studentProfileId: student.id,
-          departmentId: student.department,
-        },
-        update: {
-          email: email.trim(),
-          departmentId: student.department,
-        }
-      });
-
-      await ActivityService.logEvent(
-        "STUDENT_UPDATE",
-        student.id,
-        `${name.trim()} (${student.department || "CSE"}) details were updated.`
-      );
-    }
+    const student = res.profile;
 
     // Trigger scraping and AI analysis safely using after()
     after(async () => {
       try {
-        const syncRes = await SyncService.syncStudent(student.id, "USER_MANUAL");
-        if (!syncRes.success) {
-          console.error(`Background initial sync failed: ${syncRes.error}`);
-        } else {
-          console.log(`Background initial sync succeeded for student ${student.id}`);
+        if (row.normalized.codechefUsername || row.normalized.leetcodeUsername) {
+          await SyncService.syncStudent(student.id, "USER_MANUAL");
+          await SyncService.recalculateLeaderboardRanks();
         }
       } catch (e) {
         console.error("Sync error:", e);
@@ -215,9 +67,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Student profile registered successfully. Data sync has been queued in the background.",
+      message: "Student profile registered successfully.",
       student: finalStudent,
     }, { headers: { "Cache-Control": "private, no-store" } });
+
   } catch (err: any) {
     if (err.name === "AuthError") {
       const status = err.code === "UNAUTHORIZED" ? 401 : 403;
@@ -228,4 +81,3 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500, headers: { "Cache-Control": "private, no-store" } });
   }
 }
-

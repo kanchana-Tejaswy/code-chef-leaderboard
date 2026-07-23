@@ -2,9 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
 import { ActivityService } from "@/services/activity.service";
-import crypto from "crypto";
-import { canPerformWrite, canPerformDelete } from "@/lib/write-access";
-import { normalizeAndValidateUrl } from "@/utils/urlValidation";
+import { StudentProfileService } from "@/services/student-profile.service";
 import { revalidatePath } from "next/cache";
 
 import { requireStudentProfileReadAccess, requireStudentWriteAccess } from "@/lib/auth";
@@ -50,181 +48,33 @@ export async function POST(request: NextRequest) {
     await requireStudentWriteAccess();
     
     const body = await request.json();
-    const {
-      name,
-      rollNumber,
-      roll_number,
-      department,
-      year,
-      branch,
-      section,
-      codechefUsername,
-      codechef_username,
-      leetcodeUsername,
-      leetcode_username,
-      githubUsername,
-      github_username,
-      linkedinUrl,
-      linkedin_url,
-      profilePictureUrl,
-      profile_picture_url
-    } = body;
+    const evaluated = await StudentProfileService.evaluateRows([body]);
+    const row = evaluated[0];
 
-    const normalizedName = name ? String(name).trim() : null;
-    const normalizedRollNumber = (rollNumber || roll_number) ? String(rollNumber || roll_number).trim().toUpperCase() : null;
-    const normalizedDepartment = department ? String(department).trim() : "CSE";
-    const normalizedYear = year ? parseInt(String(year), 10) : 3;
-    const normalizedBranch = branch ? String(branch).trim() : normalizedDepartment;
-    const normalizedSection = section ? String(section).trim().toUpperCase() : "A";
-    const normalizedCodechef = (codechefUsername || codechef_username) ? String(codechefUsername || codechef_username).trim() : null;
-    const normalizedLeetcode = (leetcodeUsername || leetcode_username) ? String(leetcodeUsername || leetcode_username).trim() : null;
-    
-    const { isValid: isGhValid, normalizedUrl: normalizedGithub, error: ghError } = normalizeAndValidateUrl(githubUsername || github_username, "github");
-    const { isValid: isLnValid, normalizedUrl: normalizedLinkedin, error: lnError } = normalizeAndValidateUrl(linkedinUrl || linkedin_url, "linkedin");
-    
-    const normalizedPicUrl = (profilePictureUrl || profile_picture_url) ? String(profilePictureUrl || profile_picture_url).trim() : null;
-
-    if (!normalizedName) {
-      return NextResponse.json({ error: "Student Name is required." }, { status: 400 });
+    if (row.classification !== "READY" && row.classification !== "INCOMPLETE") {
+      const errorMsg = row.reasons.join(" ") || "Invalid student profile payload.";
+      return NextResponse.json({ error: errorMsg, details: row }, { status: 400 });
     }
 
-    if (!isGhValid && ghError) {
-      return NextResponse.json({ error: ghError }, { status: 400 });
-    }
-    if (!isLnValid && lnError) {
-      return NextResponse.json({ error: lnError }, { status: 400 });
+    const res = await StudentProfileService.createProfile(row.normalized);
+    if (!res.success || !res.profile) {
+      return NextResponse.json({ error: res.error || "Failed to create profile." }, { status: 400 });
     }
 
-    if (isNaN(normalizedYear) || normalizedYear < 1 || normalizedYear > 4) {
-      return NextResponse.json({ error: "Academic year must be between 1 and 4." }, { status: 400 });
-    }
+    const profile = res.profile;
 
-    const targetId = crypto.randomUUID();
-    const isCloudTest = normalizedRollNumber === "CLOUDTEST001";
-
-    // Check unique constraints
-    if (normalizedRollNumber) {
-      const existingRoll = await prisma.studentProfile.findFirst({
-        where: {
-          rollNumber: { equals: normalizedRollNumber },
-          id: { not: targetId },
-        },
-      });
-
-      if (existingRoll) {
-        return NextResponse.json(
-          { error: "Roll number is already registered by another student." },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (normalizedCodechef) {
-      const existingCC = await prisma.studentProfile.findFirst({
-        where: {
-          codechefUsername: { equals: normalizedCodechef },
-          id: { not: targetId },
-        },
-      });
-
-      if (existingCC) {
-        return NextResponse.json(
-          { error: "CodeChef username is already linked to another student." },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (normalizedLeetcode) {
-      const existingLC = await prisma.studentProfile.findFirst({
-        where: {
-          leetcodeUsername: { equals: normalizedLeetcode },
-          id: { not: targetId },
-        },
-      });
-
-      if (existingLC) {
-        return NextResponse.json(
-          { error: "LeetCode username is already linked to another student." },
-          { status: 400 }
-        );
-      }
-    }
-
-    if (normalizedGithub) {
-      const existingGH = await prisma.studentProfile.findFirst({
-        where: {
-          githubUsername: { equals: normalizedGithub },
-          id: { not: targetId },
-        },
-      });
-
-      if (existingGH) {
-        return NextResponse.json(
-          { error: "GitHub username is already linked to another student." },
-          { status: 400 }
-        );
-      }
-    }
-
-    const profile = await prisma.studentProfile.create({
-      data: {
-        id: targetId,
-        name: normalizedName,
-        rollNumber: normalizedRollNumber,
-        department: normalizedDepartment,
-        year: normalizedYear,
-        branch: normalizedBranch,
-        section: normalizedSection,
-        codechefUsername: normalizedCodechef,
-        leetcodeUsername: normalizedLeetcode,
-        githubUsername: normalizedGithub,
-        linkedinUrl: normalizedLinkedin,
-        profilePictureUrl: normalizedPicUrl,
-        verificationStatus: "UNABLE_TO_VERIFY",
-        leaderboardEntry: {
-          create: {
-            rank: 0,
-            rating: 0,
-            stars: 1,
-            talentScore: 0,
-            overallScore: 0,
-            codechefScore: 0,
-            leetcodeScore: 0,
-            trendDirection: "UP",
-          }
+    // Background sync via after()
+    if (row.normalized.codechefUsername || row.normalized.leetcodeUsername) {
+      after(async () => {
+        try {
+          await SyncService.syncStudent(profile.id, "USER_MANUAL");
+          await SyncService.recalculateLeaderboardRanks();
+        } catch (err) {
+          console.error("Background sync error:", err);
         }
-      },
-    });
-
-    if (isCloudTest) {
-      console.log(`[Sanitized Log] [CLOUDTEST001] Student profile created in DB. ID: ${profile.id}`);
+      });
     }
 
-    await ActivityService.logEvent(
-      "STUDENT_ADD",
-      profile.id,
-      `${normalizedName} (${profile.department || "CSE"}) profile was registered.`
-    );
-
-    // Sync using Next.js after() to safely execute in the background without orphaning transactions
-    after(async () => {
-      if (isCloudTest) {
-        console.log(`[Sanitized Log] [CLOUDTEST001] Background sync starting...`);
-      }
-      try {
-        const syncRes = await SyncService.syncStudent(profile.id, "USER_MANUAL");
-        if (isCloudTest) {
-          console.log(`[Sanitized Log] [CLOUDTEST001] Background sync ended. Success: ${syncRes.success}, Error: ${syncRes.error || "None"}`);
-        }
-        // Recalculate ranks after sync completes
-        await SyncService.recalculateLeaderboardRanks();
-      } catch (err) {
-        console.error("Background sync error:", err);
-      }
-    });
-
-    // Reread saved row from DB before returning success
     const finalProfile = await prisma.studentProfile.findUnique({
       where: { id: profile.id },
       include: {
@@ -236,17 +86,10 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (isCloudTest) {
-      console.log(`[Sanitized Log] [CLOUDTEST001] Reread profile successfully: ${finalProfile ? "YES" : "NO"}`);
-    }
-
     revalidatePath("/dashboard");
     revalidatePath("/leaderboard");
     revalidatePath("/analytics");
     revalidatePath("/departments");
-    revalidatePath("/api/dashboard/stats");
-    revalidatePath("/api/dashboard/leaderboard-cache");
-    revalidatePath("/api/leaderboard");
 
     return NextResponse.json({ success: true, profile: finalProfile });
   } catch (err: any) {
@@ -278,9 +121,14 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Student profile not found" }, { status: 404 });
     }
 
+    // Check immutability of rollNumber and email
+    const editCheck = StudentProfileService.validateProfileEdit(currentProfile, body);
+    if (!editCheck.valid) {
+      return NextResponse.json({ error: editCheck.error }, { status: 400 });
+    }
+
     const updateData: any = {};
 
-    // Validate and sanitize modifiable fields if they are in the body
     if (body.hasOwnProperty("name")) {
       const name = body.name ? String(body.name).trim() : "";
       if (!name) {
@@ -289,26 +137,16 @@ export async function PATCH(request: NextRequest) {
       updateData.name = name;
     }
 
-    if (body.hasOwnProperty("rollNumber") || body.hasOwnProperty("roll_number")) {
-      const rawRoll = body.hasOwnProperty("rollNumber") ? body.rollNumber : body.roll_number;
-      const roll = rawRoll ? String(rawRoll).trim().toUpperCase() : null;
-      
-      if (roll) {
-        const existingRoll = await prisma.studentProfile.findFirst({
-          where: {
-            rollNumber: { equals: roll },
-            id: { not: id },
-          },
-        });
-        if (existingRoll) {
-          return NextResponse.json({ error: "Roll number is already registered by another student." }, { status: 400 });
-        }
-      }
-      updateData.rollNumber = roll;
+    if (body.hasOwnProperty("department")) {
+      updateData.department = body.department ? String(body.department).trim().toUpperCase() : "CSE";
     }
 
-    if (body.hasOwnProperty("department")) {
-      updateData.department = body.department ? String(body.department).trim() : "CSE";
+    if (body.hasOwnProperty("branch")) {
+      updateData.branch = body.branch ? String(body.branch).trim().toUpperCase() : null;
+    }
+
+    if (body.hasOwnProperty("section")) {
+      updateData.section = body.section ? String(body.section).trim().toUpperCase() : "A";
     }
 
     if (body.hasOwnProperty("year")) {
@@ -317,6 +155,23 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: "Academic year must be between 1 and 4." }, { status: 400 });
       }
       updateData.year = year;
+    }
+
+    if (body.hasOwnProperty("contactNumber") || body.hasOwnProperty("contact_number")) {
+      const contact = body.hasOwnProperty("contactNumber") ? body.contactNumber : body.contact_number;
+      updateData.contactNumber = contact ? String(contact).trim() : null;
+    }
+
+    if (body.hasOwnProperty("cgpa")) {
+      if (body.cgpa !== null && body.cgpa !== undefined && body.cgpa !== "") {
+        const cgpa = parseFloat(String(body.cgpa));
+        if (isNaN(cgpa) || cgpa < 0 || cgpa > 10) {
+          return NextResponse.json({ error: "CGPA must be a decimal between 0.0 and 10.0." }, { status: 400 });
+        }
+        updateData.cgpa = cgpa;
+      } else {
+        updateData.cgpa = null;
+      }
     }
 
     if (body.hasOwnProperty("branch")) {

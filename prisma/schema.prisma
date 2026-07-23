@@ -55,6 +55,12 @@ model StudentProfile {
   linkedinUrl       String?           @map("linkedin_url")
   email             String?           @unique
   verificationStatus String            @default("UNABLE_TO_VERIFY") @map("verification_status")
+  contactNumber     String?           @map("contact_number")
+  cgpa              Float?
+  codeforcesUsername String?          @unique @map("codeforces_username")
+  profileStatus     String            @default("INCOMPLETE") @map("profile_status")
+  leaderboardEligible Boolean         @default(false) @map("leaderboard_eligible")
+  dashboardEligible Boolean           @default(false) @map("dashboard_eligible")
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
   

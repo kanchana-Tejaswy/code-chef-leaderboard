@@ -1,140 +1,126 @@
+export function isMissingOrNA(val: string | null | undefined): boolean {
+  if (!val || typeof val !== "string") return true;
+  const trimmed = val.trim().toLowerCase();
+  if (
+    !trimmed ||
+    trimmed === "-" ||
+    trimmed === "na" ||
+    trimmed === "n/a" ||
+    trimmed === "not available" ||
+    trimmed === "not_available" ||
+    trimmed === "null" ||
+    trimmed === "undefined" ||
+    trimmed === "none"
+  ) {
+    return true;
+  }
+  return false;
+}
+
+export function extractPlatformHandle(
+  input: string | null | undefined,
+  platform: "codechef" | "leetcode" | "codeforces" | "github" | "linkedin"
+): string | null {
+  if (isMissingOrNA(input)) return null;
+
+  let trimmed = input!.trim();
+
+  // Basic security checks to prevent XSS / dangerous schemes
+  if (/^(javascript:|data:|file:|vbscript:)/i.test(trimmed)) {
+    return null;
+  }
+
+  // Prepend https:// if it looks like a domain without scheme (e.g., codeforces.com/profile/user)
+  if (/^(www\.)?[a-z0-9-]+\.[a-z]{2,}/i.test(trimmed) && !/^https?:\/\//i.test(trimmed)) {
+    trimmed = `https://${trimmed}`;
+  }
+
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsedUrl = new URL(trimmed);
+      const host = parsedUrl.hostname.toLowerCase();
+      const parts = parsedUrl.pathname.split("/").filter(Boolean);
+
+      if (platform === "codechef") {
+        if (host.includes("codechef.com")) {
+          if (parts[0] === "users" && parts[1]) return parts[1];
+          if (parts.length > 0) return parts[0];
+        }
+        return null;
+      }
+
+      if (platform === "leetcode") {
+        if (host.includes("leetcode.com")) {
+          if (parts[0] === "u" && parts[1]) return parts[1];
+          if (parts.length > 0) return parts[0];
+        }
+        return null;
+      }
+
+      if (platform === "codeforces") {
+        if (host.includes("codeforces.com")) {
+          if (parts[0] === "profile" && parts[1]) return parts[1];
+          if (parts.length > 0) return parts[0];
+        }
+        return null;
+      }
+
+      if (platform === "github") {
+        if (host.includes("github.com")) {
+          if (parts.length === 1) return parts[0];
+        }
+        return null;
+      }
+
+      if (platform === "linkedin") {
+        if (host.includes("linkedin.com")) {
+          return `https://www.linkedin.com${parsedUrl.pathname.replace(/\/+$/, "")}`;
+        }
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  // If it's a raw username (no slashes/dots)
+  if (!trimmed.includes("/") && !trimmed.includes(".")) {
+    if (platform === "linkedin") {
+      return `https://www.linkedin.com/in/${trimmed}`;
+    }
+    // Clean handles (letters, numbers, underscores, hyphens)
+    if (/^[a-zA-Z0-9_\-]+$/.test(trimmed)) {
+      return trimmed;
+    }
+  }
+
+  return null;
+}
+
 export function normalizeAndValidateUrl(
   url: string | null | undefined,
   platform: "github" | "linkedin"
 ): { isValid: boolean; normalizedUrl: string | null; error?: string } {
-  if (!url || typeof url !== "string" || !url.trim()) {
+  if (isMissingOrNA(url)) {
     return { isValid: true, normalizedUrl: null };
   }
 
-  let trimmed = url.trim();
-
-  // Basic security checks to prevent XSS and other unsafe protocols
-  if (/^(javascript:|data:|file:|vbscript:)/i.test(trimmed)) {
+  const handle = extractPlatformHandle(url, platform);
+  if (!handle) {
     return {
       isValid: false,
       normalizedUrl: null,
-      error: `Invalid ${platform} URL protocol.`,
+      error: `Invalid ${platform} URL format or domain.`,
     };
   }
 
-  // If it's just a username (no slashes, no dots), construct the URL
-  if (!trimmed.includes(".") && !trimmed.includes("/")) {
-    if (platform === "github") {
-      trimmed = `https://github.com/${trimmed}`;
-    } else if (platform === "linkedin") {
-      trimmed = `https://linkedin.com/in/${trimmed}`;
-    }
-  }
-
-  // Prepend https:// if no protocol is present
-  if (!/^https?:\/\//i.test(trimmed)) {
-    trimmed = `https://${trimmed}`;
-  }
-
-  try {
-    const parsedUrl = new URL(trimmed);
-
-    // Force https
-    if (parsedUrl.protocol !== "https:") {
-      parsedUrl.protocol = "https:";
-    }
-
-    const hostname = parsedUrl.hostname.toLowerCase();
-    // Clean up extra slashes inside path and at the end
-    const pathname = parsedUrl.pathname.replace(/\/+$/, "");
-
-    if (platform === "github") {
-      if (hostname !== "github.com" && hostname !== "www.github.com") {
-        return {
-          isValid: false,
-          normalizedUrl: null,
-          error: "GitHub URL must be a valid github.com domain.",
-        };
-      }
-
-      const parts = pathname.split("/").filter(Boolean);
-      if (parts.length === 0) {
-        return {
-          isValid: false,
-          normalizedUrl: null,
-          error: "GitHub URL must include a username.",
-        };
-      }
-      if (parts.length > 1) {
-        return {
-          isValid: false,
-          normalizedUrl: null,
-          error:
-            "GitHub URL must be a profile URL, not a repository or subpage.",
-        };
-      }
-    } else if (platform === "linkedin") {
-      if (!hostname.includes("linkedin.com")) {
-        return {
-          isValid: false,
-          normalizedUrl: null,
-          error: "LinkedIn URL must be a valid linkedin.com domain.",
-        };
-      }
-
-      const parts = pathname.split("/").filter(Boolean);
-      if (
-        parts.length === 0 ||
-        (parts[0] !== "in" && parts[0] !== "pub" && parts[0] !== "profile")
-      ) {
-        return {
-          isValid: false,
-          normalizedUrl: null,
-          error:
-            "LinkedIn URL must be a profile URL (e.g., /in/username). Company/post URLs are not allowed.",
-        };
-      }
-      if (parts.length > 2) {
-        return {
-          isValid: false,
-          normalizedUrl: null,
-          error:
-            "LinkedIn URL must be a personal profile URL, not a subpage.",
-        };
-      }
-    }
-
-    // Return the cleanly formatted string (URL for LinkedIn, Username for GitHub)
-    if (platform === "github") {
-      const parts = pathname.split("/").filter(Boolean);
-      return {
-        isValid: true,
-        normalizedUrl: parts[0],
-      };
-    }
-
-    return {
-      isValid: true,
-      normalizedUrl: `${parsedUrl.origin}${parsedUrl.pathname}`,
-    };
-  } catch (e) {
-    return {
-      isValid: false,
-      normalizedUrl: null,
-      error: `Invalid ${platform} URL format.`,
-    };
-  }
+  return {
+    isValid: true,
+    normalizedUrl: handle,
+  };
 }
 
 export function extractUsername(url: string | null | undefined): string | null {
-  if (!url) return null;
-  try {
-    const parsedUrl = new URL(url);
-    const parts = parsedUrl.pathname.split("/").filter(Boolean);
-    if (parsedUrl.hostname.includes("github.com")) {
-      return parts.length > 0 ? parts[0] : null;
-    }
-    if (parsedUrl.hostname.includes("linkedin.com")) {
-      return parts.length > 1 ? parts[1] : null;
-    }
-    return null;
-  } catch (e) {
-    // If it's not a URL, it might just be the username string stored directly in the database (old data)
-    return url;
-  }
+  if (isMissingOrNA(url)) return null;
+  return extractPlatformHandle(url, "github") || extractPlatformHandle(url, "codechef") || extractPlatformHandle(url, "leetcode") || extractPlatformHandle(url, "codeforces") || url!.trim();
 }

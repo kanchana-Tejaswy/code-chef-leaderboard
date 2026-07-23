@@ -59,6 +59,7 @@ import {
 import { RatingChart } from "@/components/dashboard/rating-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { SkillRadar } from "@/components/dashboard/skill-radar";
+import { CsvImportModal } from "@/components/dashboard/csv-import-modal";
 import { getDisplayRank } from "@/utils/ranking";
 
 // 1. Interfaces
@@ -3425,182 +3426,14 @@ export default function LandingPage() {
       )}
 
       {/* CSV Import Modal */}
-      {isCsvModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
-          <div className="relative w-full max-w-4xl bg-brand-card border border-brand-border rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-2xl animate-fade-in my-8 max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => {
-                setIsCsvModalOpen(false);
-                setCsvInput("");
-                setPreviewResults(null);
-                setIsPreviewing(false);
-                setImportError(null);
-              }}
-              className="absolute top-4 right-4 p-2 rounded-xl hover:bg-zinc-800 text-zinc-400 hover:text-white transition-all"
-            >
-              <X className="h-5 w-5" />
-            </button>
-
-            <div>
-              <h3 className="text-lg font-black text-white flex items-center gap-2">
-                <UserPlus className="h-5 w-5 text-[#EAB308]" />
-                CSV STUDENT IMPORT
-              </h3>
-              <p className="text-xs text-brand-muted mt-1">
-                Paste comma-separated data to bulk-import student profiles. Required headers: <code className="text-zinc-300 font-mono">name</code>, <code className="text-zinc-300 font-mono">roll_number</code>, <code className="text-zinc-300 font-mono">department</code>, <code className="text-zinc-300 font-mono">year</code>. Optional: <code className="text-zinc-300 font-mono">branch</code>, <code className="text-zinc-300 font-mono">section</code>, <code className="text-zinc-300 font-mono">codechef_username</code>, <code className="text-zinc-300 font-mono">leetcode_username</code>, <code className="text-zinc-300 font-mono">github_username</code>, <code className="text-zinc-300 font-mono">linkedin_url</code>.
-              </p>
-            </div>
-
-            {importError && (
-              <div className="p-4 rounded-2xl border border-red-500/20 bg-red-500/5 text-red-500 text-xs font-semibold leading-relaxed">
-                {importError}
-              </div>
-            )}
-
-            {importSuccess && (
-              <div className="p-4 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-xs font-semibold leading-relaxed">
-                Import completed successfully! Total imported: {importSuccess.total}, Created: {importSuccess.created}, Updated: {importSuccess.updated}, Failed: {importSuccess.failed}.
-              </div>
-            )}
-
-            {!isPreviewing ? (
-              <div className="flex flex-col gap-4">
-                <textarea
-                  value={csvInput}
-                  onChange={(e) => setCsvInput(e.target.value)}
-                  placeholder="name,roll_number,department,year,codechef_username&#10;John Doe,21CS101,CSE,3,johndoe_cc&#10;Jane Smith,21IT202,IT,3,janesmith_cc"
-                  className="w-full h-64 px-4 py-3 rounded-2xl border border-brand-border bg-brand-bg/50 text-xs font-mono text-brand-text placeholder-zinc-650 focus:outline-none focus:border-[#EAB308]/50"
-                />
-                
-                <div className="flex justify-end gap-3">
-                  <button
-                    onClick={() => setIsCsvModalOpen(false)}
-                    className="px-4 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-brand-muted hover:text-white text-xs font-bold transition-all"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleCsvPreview}
-                    disabled={isPreviewLoading || !csvInput.trim()}
-                    className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all disabled:opacity-50"
-                  >
-                    {isPreviewLoading ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Parsing CSV...
-                      </>
-                    ) : (
-                      <>
-                        <Zap className="h-3.5 w-3.5" />
-                        Preview Import
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-5">
-                <div className="flex items-center justify-between border-b border-brand-border pb-3">
-                  <span className="text-xs font-bold text-brand-muted">
-                    Total Rows: {previewResults?.summary?.total} | Ready: {previewResults?.summary?.valid} | Rejected: {previewResults?.summary?.invalid}
-                  </span>
-                  <button
-                    onClick={() => setIsPreviewing(false)}
-                    className="text-xs font-bold text-[#EAB308] hover:underline"
-                  >
-                    ← Edit CSV Data
-                  </button>
-                </div>
-
-                <div className="overflow-x-auto max-h-64 border border-brand-border rounded-2xl bg-zinc-950/20">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-brand-border bg-zinc-900/40 text-[9px] font-black uppercase text-brand-muted tracking-wider">
-                        <th className="py-2.5 px-4">Row</th>
-                        <th className="py-2.5 px-3">Roll Number</th>
-                        <th className="py-2.5 px-3">Name</th>
-                        <th className="py-2.5 px-3">Department</th>
-                        <th className="py-2.5 px-3 text-center">Class</th>
-                        <th className="py-2.5 px-4">Details / Errors</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {previewResults?.rows?.map((row: any, idx: number) => {
-                        const bgClass =
-                          row.classification === "CREATE"
-                            ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400"
-                            : row.classification === "UPDATE"
-                            ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
-                            : row.classification === "REVIEW"
-                            ? "bg-amber-500/10 border-amber-500/30 text-amber-400"
-                            : "bg-red-500/10 border-red-500/30 text-red-400";
-                        return (
-                          <tr key={idx} className="border-b border-brand-border/40 text-xs hover:bg-zinc-900/10">
-                            <td className="py-2 px-4 font-mono text-[10px] text-zinc-500">{row.index + 2}</td>
-                            <td className="py-2 px-3 font-semibold text-white">{row.rollNumber || "—"}</td>
-                            <td className="py-2 px-3 font-semibold text-white">{row.name || "—"}</td>
-                            <td className="py-2 px-3 text-zinc-400">{row.department} {row.year ? `${row.year}Yr` : ""}</td>
-                            <td className="py-2 px-3 text-center">
-                              <span className={`px-2 py-0.5 rounded-full text-[8px] font-black border ${bgClass}`}>
-                                {row.classification}
-                              </span>
-                            </td>
-                            <td className="py-2 px-4 text-[10px] font-medium text-zinc-400 max-w-[250px] truncate" title={row.errors?.join(", ")}>
-                              {row.errors && row.errors.length > 0 ? (
-                                <span className="text-red-400">{row.errors.join(", ")}</span>
-                              ) : (
-                                <span className="text-zinc-550">Validated</span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-t border-brand-border pt-4">
-                  <label className="flex items-center gap-2.5 cursor-pointer text-xs font-bold text-brand-muted select-none">
-                    <input
-                      type="checkbox"
-                      checked={autoSyncImport}
-                      onChange={(e) => setAutoSyncImport(e.target.checked)}
-                      className="rounded border-zinc-700 bg-zinc-900 text-[#EAB308] focus:ring-[#EAB308]/30 h-4 w-4 cursor-pointer"
-                    />
-                    Auto-Sync platform profiles in the background (sequential sync)
-                  </label>
-
-                  <div className="flex gap-3 justify-end">
-                    <button
-                      onClick={() => setIsPreviewing(false)}
-                      className="px-4 py-2 rounded-xl bg-zinc-800/20 border border-zinc-700/30 text-brand-muted hover:text-white text-xs font-bold transition-all"
-                    >
-                      Back
-                    </button>
-                    <button
-                      onClick={handleCsvImport}
-                      disabled={isImportLoading || previewResults?.summary?.valid === 0}
-                      className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-[#EAB308] hover:bg-[#FACC15] text-xs font-bold text-[#0A0A0A] transition-all disabled:opacity-50"
-                    >
-                      {isImportLoading ? (
-                        <>
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          Importing...
-                        </>
-                      ) : (
-                        <>
-                          <Check className="h-3.5 w-3.5" />
-                          Confirm Import ({previewResults?.summary?.valid} Rows)
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <CsvImportModal
+        isOpen={isCsvModalOpen}
+        onClose={() => setIsCsvModalOpen(false)}
+        onSuccess={() => {
+          fetchLeaderboard();
+          loadDashboardData();
+        }}
+      />
 
       {/* Edit Student Modal */}
       {isEditModalOpen && (
