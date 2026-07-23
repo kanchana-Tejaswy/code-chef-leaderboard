@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
 import { ActivityService } from "@/services/activity.service";
 import { StudentProfileService } from "@/services/student-profile.service";
+import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 import { revalidatePath } from "next/cache";
 
 import { requireStudentProfileReadAccess, requireStudentWriteAccess } from "@/lib/auth";
