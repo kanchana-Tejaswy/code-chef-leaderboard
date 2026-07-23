@@ -92,10 +92,22 @@ export class SyncService {
       },
     });
 
-    if (!student.codechefUsername && !student.leetcodeUsername) {
+    const hasAnyHandle = Boolean(student.codechefUsername || student.leetcodeUsername || student.codeforcesUsername || student.githubUsername);
+
+    if (!hasAnyHandle) {
       if (isCloudTest) {
         console.log(`[Sanitized Log] [CLOUDTEST001] No usernames configured. Creating unranked LeaderboardEntry.`);
       }
+
+      await prisma.studentProfile.update({
+        where: { id: studentId },
+        data: {
+          profileStatus: "INCOMPLETE",
+          leaderboardEligible: false,
+          dashboardEligible: false,
+          verificationStatus: "UNABLE_TO_VERIFY",
+        },
+      });
 
       await prisma.leaderboardEntry.upsert({
         where: { studentId },
@@ -198,7 +210,7 @@ export class SyncService {
       }
 
       let verificationStatus = "UNABLE_TO_VERIFY";
-      const configuredCount = [student.codechefUsername, student.leetcodeUsername].filter(Boolean).length;
+      const configuredCount = [student.codechefUsername, student.leetcodeUsername, student.codeforcesUsername, student.githubUsername].filter(Boolean).length;
       const successCount = [codechefSuccess, leetcodeSuccess].filter(x => x === true).length;
 
       if (configuredCount > 0) {
@@ -211,14 +223,37 @@ export class SyncService {
         }
       }
 
+      let profileStatus = "INVALID";
+      let leaderboardEligible = false;
+      let dashboardEligible = false;
+
+      if (configuredCount === 0) {
+        profileStatus = "INCOMPLETE";
+        leaderboardEligible = false;
+        dashboardEligible = false;
+      } else if (successCount > 0) {
+        profileStatus = "VERIFIED";
+        leaderboardEligible = true;
+        dashboardEligible = true;
+      } else {
+        profileStatus = "INVALID";
+        leaderboardEligible = false;
+        dashboardEligible = false;
+      }
+
       // 3. Database Storage Phase: Update Database inside a transaction
       const queries: any[] = [];
 
-      // Update StudentProfile verificationStatus
+      // Update StudentProfile status & eligibility
       queries.push(
         prisma.studentProfile.update({
           where: { id: studentId },
-          data: { verificationStatus }
+          data: {
+            verificationStatus,
+            profileStatus,
+            leaderboardEligible,
+            dashboardEligible,
+          }
         })
       );
 
@@ -638,10 +673,7 @@ export class SyncService {
       const entries = await prisma.leaderboardEntry.findMany({
         where: {
           student: {
-            OR: [
-              { codechefUsername: { not: null } },
-              { leetcodeUsername: { not: null } }
-            ]
+            leaderboardEligible: true,
           }
         },
         include: {

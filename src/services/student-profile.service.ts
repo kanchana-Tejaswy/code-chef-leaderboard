@@ -354,6 +354,11 @@ export class StudentProfileService {
       await this.ensureSchema();
       const targetId = crypto.randomUUID();
 
+      const hasPlatform = Boolean(
+        data.codechefUsername || data.leetcodeUsername || data.codeforcesUsername || data.githubUsername
+      );
+      const profileStatus = hasPlatform ? "PENDING_VERIFICATION" : "INCOMPLETE";
+
       const profile = await dbClient.studentProfile.create({
         data: {
           id: targetId,
@@ -372,7 +377,7 @@ export class StudentProfileService {
           githubUsername: data.githubUsername,
           linkedinUrl: data.linkedinUrl,
           profilePictureUrl: data.profilePictureUrl,
-          profileStatus: "INCOMPLETE",
+          profileStatus,
           leaderboardEligible: false,
           dashboardEligible: false,
           verificationStatus: "UNABLE_TO_VERIFY",

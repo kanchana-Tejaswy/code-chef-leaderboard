@@ -20,25 +20,26 @@ export async function GET(request: NextRequest) {
     await requireLeaderboardAccess();
 
     // 1. Build Query Filters
-    const whereClause: any = {};
+    const whereClause: any = {
+      student: {
+        leaderboardEligible: true,
+      },
+    };
 
     if (search || departments.length > 0 || years.length > 0) {
-      whereClause.student = {};
-
-      if (search) {
-        whereClause.student.OR = [
-          { name: { contains: search } },
-          { rollNumber: { contains: search } },
-        ];
-      }
-
-      if (departments.length > 0) {
-        whereClause.student.department = { in: departments };
-      }
-
-      if (years.length > 0) {
-        whereClause.student.year = { in: years };
-      }
+      whereClause.student = {
+        leaderboardEligible: true,
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search } },
+                { rollNumber: { contains: search } },
+              ],
+            }
+          : {}),
+        ...(departments.length > 0 ? { department: { in: departments } } : {}),
+        ...(years.length > 0 ? { year: { in: years } } : {}),
+      };
     }
 
     if (stars.length > 0) {

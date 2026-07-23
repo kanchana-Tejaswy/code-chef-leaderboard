@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 const getCachedStats = async (departmentFilter?: string) => {
   return unstable_cache(
     async () => {
-      const studentWhere = departmentFilter ? { department: departmentFilter } : {};
-      const lbWhere = departmentFilter ? { student: { department: departmentFilter } } : {};
+      const studentWhere = departmentFilter ? { department: departmentFilter, dashboardEligible: true } : { dashboardEligible: true };
+      const lbWhere = departmentFilter ? { student: { department: departmentFilter, leaderboardEligible: true } } : { student: { leaderboardEligible: true } };
 
       // 1. Group 1: Core Aggregates
       const [totalStudents, activeCodechefCount] = await Promise.all([
