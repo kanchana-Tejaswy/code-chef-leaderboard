@@ -6,50 +6,29 @@ import LoginForm from "./LoginForm";
 
 export const dynamic = "force-dynamic";
 
-function getRoleRedirect(role: UserRole, studentProfileId?: string | null): string {
-  switch (role) {
-    case UserRole.ADMIN:
-      return "/dashboard";
-    case UserRole.GK_SIR:
-    case UserRole.HOD:
-      return "/leaderboard";
-    case UserRole.STUDENT:
-      return studentProfileId ? `/student/${studentProfileId}` : "/login";
-    default:
-      return "/login";
-  }
-}
-
 export default async function LoginPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (user) {
-    const userAccess = await prisma.userAccess.findUnique({
-      where: { authUserId: user.id },
+    const userAccess = await prisma.userAccess.findFirst({
+      where: {
+        OR: [
+          { authUserId: user.id },
+          { email: user.email?.toLowerCase() },
+        ],
+      },
     });
 
-    if (userAccess) {
-      if (
-        userAccess.status === AccountStatus.ACTIVE &&
-        !userAccess.mustSetPassword &&
-        userAccess.firstLoginCompleted
-      ) {
-        // ACTIVE authenticated user
-        redirect(getRoleRedirect(userAccess.role, userAccess.studentProfileId));
-      } else if (
-        userAccess.status === AccountStatus.PENDING &&
-        userAccess.mustSetPassword &&
-        !userAccess.firstLoginCompleted
-      ) {
-        // PENDING OTP-verified user
-        redirect("/auth/set-password");
-      } else {
-        // Session does not match valid state
-        await supabase.auth.signOut();
-      }
+    if (
+      userAccess &&
+      userAccess.role === UserRole.ADMIN &&
+      userAccess.status === AccountStatus.ACTIVE
+    ) {
+      // Authenticated active Admin visiting /login -> redirect to /dashboard
+      redirect("/dashboard");
     } else {
-      // Session does not match UserAccess
+      // Authenticated non-Admin or Inactive user -> sign out to clear non-admin session
       await supabase.auth.signOut();
     }
   }

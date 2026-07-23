@@ -151,9 +151,6 @@ export function getRoleHomePath(access: UserAccess | null): string {
   if (!access) {
     return "/login";
   }
-  if (access.status === AccountStatus.PENDING) {
-    return "/auth/set-password";
-  }
   if (access.status !== AccountStatus.ACTIVE) {
     return "/login";
   }
@@ -236,7 +233,7 @@ export async function requireActivePageUser(): Promise<UserAccess> {
     redirect("/login?error=account_disabled");
   }
   if (access.status === AccountStatus.PENDING || access.mustSetPassword) {
-    redirect("/auth/set-password");
+    redirect("/login?error=account_pending");
   }
   if (access.status !== AccountStatus.ACTIVE) {
     redirect("/login?error=inactive_account");

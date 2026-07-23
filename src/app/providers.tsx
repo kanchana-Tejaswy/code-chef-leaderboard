@@ -65,7 +65,7 @@ export function AuthProvider({
         alert("Failed to securely log out. Please try again.");
         return;
       }
-      window.location.href = "/";
+      window.location.href = "/login";
     } catch (e) {
       console.error("Logout fetch failed:", e);
       alert("Network error during logout. Please check your connection and try again.");

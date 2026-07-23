@@ -82,8 +82,8 @@ describe("Protected Page Redirect vs API JSON Security Suite", () => {
       firstLoginCompleted: false
     });
 
-    await expect(requireDashboardPageAccess()).rejects.toThrow("NEXT_REDIRECT: /auth/set-password");
-    expect(mockRedirectUrl).toBe("/auth/set-password");
+    await expect(requireDashboardPageAccess()).rejects.toThrow("NEXT_REDIRECT: /login?error=account_pending");
+    expect(mockRedirectUrl).toBe("/login?error=account_pending");
   });
 
   it("3. ACTIVE user visiting protected dashboard layout passes successfully without redirect", async () => {
