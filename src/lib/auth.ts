@@ -87,6 +87,22 @@ export async function requireRole(...roles: UserRole[]): Promise<UserAccess> {
  * Ensures the user is an ADMIN (API Routes).
  */
 export async function requireAdmin(): Promise<UserAccess> {
+  if (process.env.PUBLIC_DEMO_WRITE_MODE === "true") {
+    return {
+      id: "demo-admin-id",
+      authUserId: "demo-admin-auth-id",
+      loginId: "ADMIN",
+      email: "admin@ace.edu.in",
+      role: UserRole.ADMIN,
+      status: AccountStatus.ACTIVE,
+      mustSetPassword: false,
+      firstLoginCompleted: true,
+      departmentId: "CSE",
+      studentProfileId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    } as UserAccess;
+  }
   return requireRole(UserRole.ADMIN);
 }
 
