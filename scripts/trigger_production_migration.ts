@@ -13,8 +13,8 @@ async function triggerMigration() {
     });
 
     console.log(`HTTP Response Status: ${res.status} ${res.statusText}`);
-    const data = await res.json();
-    console.log("Response Payload:", JSON.stringify(data, null, 2));
+    const text = await res.text();
+    console.log("Raw Response Text:\n", text);
   } catch (err: any) {
     console.error("Migration Trigger Error:", err.message);
   }
