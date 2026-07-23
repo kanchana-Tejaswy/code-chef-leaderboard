@@ -475,6 +475,12 @@ export default function StudentProfileDashboard() {
         </div>
       </div>
 
+      {(!student.codechefProfile && !student.leetcodeProfile && !student.githubProfile) && (
+        <div className="p-4 rounded-2xl border border-[#EAB308]/20 bg-[#EAB308]/5 text-[#EAB308] text-xs font-bold text-center shadow-md">
+          No verified platform data is available yet.
+        </div>
+      )}
+
       {selectedPlatform === null ? (
         <div className="flex flex-col gap-6">
           <div className="text-xs text-[#A3A3A3] uppercase tracking-widest font-black text-center mb-2">

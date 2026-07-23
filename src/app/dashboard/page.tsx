@@ -602,6 +602,50 @@ export default function LandingPage() {
   const [isCsvModalOpen, setIsCsvModalOpen] = useState(false);
   const [csvInput, setCsvInput] = useState("");
 
+  // Admin Directory States
+  const [adminStudents, setAdminStudents] = useState<any[]>([]);
+  const [adminTotal, setAdminTotal] = useState(0);
+  const [adminPage, setAdminPage] = useState(1);
+  const [adminLimit, setAdminLimit] = useState(20);
+  const [adminTotalPages, setAdminTotalPages] = useState(1);
+  const [adminSearch, setAdminSearch] = useState("");
+  const [adminBranch, setAdminBranch] = useState("ALL");
+  const [adminYear, setAdminYear] = useState("ALL");
+  const [adminStatus, setAdminStatus] = useState("ALL");
+  const [adminEligibility, setAdminEligibility] = useState("ALL");
+  const [isAdminLoading, setIsAdminLoading] = useState(false);
+  const [adminNotification, setAdminNotification] = useState<string | null>(null);
+
+  const fetchAdminStudents = async () => {
+    setIsAdminLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (adminSearch.trim()) params.set("search", adminSearch.trim());
+      if (adminBranch !== "ALL") params.set("branch", adminBranch);
+      if (adminYear !== "ALL") params.set("year", adminYear);
+      if (adminStatus !== "ALL") params.set("profileStatus", adminStatus);
+      if (adminEligibility !== "ALL") params.set("leaderboardEligible", adminEligibility);
+      params.set("page", adminPage.toString());
+      params.set("limit", adminLimit.toString());
+
+      const res = await fetch(`/api/admin/students?${params.toString()}`, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        setAdminStudents(data.students || []);
+        setAdminTotal(data.total || 0);
+        setAdminTotalPages(data.totalPages || 1);
+      }
+    } catch (e) {
+      console.error("Failed to fetch admin student directory:", e);
+    } finally {
+      setIsAdminLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdminStudents();
+  }, [adminPage, adminLimit, adminSearch, adminBranch, adminYear, adminStatus, adminEligibility]);
+
   // Bulk Refresh States
   const [bulkJobId, setBulkJobId] = useState<string | null>(null);
   const [bulkJobProgress, setBulkJobProgress] = useState<any>(null);
@@ -847,6 +891,7 @@ export default function LandingPage() {
 
         await fetchLeaderboard();
         await loadDashboardData();
+        await fetchAdminStudents();
 
         // Reset Form
         setFormName("");
@@ -2169,6 +2214,355 @@ export default function LandingPage() {
                 </button>
               </div>
             </form>
+          </div>
+
+          {/* Admin Student Directory Section */}
+          <div id="admin-directory" className="border border-brand-border bg-brand-card rounded-3xl p-6 shadow-xl flex flex-col gap-5 relative overflow-hidden">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-[#EAB308]/10 border border-[#EAB308]/20 rounded-xl">
+                  <Users className="h-5 w-5 text-[#EAB308]" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-bold text-brand-text uppercase tracking-wider flex items-center gap-2">
+                    <span>Admin Student Directory</span>
+                    <span className="text-[10px] font-black text-[#EAB308] bg-[#EAB308]/10 border border-[#EAB308]/20 px-2 py-0.5 rounded-full">
+                      {adminTotal} Profiles Total
+                    </span>
+                  </h2>
+                  <p className="text-[10px] text-brand-muted font-semibold tracking-wide">
+                    All registered StudentProfile records across cohort databases (including INCOMPLETE & PENDING)
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsCsvModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#EAB308]/10 border border-[#EAB308]/30 hover:bg-[#EAB308]/20 text-xs font-bold text-[#EAB308] transition-all shadow-sm"
+                >
+                  <UserPlus className="h-3.5 w-3.5" />
+                  CSV Bulk Import
+                </button>
+                <button
+                  onClick={fetchAdminStudents}
+                  disabled={isAdminLoading}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-bg border border-brand-border hover:border-[#EAB308]/30 text-xs font-bold text-brand-muted hover:text-white transition-all"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 text-[#EAB308] ${isAdminLoading ? "animate-spin" : ""}`} />
+                  Refresh
+                </button>
+              </div>
+            </div>
+
+            {/* Notification Alert */}
+            {adminNotification && (
+              <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs font-bold text-amber-400 flex items-center justify-between animate-fade-in">
+                <div className="flex items-center gap-2">
+                  <CheckCircle className="h-4 w-4 text-amber-400" />
+                  <span>{adminNotification}</span>
+                </div>
+                <button onClick={() => setAdminNotification(null)} className="text-zinc-500 hover:text-white">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Search & Filter Controls */}
+            <div className="flex flex-col gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                {/* Search Bar */}
+                <div className="lg:col-span-2 relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-brand-muted" />
+                  <input
+                    type="text"
+                    value={adminSearch}
+                    onChange={(e) => {
+                      setAdminSearch(e.target.value);
+                      setAdminPage(1);
+                    }}
+                    placeholder="Search by student name or roll number..."
+                    className="w-full pl-9 pr-8 py-2 rounded-xl border border-brand-border bg-brand-bg/50 text-xs text-brand-text placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50 transition-all"
+                  />
+                  {adminSearch && (
+                    <button
+                      onClick={() => {
+                        setAdminSearch("");
+                        setAdminPage(1);
+                      }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Branch Filter */}
+                <div className="flex flex-col gap-1">
+                  <select
+                    value={adminBranch}
+                    onChange={(e) => {
+                      setAdminBranch(e.target.value);
+                      setAdminPage(1);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-brand-border bg-brand-bg text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 cursor-pointer"
+                  >
+                    <option value="ALL">All Branches / Depts</option>
+                    <option value="CSE">CSE</option>
+                    <option value="IT">IT</option>
+                    <option value="CSM">CSM</option>
+                    <option value="CSD">CSD</option>
+                    <option value="ECE">ECE</option>
+                    <option value="EEE">EEE</option>
+                    <option value="ME">ME</option>
+                    <option value="CE">CE</option>
+                  </select>
+                </div>
+
+                {/* Year Filter */}
+                <div className="flex flex-col gap-1">
+                  <select
+                    value={adminYear}
+                    onChange={(e) => {
+                      setAdminYear(e.target.value);
+                      setAdminPage(1);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-brand-border bg-brand-bg text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 cursor-pointer"
+                  >
+                    <option value="ALL">All Academic Years</option>
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                  </select>
+                </div>
+
+                {/* Profile Status Filter */}
+                <div className="flex flex-col gap-1">
+                  <select
+                    value={adminStatus}
+                    onChange={(e) => {
+                      setAdminStatus(e.target.value);
+                      setAdminPage(1);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-brand-border bg-brand-bg text-xs text-brand-text focus:outline-none focus:border-[#EAB308]/50 cursor-pointer"
+                  >
+                    <option value="ALL">All Profile Statuses</option>
+                    <option value="VERIFIED">VERIFIED</option>
+                    <option value="PENDING_VERIFICATION">PENDING_VERIFICATION</option>
+                    <option value="INCOMPLETE">INCOMPLETE</option>
+                    <option value="INVALID">INVALID</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between pt-1 text-[11px] text-brand-muted">
+                <div className="flex items-center gap-2">
+                  <span>Leaderboard Eligibility Filter:</span>
+                  <select
+                    value={adminEligibility}
+                    onChange={(e) => {
+                      setAdminEligibility(e.target.value);
+                      setAdminPage(1);
+                    }}
+                    className="bg-brand-bg border border-brand-border text-brand-text text-[11px] rounded-lg px-2 py-0.5 focus:outline-none focus:border-[#EAB308]"
+                  >
+                    <option value="ALL">All Students</option>
+                    <option value="true">Eligible Only (VERIFIED)</option>
+                    <option value="false">Ineligible Only (INCOMPLETE/PENDING)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span>Rows per page:</span>
+                  <select
+                    value={adminLimit}
+                    onChange={(e) => {
+                      setAdminLimit(Number(e.target.value));
+                      setAdminPage(1);
+                    }}
+                    className="bg-brand-bg border border-brand-border text-brand-text text-[11px] rounded-lg px-2 py-0.5 focus:outline-none focus:border-[#EAB308]"
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                    <option value={100}>100</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="border border-brand-border rounded-2xl overflow-hidden bg-brand-bg/40">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs text-brand-text">
+                  <thead className="bg-brand-bg border-b border-brand-border text-[10px] font-black uppercase tracking-wider text-brand-muted">
+                    <tr>
+                      <th className="p-3">Student Name</th>
+                      <th className="p-3">Roll Number</th>
+                      <th className="p-3">Email</th>
+                      <th className="p-3">Branch / Yr</th>
+                      <th className="p-3">CGPA</th>
+                      <th className="p-3">Handles</th>
+                      <th className="p-3">Profile Status</th>
+                      <th className="p-3">Eligibility</th>
+                      <th className="p-3">Updated</th>
+                      <th className="p-3 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border/60">
+                    {isAdminLoading ? (
+                      <tr>
+                        <td colSpan={10} className="p-8 text-center text-brand-muted font-semibold">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <Loader2 className="h-6 w-6 animate-spin text-[#EAB308]" />
+                            <span>Loading Student Directory...</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : adminStudents.length === 0 ? (
+                      <tr>
+                        <td colSpan={10} className="p-8 text-center text-brand-muted">
+                          <div className="flex flex-col items-center justify-center gap-2">
+                            <Users className="h-8 w-8 text-zinc-600" />
+                            <p className="font-bold text-white text-xs">No StudentProfiles match current filters.</p>
+                            <p className="text-[11px]">Try clearing search terms or selecting 'All Statuses'.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      adminStudents.map((st) => {
+                        const getStatusBadgeUI = (status: string) => {
+                          switch (status) {
+                            case "VERIFIED":
+                              return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-emerald-500/10 border border-emerald-500/20 text-emerald-400">VERIFIED</span>;
+                            case "PENDING_VERIFICATION":
+                              return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-amber-500/10 border border-amber-500/20 text-amber-400">PENDING</span>;
+                            case "INVALID":
+                              return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-red-500/10 border border-red-500/20 text-red-400">INVALID</span>;
+                            case "INCOMPLETE":
+                            default:
+                              return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider bg-zinc-800 border border-zinc-700 text-zinc-400">INCOMPLETE</span>;
+                          }
+                        };
+
+                        return (
+                          <tr key={st.id} className="hover:bg-brand-card/50 transition-colors">
+                            {/* Student Name */}
+                            <td className="p-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="h-7 w-7 rounded-lg bg-zinc-900 border border-brand-border flex items-center justify-center text-xs font-bold text-[#EAB308] shrink-0">
+                                  {st.name?.slice(0, 2).toUpperCase() || "??"}
+                                </div>
+                                <span className="font-bold text-white hover:text-[#EAB308] transition-colors">{st.name}</span>
+                              </div>
+                            </td>
+
+                            {/* Roll Number */}
+                            <td className="p-3 font-mono font-semibold text-zinc-300 uppercase">{st.rollNumber}</td>
+
+                            {/* Email */}
+                            <td className="p-3 text-brand-muted text-[11px] max-w-[160px] truncate" title={st.email}>{st.email}</td>
+
+                            {/* Branch / Yr */}
+                            <td className="p-3 text-zinc-300 font-medium">{st.branch || st.department} • Yr {st.year}</td>
+
+                            {/* CGPA */}
+                            <td className="p-3 font-mono font-bold text-[#EAB308]">{st.cgpa ? Number(st.cgpa).toFixed(2) : "N/A"}</td>
+
+                            {/* Platforms */}
+                            <td className="p-3">
+                              <div className="flex items-center gap-1.5">
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${st.codechefUsername ? "bg-amber-500/20 text-amber-300 border border-amber-500/30" : "bg-zinc-800 text-zinc-600"}`} title={st.codechefUsername ? `CodeChef: ${st.codechefUsername}` : "No CodeChef URL"}>
+                                  CC
+                                </span>
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${st.leetcodeUsername ? "bg-yellow-500/20 text-yellow-300 border border-yellow-500/30" : "bg-zinc-800 text-zinc-600"}`} title={st.leetcodeUsername ? `LeetCode: ${st.leetcodeUsername}` : "No LeetCode URL"}>
+                                  LC
+                                </span>
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold ${st.githubUsername ? "bg-zinc-700 text-zinc-200 border border-zinc-600" : "bg-zinc-800 text-zinc-600"}`} title={st.githubUsername ? `GitHub: ${st.githubUsername}` : "No GitHub URL"}>
+                                  GH
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Profile Status */}
+                            <td className="p-3">{getStatusBadgeUI(st.profileStatus)}</td>
+
+                            {/* Eligibility */}
+                            <td className="p-3">
+                              <div className="flex flex-col gap-1">
+                                <span className={`inline-flex px-1.5 py-0.5 rounded text-[8px] font-bold ${st.leaderboardEligible ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-zinc-800 border border-zinc-700 text-zinc-500"}`}>
+                                  LB: {st.leaderboardEligible ? "Eligible" : "Ineligible"}
+                                </span>
+                                <span className={`inline-flex px-1.5 py-0.5 rounded text-[8px] font-bold ${st.dashboardEligible ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400" : "bg-zinc-800 border border-zinc-700 text-zinc-500"}`}>
+                                  Dash: {st.dashboardEligible ? "Eligible" : "Ineligible"}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Updated */}
+                            <td className="p-3 text-[10px] text-zinc-500">
+                              {st.updatedAt ? new Date(st.updatedAt).toLocaleDateString() : "-"}
+                            </td>
+
+                            {/* Actions */}
+                            <td className="p-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <Link
+                                  href={`/student/${st.id}`}
+                                  className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-[#EAB308]/20 hover:text-[#EAB308] text-zinc-300 transition-colors"
+                                  title="View Profile Page"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Link>
+                                <button
+                                  onClick={() => handleOpenEditModal(st.id)}
+                                  className="p-1.5 rounded-lg bg-zinc-800/80 hover:bg-[#EAB308]/20 hover:text-[#EAB308] text-zinc-300 transition-colors"
+                                  title="Edit Student Details"
+                                >
+                                  <Edit2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Pagination Controls */}
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <span className="text-xs text-brand-muted">
+                Showing <strong className="text-white">{adminStudents.length > 0 ? (adminPage - 1) * adminLimit + 1 : 0}</strong> to{" "}
+                <strong className="text-white">{Math.min(adminPage * adminLimit, adminTotal)}</strong> of{" "}
+                <strong className="text-white">{adminTotal}</strong> profiles
+              </span>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setAdminPage((p) => Math.max(1, p - 1))}
+                  disabled={adminPage === 1 || isAdminLoading}
+                  className="p-1.5 rounded-xl border border-brand-border bg-brand-bg text-brand-muted hover:text-white disabled:opacity-40 transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+
+                <span className="text-xs font-bold text-zinc-300 px-3">
+                  Page {adminPage} of {adminTotalPages}
+                </span>
+
+                <button
+                  onClick={() => setAdminPage((p) => Math.min(adminTotalPages, p + 1))}
+                  disabled={adminPage >= adminTotalPages || isAdminLoading}
+                  className="p-1.5 rounded-xl border border-brand-border bg-brand-bg text-brand-muted hover:text-white disabled:opacity-40 transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
 
           {stats && stats.totalStudents.value > 0 ? (

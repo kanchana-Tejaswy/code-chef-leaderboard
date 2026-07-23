@@ -14,12 +14,13 @@ import {
   Check,
   Info,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { parseSpreadsheetBuffer, exportSkippedRowsCSV } from "@/utils/csvParser";
 
 interface CsvImportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (createdCount?: number) => void;
 }
 
 export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalProps) {
@@ -125,6 +126,8 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
     }
   };
 
+  const router = useRouter();
+
   const executeImport = async () => {
     if (!parsedRows || parsedRows.length === 0) return;
     setIsImporting(true);
@@ -138,7 +141,9 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
       const data = await res.json();
       if (res.ok && data.success) {
         setImportReport(data);
-        onSuccess();
+        const createdCount = data.summary?.createdCount || 0;
+        onSuccess(createdCount);
+        router.refresh();
       } else {
         setErrorMsg(data.error || "Failed to complete CSV import.");
       }
