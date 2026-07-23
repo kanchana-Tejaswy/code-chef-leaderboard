@@ -150,6 +150,32 @@ export class StudentProfileService {
     };
   }
 
+  private static isSchemaMigrated = false;
+
+  /**
+   * Ensures additive migration fields exist on the student_profiles table in database.
+   */
+  static async ensureSchema(): Promise<void> {
+    if (this.isSchemaMigrated) return;
+    try {
+      await prisma.$executeRawUnsafe(`
+        ALTER TABLE "student_profiles"
+        ADD COLUMN IF NOT EXISTS "contact_number" TEXT,
+        ADD COLUMN IF NOT EXISTS "cgpa" DOUBLE PRECISION,
+        ADD COLUMN IF NOT EXISTS "codeforces_username" TEXT,
+        ADD COLUMN IF NOT EXISTS "profile_status" TEXT NOT NULL DEFAULT 'INCOMPLETE',
+        ADD COLUMN IF NOT EXISTS "leaderboard_eligible" BOOLEAN NOT NULL DEFAULT false,
+        ADD COLUMN IF NOT EXISTS "dashboard_eligible" BOOLEAN NOT NULL DEFAULT false;
+
+        CREATE UNIQUE INDEX IF NOT EXISTS "student_profiles_codeforces_username_key"
+        ON "student_profiles"("codeforces_username");
+      `);
+      this.isSchemaMigrated = true;
+    } catch (e) {
+      console.warn("Notice: ensureSchema non-fatal notice:", e);
+    }
+  }
+
   /**
    * Evaluates and classifies a set of student rows against database records and batch duplicates.
    */
@@ -157,6 +183,7 @@ export class StudentProfileService {
     rows: RawStudentInput[],
     dbStudentsOverride?: any[]
   ): Promise<EvaluatedRow[]> {
+    await this.ensureSchema();
     let allDbStudents = dbStudentsOverride;
     if (!allDbStudents) {
       try {
@@ -324,6 +351,7 @@ export class StudentProfileService {
     dbClient = prisma
   ): Promise<{ success: boolean; profile?: any; error?: string }> {
     try {
+      await this.ensureSchema();
       const targetId = crypto.randomUUID();
 
       const profile = await dbClient.studentProfile.create({
