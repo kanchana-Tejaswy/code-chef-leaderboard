@@ -38,7 +38,7 @@ export async function proxy(request: NextRequest) {
 
   const { pathname } = request.nextUrl;
 
-  const isPublicRoute = pathname.startsWith("/login") || pathname.startsWith("/auth/verify-otp") || pathname.startsWith("/auth/callback") || pathname === "/" || pathname.startsWith("/api/auth/");
+  const isPublicRoute = pathname.startsWith("/login") || pathname.startsWith("/auth/verify-otp") || pathname.startsWith("/auth/callback") || pathname === "/" || pathname.startsWith("/api/auth/") || pathname.startsWith("/api/public-migration");
   
   // Broad deflection
   if (!user && !isPublicRoute) {
