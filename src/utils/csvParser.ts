@@ -1,5 +1,32 @@
-import * as XLSX from "xlsx";
-import { RawStudentInput } from "@/services/student-profile.service";
+export interface RawStudentInput {
+  name?: string | null;
+  rollNumber?: string | null;
+  roll_number?: string | null;
+  contactNumber?: string | null;
+  contact_number?: string | null;
+  year?: string | number | null;
+  branch?: string | null;
+  department?: string | null;
+  section?: string | null;
+  cgpa?: string | number | null;
+  email?: string | null;
+  codechefUsername?: string | null;
+  codechef_username?: string | null;
+  codechef_url?: string | null;
+  leetcodeUsername?: string | null;
+  leetcode_username?: string | null;
+  leetcode_url?: string | null;
+  codeforcesUsername?: string | null;
+  codeforces_username?: string | null;
+  codeforces_url?: string | null;
+  githubUsername?: string | null;
+  github_username?: string | null;
+  github_url?: string | null;
+  linkedinUrl?: string | null;
+  linkedin_url?: string | null;
+  profilePictureUrl?: string | null;
+  profile_picture_url?: string | null;
+}
 
 /**
  * Normalizes header string for flexible case-insensitive and whitespace-insensitive matching.
@@ -31,9 +58,10 @@ export function mapHeaderToField(header: string): keyof RawStudentInput | null {
 }
 
 /**
- * Parses file buffer or array buffer from .csv, .xlsx, or .xls using XLSX library.
+ * Client-safe dynamic spreadsheet parser for .csv, .xlsx, or .xls using on-demand XLSX import.
  */
-export function parseSpreadsheetBuffer(buffer: ArrayBuffer | Uint8Array): RawStudentInput[] {
+export async function parseSpreadsheetBuffer(buffer: ArrayBuffer | Uint8Array): Promise<RawStudentInput[]> {
+  const XLSX = await import("xlsx");
   const workbook = XLSX.read(buffer, { type: "array" });
   const firstSheetName = workbook.SheetNames[0];
   if (!firstSheetName) return [];

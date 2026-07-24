@@ -59,7 +59,7 @@ import {
 import { RatingChart } from "@/components/dashboard/rating-chart";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
 import { SkillRadar } from "@/components/dashboard/skill-radar";
-import { CsvImportModal } from "@/components/dashboard/csv-import-modal";
+import { CsvImportModal, CsvImportErrorBoundary } from "@/components/dashboard/csv-import-modal";
 import { getDisplayRank } from "@/utils/ranking";
 
 // 1. Interfaces
@@ -3426,14 +3426,16 @@ export default function LandingPage() {
       )}
 
       {/* CSV Import Modal */}
-      <CsvImportModal
-        isOpen={isCsvModalOpen}
-        onClose={() => setIsCsvModalOpen(false)}
-        onSuccess={() => {
-          fetchLeaderboard();
-          loadDashboardData();
-        }}
-      />
+      <CsvImportErrorBoundary>
+        <CsvImportModal
+          isOpen={isCsvModalOpen}
+          onClose={() => setIsCsvModalOpen(false)}
+          onSuccess={() => {
+            fetchLeaderboard();
+            loadDashboardData();
+          }}
+        />
+      </CsvImportErrorBoundary>
 
       {/* Edit Student Modal */}
       {isEditModalOpen && (

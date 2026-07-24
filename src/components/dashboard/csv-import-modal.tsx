@@ -83,7 +83,7 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
     reader.onload = async (e) => {
       try {
         const buffer = e.target?.result as ArrayBuffer;
-        const rows = parseSpreadsheetBuffer(buffer);
+        const rows = await parseSpreadsheetBuffer(buffer);
         if (rows.length === 0) {
           setErrorMsg("No valid rows could be parsed from the file. Please check column headers.");
           setFile(null);
@@ -585,3 +585,53 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
     </div>
   );
 }
+
+export class CsvImportErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    // Safe client logging without leaking student emails, phone numbers, or tokens
+    console.error("[CSV Import Modal Error Boundary] Caught error:", error?.message || "Client Component Exception");
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-zinc-950 border border-zinc-800 rounded-3xl p-6 md:p-8 max-w-md w-full text-center flex flex-col items-center gap-4 shadow-2xl">
+            <div className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-2xl text-red-400">
+              <AlertTriangle className="h-7 w-7" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">CSV Import Error</h3>
+              <p className="text-xs text-zinc-400 font-medium leading-relaxed">
+                CSV Import could not be opened. Please reload and try again.
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false });
+                if (typeof window !== "undefined") window.location.reload();
+              }}
+              className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold rounded-xl transition-all shadow-md"
+            >
+              Reload Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+

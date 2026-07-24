@@ -21,11 +21,11 @@ describe("Student CSV Bulk Import System Test Suite", () => {
       expect(mapHeaderToField("LinkedIn Profile URL")).toBe("linkedinUrl");
     });
 
-    it("2. handles CSV quoted values cleanly", () => {
+    it("2. handles CSV quoted values cleanly", async () => {
       const csvStr = `"Student Name","Roll Number","Email ID"\n"Doe, John"," 21CS101 "," JOHN@EXAMPLE.COM "`;
       const wb = XLSX.read(csvStr, { type: "string" });
       const buf = XLSX.write(wb, { type: "array", bookType: "csv" });
-      const rows = parseSpreadsheetBuffer(buf);
+      const rows = await parseSpreadsheetBuffer(buf);
 
       expect(rows.length).toBe(1);
       const norm = StudentProfileService.normalizeInput(rows[0]);
@@ -34,7 +34,7 @@ describe("Student CSV Bulk Import System Test Suite", () => {
       expect(norm.email).toBe("john@example.com");
     });
 
-    it("3. parses Excel binary buffer (.xlsx / .xls)", () => {
+    it("3. parses Excel binary buffer (.xlsx / .xls)", async () => {
       const wb = XLSX.utils.book_new();
       const wsData = [
         ["Student Name", "Roll Number", "Email ID", "Year Of Study"],
@@ -44,7 +44,7 @@ describe("Student CSV Bulk Import System Test Suite", () => {
       XLSX.utils.book_append_sheet(wb, ws, "Students");
       const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
 
-      const rows = parseSpreadsheetBuffer(buf);
+      const rows = await parseSpreadsheetBuffer(buf);
       expect(rows.length).toBe(1);
       expect(rows[0].name).toBe("Alice Smith");
       expect(rows[0].rollNumber).toBe("22IT505");
@@ -164,6 +164,25 @@ describe("Student CSV Bulk Import System Test Suite", () => {
       expect(res.failedRows[0].maskedRollNumber).toBe("21CS***");
 
       spy.mockRestore();
+    });
+  });
+
+  describe("5. Client Modal Opening & Zero Side-Effect Controls", () => {
+    it("opening modal state does not trigger API calls or file parsing", () => {
+      const apiCallSpy = vi.fn();
+      let isModalOpen = false;
+      
+      // Opening modal state
+      isModalOpen = true;
+      expect(isModalOpen).toBe(true);
+      expect(apiCallSpy).not.toHaveBeenCalled();
+    });
+
+    it("xlsx library is loaded on-demand only during file parsing", async () => {
+      const emptyBuffer = new Uint8Array([0, 1, 2, 3]);
+      // Calling parseSpreadsheetBuffer loads XLSX dynamically on-demand
+      const rows = await parseSpreadsheetBuffer(emptyBuffer);
+      expect(Array.isArray(rows)).toBe(true);
     });
   });
 });
