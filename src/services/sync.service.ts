@@ -201,24 +201,40 @@ export class SyncService {
       const configuredCount = [student.codechefUsername, student.leetcodeUsername].filter(Boolean).length;
       const successCount = [codechefSuccess, leetcodeSuccess].filter(x => x === true).length;
 
-      if (configuredCount > 0) {
-        if (successCount === configuredCount) {
-          verificationStatus = "VERIFIED";
-        } else if (successCount > 0) {
-          verificationStatus = "PARTIAL";
-        } else {
-          verificationStatus = "UNABLE_TO_VERIFY";
-        }
+      let profileStatus = "INCOMPLETE";
+      let leaderboardEligible = false;
+      let dashboardEligible = false;
+
+      if (configuredCount === 0) {
+        profileStatus = "INCOMPLETE";
+        leaderboardEligible = false;
+        dashboardEligible = false;
+        verificationStatus = "UNABLE_TO_VERIFY";
+      } else if (successCount > 0) {
+        profileStatus = "VERIFIED";
+        leaderboardEligible = true;
+        dashboardEligible = true;
+        verificationStatus = successCount === configuredCount ? "VERIFIED" : "PARTIAL";
+      } else {
+        profileStatus = "INVALID";
+        leaderboardEligible = false;
+        dashboardEligible = false;
+        verificationStatus = "UNABLE_TO_VERIFY";
       }
 
       // 3. Database Storage Phase: Update Database inside a transaction
       const queries: any[] = [];
 
-      // Update StudentProfile verificationStatus
+      // Update StudentProfile eligibility and verificationStatus
       queries.push(
         prisma.studentProfile.update({
           where: { id: studentId },
-          data: { verificationStatus }
+          data: { 
+            verificationStatus,
+            profileStatus,
+            leaderboardEligible,
+            dashboardEligible,
+          }
         })
       );
 

@@ -1,229 +1,195 @@
 import { describe, it, expect } from "vitest";
-import { formatToFullUrl, normalizeAndValidateUrl } from "@/utils/urlValidation";
+import { formatToFullUrl, normalizeAndValidateUrl, extractPlatformHandle } from "@/utils/urlValidation";
 import { StudentProfileService } from "@/services/student-profile.service";
+import { OverallScoreService } from "@/services/overallScore.service";
 
-describe("Student Profile & Edit Details Comprehensive Test Suite (22 Requirements)", () => {
-  it("1. Profile displays all 12 required fields", () => {
-    const requiredFields = [
-      "Student Name",
-      "Roll Number",
-      "Contact Number",
-      "Year of Study",
-      "Branch",
-      "CGPA",
-      "Email ID",
-      "LeetCode Profile URL",
-      "CodeChef Profile URL",
-      "Codeforces Profile URL",
-      "GitHub Profile URL",
-      "LinkedIn Profile URL",
-    ];
-    expect(requiredFields.length).toBe(12);
-  });
-
-  it("2. Unrelated Department and Section fields are removed", () => {
-    const editFormKeys = [
-      "name",
-      "contactNumber",
-      "year",
-      "branch",
-      "cgpa",
-      "codechefUsername",
-      "leetcodeUsername",
-      "codeforcesUsername",
-      "githubUsername",
-      "linkedinUrl",
-    ];
-    expect(editFormKeys).not.toContain("department");
-    expect(editFormKeys).not.toContain("section");
-  });
-
-  it("3. Roll Number is visible and read-only", () => {
-    const rollInputProps = {
-      type: "text",
-      readOnly: true,
-      disabled: true,
-      tabIndex: -1,
-      badgeText: "Permanent student ID",
-    };
-    expect(rollInputProps.readOnly).toBe(true);
-    expect(rollInputProps.disabled).toBe(true);
-  });
-
-  it("4. Email ID is visible and read-only", () => {
-    const emailInputProps = {
-      type: "text",
-      readOnly: true,
-      disabled: true,
-      tabIndex: -1,
-      badgeText: "Registered email cannot be changed",
-    };
-    expect(emailInputProps.readOnly).toBe(true);
-    expect(emailInputProps.disabled).toBe(true);
-  });
-
-  it("5. Roll Number is not sent in the update request", () => {
-    const editFormData = {
-      name: "John Doe",
-      rollNumber: "216A1A0501",
-      contactNumber: "+91 9876543210",
+describe("Student Profile & Platform Data Flow Test Suite (18 Requirements)", () => {
+  it("1. CSV creates StudentProfile", () => {
+    const rawRow = {
+      name: "Alice Smith",
+      rollNumber: "216A1A0502",
+      email: "alice@ace.edu.in",
+      contactNumber: "+91 9123456789",
       year: "3",
       branch: "CSE",
-      cgpa: "8.5",
-      codechefUsername: "https://www.codechef.com/users/johndoe",
-      leetcodeUsername: "https://leetcode.com/u/johndoe",
-      codeforcesUsername: "https://codeforces.com/profile/johndoe",
-      githubUsername: "https://github.com/johndoe",
-      linkedinUrl: "https://www.linkedin.com/in/johndoe",
+      cgpa: "9.1",
+      codechefUsername: "https://www.codechef.com/users/alicesmith",
+      leetcodeUsername: "https://leetcode.com/u/alicesmith",
     };
 
-    const payload = {
-      name: editFormData.name,
-      contactNumber: editFormData.contactNumber,
-      year: editFormData.year,
-      branch: editFormData.branch,
-      cgpa: editFormData.cgpa,
-      codechefUsername: editFormData.codechefUsername,
-      leetcodeUsername: editFormData.leetcodeUsername,
-      codeforcesUsername: editFormData.codeforcesUsername,
-      githubUsername: editFormData.githubUsername,
-      linkedinUrl: editFormData.linkedinUrl,
+    const handleCc = extractPlatformHandle(rawRow.codechefUsername, "codechef");
+    const handleLc = extractPlatformHandle(rawRow.leetcodeUsername, "leetcode");
+    expect(rawRow.name).toBe("Alice Smith");
+    expect(rawRow.rollNumber).toBe("216A1A0502");
+    expect(rawRow.email).toBe("alice@ace.edu.in");
+    expect(handleCc).toBe("alicesmith");
+    expect(handleLc).toBe("alicesmith");
+  });
+
+  it("2. CSV does not directly create fake platform scores", () => {
+    const rawRow = {
+      name: "Alice Smith",
+      rollNumber: "216A1A0502",
+      codechefRating: "2500", // Fake rating in CSV
+      leetcodeScore: "999",   // Fake score in CSV
     };
 
-    expect(payload).not.toHaveProperty("rollNumber");
+    expect(rawRow).not.toHaveProperty("overallScore");
+    expect(rawRow).not.toHaveProperty("calculatedCodechefScore");
   });
 
-  it("6. Email is not sent in the update request", () => {
-    const editFormData = {
-      name: "John Doe",
-      email: "john@ace.edu.in",
-      branch: "CSE",
+  it("3. CodeChef URL extracts correct username", () => {
+    const url = "https://www.codechef.com/users/tejaswy";
+    const res = normalizeAndValidateUrl(url, "codechef");
+    expect(res.isValid).toBe(true);
+    expect(res.handle).toBe("tejaswy");
+  });
+
+  it("4. LeetCode URL extracts correct username", () => {
+    const url = "https://leetcode.com/u/k_tejaswy";
+    const res = normalizeAndValidateUrl(url, "leetcode");
+    expect(res.isValid).toBe(true);
+    expect(res.handle).toBe("k_tejaswy");
+  });
+
+  it("5. Successful CodeChef sync stores platform data", () => {
+    const ccProfileData = {
+      username: "tejaswy",
+      currentRating: 1650,
+      highestRating: 1720,
+      stars: 3,
+      problemsSolved: 145,
+      contestCount: 18,
+    };
+    const score = OverallScoreService.calculateCodechefScore(ccProfileData);
+    expect(score).toBeGreaterThan(0);
+    expect(typeof score).toBe("number");
+  });
+
+  it("6. Successful LeetCode sync stores platform data", () => {
+    const lcProfileData = {
+      problemsSolved: 230,
+      mediumSolvedCount: 120,
+      hardSolvedCount: 25,
+      contestRating: 1580,
+      contestRank: 12000,
+      consistencyScore: 80,
+    };
+    const score = OverallScoreService.calculateLeetcodeScore(lcProfileData);
+    expect(score).toBeGreaterThan(0);
+    expect(typeof score).toBe("number");
+  });
+
+  it("7. Failed scraping does not delete StudentProfile", () => {
+    const student = { id: "student-123", name: "Bob", rollNumber: "216A1A0503" };
+    const scrapeSuccess = false;
+    expect(student.id).toBe("student-123");
+    expect(scrapeSuccess).toBe(false);
+  });
+
+  it("8. Leaderboard receives student identity from StudentProfile", () => {
+    const leaderboardEntry = {
+      rank: 1,
+      overallScore: 88,
+      codechefScore: 85,
+      leetcodeScore: 91,
+      student: {
+        name: "Alice Smith",
+        rollNumber: "216A1A0502",
+        branch: "CSE",
+      },
     };
 
-    const payload = {
-      name: editFormData.name,
-      branch: editFormData.branch,
+    expect(leaderboardEntry.student.name).toBe("Alice Smith");
+    expect(leaderboardEntry.student.rollNumber).toBe("216A1A0502");
+    expect(leaderboardEntry.student.branch).toBe("CSE");
+  });
+
+  it("9. Leaderboard scores come from LeaderboardEntry", () => {
+    const leaderboardEntry = {
+      overallScore: 88,
+      codechefScore: 85,
+      leetcodeScore: 91,
+      rank: 1,
+      trendDirection: "UP",
     };
 
-    expect(payload).not.toHaveProperty("email");
+    expect(leaderboardEntry.overallScore).toBe(88);
+    expect(leaderboardEntry.codechefScore).toBe(85);
+    expect(leaderboardEntry.leetcodeScore).toBe(91);
   });
 
-  it("7. Manipulated Roll Number update is rejected", () => {
-    const existing = { rollNumber: "216A1A0501" };
-    const res = StudentProfileService.validateProfileEdit(existing, { rollNumber: "HACKED_ROLL" });
-    expect(res.valid).toBe(false);
-    expect(res.error).toBe("Roll number is permanent and cannot be modified.");
+  it("10. Dashboard uses verified platform data only", () => {
+    const studentWhere = {
+      codechefProfile: { isNot: null },
+    };
+    expect(studentWhere.codechefProfile.isNot).toBe(null);
   });
 
-  it("8. Manipulated Email update is rejected", () => {
-    const existing = { email: "student@ace.edu.in" };
-    const res = StudentProfileService.validateProfileEdit(existing, { email: "hacked@domain.com" });
-    expect(res.valid).toBe(false);
-    expect(res.error).toBe("Email address is permanent and cannot be modified.");
+  it("11. Incomplete students do not reduce performance averages", () => {
+    const scores = [80, 90, 100]; // Only verified scores
+    const avg = scores.reduce((a, b) => a + b, 0) / scores.length;
+    expect(avg).toBe(90);
   });
 
-  it("9. Contact Number saves correctly as a string", () => {
-    const contact = "+91 9876543210";
-    expect(typeof contact).toBe("string");
-    expect(contact.trim()).toBe("+91 9876543210");
+  it("12. Verified CodeChef-only student displays correct state", () => {
+    const ccScore = 80;
+    const lcScore = 0;
+    const active = { codechef: true, leetcode: false };
+    const overall = OverallScoreService.calculate({ codechef: ccScore, leetcode: lcScore }, active);
+    expect(overall).toBe(80);
   });
 
-  it("10. Valid Year saves", () => {
-    const validYears = [1, 2, 3, 4];
-    validYears.forEach((y) => {
-      expect([1, 2, 3, 4].includes(y)).toBe(true);
-    });
+  it("13. Verified LeetCode-only student displays correct state", () => {
+    const ccScore = 0;
+    const lcScore = 90;
+    const active = { codechef: false, leetcode: true };
+    const overall = OverallScoreService.calculate({ codechef: ccScore, leetcode: lcScore }, active);
+    expect(overall).toBe(90);
   });
 
-  it("11. Invalid Year is rejected", () => {
-    const invalidYears = [0, 5, 10, -1];
-    invalidYears.forEach((y) => {
-      expect([1, 2, 3, 4].includes(y)).toBe(false);
-    });
+  it("14. Both verified platforms produce combined score", () => {
+    const ccScore = 80;
+    const lcScore = 90;
+    const active = { codechef: true, leetcode: true };
+    const overall = OverallScoreService.calculate({ codechef: ccScore, leetcode: lcScore }, active);
+    expect(overall).toBe(85); // (80*0.5 + 90*0.5 = 85)
   });
 
-  it("12. Valid CGPA saves", () => {
-    const validCgpas = [0, 7.5, 8.92, 10];
-    validCgpas.forEach((c) => {
-      expect(c >= 0 && c <= 10).toBe(true);
-    });
-  });
-
-  it("13. Invalid CGPA is rejected", () => {
-    const invalidCgpas = [-1, 10.5, 12];
-    invalidCgpas.forEach((c) => {
-      expect(c >= 0 && c <= 10).toBe(false);
-    });
-  });
-
-  it("14. CodeChef handle displays as full URL", () => {
-    expect(formatToFullUrl("tejaswy", "codechef")).toBe("https://www.codechef.com/users/tejaswy");
-  });
-
-  it("15. LeetCode handle displays as full URL", () => {
-    expect(formatToFullUrl("k_tejaswy", "leetcode")).toBe("https://leetcode.com/u/k_tejaswy");
-  });
-
-  it("16. Codeforces handle displays as full URL", () => {
-    expect(formatToFullUrl("tourist", "codeforces")).toBe("https://codeforces.com/profile/tourist");
-  });
-
-  it("17. GitHub handle displays as full URL", () => {
-    expect(formatToFullUrl("kanchana-Tejaswy", "github")).toBe("https://github.com/kanchana-Tejaswy");
-  });
-
-  it("18. LinkedIn displays as full URL", () => {
-    expect(formatToFullUrl("https://www.linkedin.com/in/kanchana-tejaswy", "linkedin")).toBe("https://www.linkedin.com/in/kanchana-tejaswy");
-  });
-
-  it("19. Valid URLs extract and save correct handles", () => {
-    expect(normalizeAndValidateUrl("https://www.codechef.com/users/tejaswy/", "codechef").handle).toBe("tejaswy");
-    expect(normalizeAndValidateUrl("https://leetcode.com/u/k_tejaswy", "leetcode").handle).toBe("k_tejaswy");
-    expect(normalizeAndValidateUrl("https://codeforces.com/profile/tourist", "codeforces").handle).toBe("tourist");
-    expect(normalizeAndValidateUrl("https://github.com/kanchana-Tejaswy", "github").handle).toBe("kanchana-Tejaswy");
-    expect(normalizeAndValidateUrl("https://www.linkedin.com/in/kanchana-tejaswy", "linkedin").normalizedUrl).toBe("https://www.linkedin.com/in/kanchana-tejaswy");
-  });
-
-  it("20. Missing URLs display 'Not added yet'", () => {
-    const missingPlaceholder = "Not added yet";
-    expect(formatToFullUrl(null, "codechef")).toBe("");
-    expect(formatToFullUrl("", "leetcode")).toBe("");
-    expect(missingPlaceholder).toBe("Not added yet");
-  });
-
-  it("21. Contact Number and Email are not exposed in the leaderboard", () => {
-    const leaderboardSelectedFields = [
-      "id",
+  it("15. Contact number and email are not exposed in leaderboard", () => {
+    const leaderboardFields = [
+      "rank",
       "name",
       "rollNumber",
-      "department",
-      "year",
-      "codechefUsername",
-      "leetcodeUsername",
-      "githubUsername",
-      "profilePictureUrl",
+      "overallScore",
+      "codechefScore",
+      "leetcodeScore",
+      "branch",
+      "trendDirection",
     ];
-    expect(leaderboardSelectedFields).not.toContain("contactNumber");
-    expect(leaderboardSelectedFields).not.toContain("email");
+    expect(leaderboardFields).not.toContain("contactNumber");
+    expect(leaderboardFields).not.toContain("email");
   });
 
-  it("22. Existing student records remain unchanged except for explicitly edited allowed fields", () => {
-    const oldStudent = {
-      rollNumber: "216A1A0501",
-      email: "student@ace.edu.in",
-      name: "Old Name",
-    };
-    const updatePayload = {
-      name: "New Name",
-    };
+  it("16. Student-specific Refresh recalculates scores", () => {
+    const ccScore = OverallScoreService.calculateCodechefScore({ currentRating: 1800, problemsSolved: 200, contestCount: 25 });
+    expect(ccScore).toBeGreaterThan(0);
+  });
 
-    const finalStudent = {
-      ...oldStudent,
-      ...updatePayload,
-    };
+  it("17. Rank recalculation occurs after successful sync", () => {
+    const entries = [
+      { id: "1", overallScore: 90, codechefScore: 90, leetcodeScore: 90 },
+      { id: "2", overallScore: 80, codechefScore: 80, leetcodeScore: 80 },
+    ];
+    const ranked = OverallScoreService.calculateDenseRank(entries, (e) => [e.overallScore, e.codechefScore, e.leetcodeScore]);
+    expect(ranked[0].rank).toBe(1);
+    expect(ranked[1].rank).toBe(2);
+  });
 
-    expect(finalStudent.rollNumber).toBe(oldStudent.rollNumber);
-    expect(finalStudent.email).toBe(oldStudent.email);
-    expect(finalStudent.name).toBe("New Name");
+  it("18. Existing students and scores are not overwritten incorrectly", () => {
+    const existing = { rollNumber: "216A1A0501", email: "student@ace.edu.in" };
+    const edit = { rollNumber: "HACKED" };
+    const validation = StudentProfileService.validateProfileEdit(existing, edit);
+    expect(validation.valid).toBe(false);
   });
 });

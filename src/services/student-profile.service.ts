@@ -344,7 +344,7 @@ export class StudentProfileService {
           githubUsername: data.githubUsername,
           linkedinUrl: data.linkedinUrl,
           profilePictureUrl: data.profilePictureUrl,
-          profileStatus: "INCOMPLETE",
+          profileStatus: (data.codechefUsername || data.leetcodeUsername || data.codeforcesUsername) ? "PENDING_VERIFICATION" : "INCOMPLETE",
           leaderboardEligible: false,
           dashboardEligible: false,
           verificationStatus: "UNABLE_TO_VERIFY",

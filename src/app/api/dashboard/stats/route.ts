@@ -27,17 +27,17 @@ const getCachedStats = async (departmentFilter?: string) => {
           where: { ...studentWhere, OR: [{ codechefProfile: { isNot: null } }, { leetcodeProfile: { isNot: null } }, { githubProfile: { isNot: null } }] }
         }),
         prisma.leaderboardEntry.aggregate({
-          where: { ...lbWhere, OR: [{ student: { codechefUsername: { not: null } } }, { student: { leetcodeUsername: { not: null } } }, { student: { githubUsername: { not: null } } }] },
-        _avg: { overallScore: true }, _max: { overallScore: true }
-      })
-    ]);
+          where: { ...lbWhere, OR: [{ student: { codechefProfile: { isNot: null } } }, { student: { leetcodeProfile: { isNot: null } } }] },
+          _avg: { overallScore: true }, _max: { overallScore: true }
+        })
+      ]);
 
       const [leetcodeAgg] = await Promise.all([
-        prisma.leaderboardEntry.aggregate({ where: { ...lbWhere, student: { ...lbWhere.student, leetcodeUsername: { not: null } } }, _avg: { leetcodeScore: true } }),
+        prisma.leaderboardEntry.aggregate({ where: { ...lbWhere, student: { ...lbWhere.student, leetcodeProfile: { isNot: null } } }, _avg: { leetcodeScore: true } }),
       ]);
 
       const [codechefAgg, lcSolvedAgg] = await Promise.all([
-        prisma.leaderboardEntry.aggregate({ where: { ...lbWhere, student: { ...lbWhere.student, codechefUsername: { not: null } } }, _avg: { codechefScore: true } }),
+        prisma.leaderboardEntry.aggregate({ where: { ...lbWhere, student: { ...lbWhere.student, codechefProfile: { isNot: null } } }, _avg: { codechefScore: true } }),
         prisma.leetcodeProfile.aggregate({ where: { student: studentWhere }, _avg: { problemsSolved: true, acceptanceRate: true } }),
       ]);
 
