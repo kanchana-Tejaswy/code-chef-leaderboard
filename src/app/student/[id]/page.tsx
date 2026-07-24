@@ -18,7 +18,8 @@ import {
   Check,
   X,
   Shield,
-  RefreshCw
+  RefreshCw,
+  Lock
 } from "lucide-react";
 import { useAuth } from "@/app/providers";
 import { formatToFullUrl } from "@/utils/urlValidation";
@@ -183,10 +184,21 @@ export default function StudentProfileDashboard() {
     setIsSavingDetails(true);
     setSaveDetailsError(null);
     try {
+      const payload = {
+        name: editFormData.name,
+        department: editFormData.department,
+        year: editFormData.year,
+        branch: editFormData.branch,
+        section: editFormData.section,
+        codechefUsername: editFormData.codechefUsername,
+        leetcodeUsername: editFormData.leetcodeUsername,
+        githubUsername: editFormData.githubUsername,
+        linkedinUrl: editFormData.linkedinUrl,
+      };
       const response = await fetch(`/api/admin/students/${studentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editFormData),
+        body: JSON.stringify(payload),
       });
       const data = await response.json();
       if (response.ok && data.success) {
@@ -1197,12 +1209,20 @@ export default function StudentProfileDashboard() {
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Roll Number</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">ROLL NUMBER</label>
+                      <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-zinc-500">
+                        <Lock className="h-2.5 w-2.5" />
+                        Permanent student ID
+                      </span>
+                    </div>
                     <input
                       type="text"
-                      value={editFormData.rollNumber}
-                      onChange={(e) => setEditFormData({ ...editFormData, rollNumber: e.target.value })}
-                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                      readOnly
+                      disabled
+                      tabIndex={-1}
+                      value={student?.rollNumber || "N/A"}
+                      className="bg-[#181818] border border-[#262626] rounded-xl px-3 py-2 text-sm text-zinc-400 cursor-not-allowed select-none focus:outline-none"
                     />
                   </div>
                 </div>

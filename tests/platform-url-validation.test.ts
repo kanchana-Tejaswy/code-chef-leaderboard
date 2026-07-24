@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { formatToFullUrl, normalizeAndValidateUrl } from "@/utils/urlValidation";
+import { StudentProfileService } from "@/services/student-profile.service";
 
 describe("Student Edit Details Modal & Platform URL Validation System", () => {
   it("1. Actual rendered edit component uses PROFILE URL labels", () => {
@@ -147,12 +148,75 @@ describe("Student Edit Details Modal & Platform URL Validation System", () => {
       return oldCC !== newCC || oldLC !== newLC || oldGH !== newGH || oldLN !== newLN;
     };
 
-    // Formatting-only change (e.g., https://codechef.com/users/tejaswy vs https://www.codechef.com/users/tejaswy/)
+    // Formatting-only change
     const extractCC = normalizeAndValidateUrl("https://www.codechef.com/users/tejaswy/", "codechef").handle;
     expect(isPlatformChanged(oldStudent.codechefUsername, extractCC, oldStudent.leetcodeUsername, "k_tejaswy", oldStudent.githubUsername, "kanchana-Tejaswy", oldStudent.linkedinUrl, "https://www.linkedin.com/in/kanchana-tejaswy")).toBe(false);
 
     // Actual handle change
     const extractNewCC = normalizeAndValidateUrl("https://www.codechef.com/users/new_handle", "codechef").handle;
     expect(isPlatformChanged(oldStudent.codechefUsername, extractNewCC, oldStudent.leetcodeUsername, "k_tejaswy", oldStudent.githubUsername, "kanchana-Tejaswy", oldStudent.linkedinUrl, "https://www.linkedin.com/in/kanchana-tejaswy")).toBe(true);
+  });
+});
+
+describe("Roll Number & Email Immutability Protections", () => {
+  const existingStudent = {
+    rollNumber: "216A1A0501",
+    email: "student@ace.edu.in",
+  };
+
+  it("1. Manipulated API request attempting to change roll number is rejected", () => {
+    const result = StudentProfileService.validateProfileEdit(existingStudent, {
+      rollNumber: "DIFFERENT_ROLL",
+    });
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe("Roll number is permanent and cannot be modified.");
+  });
+
+  it("2. Manipulated API request attempting to change email is rejected", () => {
+    const result = StudentProfileService.validateProfileEdit(existingStudent, {
+      email: "hacked@domain.com",
+    });
+    expect(result.valid).toBe(false);
+    expect(result.error).toBe("Email address is permanent and cannot be modified.");
+  });
+
+  it("3. Update request payload excludes rollNumber and email", () => {
+    const editFormData = {
+      name: "John Doe",
+      rollNumber: "216A1A0501",
+      department: "CSE",
+      year: "3",
+      branch: "CSE",
+      section: "A",
+      codechefUsername: "https://www.codechef.com/users/johndoe",
+      leetcodeUsername: "https://leetcode.com/u/johndoe",
+      githubUsername: "https://github.com/johndoe",
+      linkedinUrl: "https://www.linkedin.com/in/johndoe",
+    };
+
+    const payload = {
+      name: editFormData.name,
+      department: editFormData.department,
+      year: editFormData.year,
+      branch: editFormData.branch,
+      section: editFormData.section,
+      codechefUsername: editFormData.codechefUsername,
+      leetcodeUsername: editFormData.leetcodeUsername,
+      githubUsername: editFormData.githubUsername,
+      linkedinUrl: editFormData.linkedinUrl,
+    };
+
+    expect(payload).not.toHaveProperty("rollNumber");
+    expect(payload).not.toHaveProperty("email");
+  });
+
+  it("4. Unchanged roll number & email pass edit validation", () => {
+    const result = StudentProfileService.validateProfileEdit(existingStudent, {
+      name: "Jane Doe",
+      department: "ECE",
+      rollNumber: "216A1A0501",
+      email: "student@ace.edu.in",
+    });
+    expect(result.valid).toBe(true);
   });
 });
