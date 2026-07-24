@@ -68,12 +68,16 @@ interface StudentDetails {
   department: string;
   year: number;
   branch: string;
-  section: string;
+  section?: string;
   profilePictureUrl: string | null;
   codechefUsername: string | null;
   leetcodeUsername: string | null;
+  codeforcesUsername?: string | null;
   githubUsername: string | null;
   linkedinUrl?: string | null;
+  email?: string | null;
+  contactNumber?: string | null;
+  cgpa?: number | null;
   verificationStatus?: string;
   codechefProfile?: any;
   leetcodeProfile?: any;
@@ -130,13 +134,13 @@ export default function StudentProfileDashboard() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editFormData, setEditFormData] = useState({
     name: "",
-    rollNumber: "",
-    department: "",
+    contactNumber: "",
     year: "",
     branch: "",
-    section: "",
+    cgpa: "",
     codechefUsername: "",
     leetcodeUsername: "",
+    codeforcesUsername: "",
     githubUsername: "",
     linkedinUrl: "",
   });
@@ -147,13 +151,13 @@ export default function StudentProfileDashboard() {
     if (student) {
       setEditFormData({
         name: student.name || "",
-        rollNumber: student.rollNumber || "",
-        department: student.department || "",
+        contactNumber: student.contactNumber || "",
         year: student.year?.toString() || "",
-        branch: student.branch || "",
-        section: student.section || "",
+        branch: student.branch || student.department || "",
+        cgpa: student.cgpa !== undefined && student.cgpa !== null ? student.cgpa.toString() : "",
         codechefUsername: formatToFullUrl(student.codechefUsername, "codechef"),
         leetcodeUsername: formatToFullUrl(student.leetcodeUsername, "leetcode"),
+        codeforcesUsername: formatToFullUrl(student.codeforcesUsername, "codeforces"),
         githubUsername: formatToFullUrl(student.githubUsername, "github"),
         linkedinUrl: formatToFullUrl(student.linkedinUrl, "linkedin"),
       });
@@ -164,13 +168,13 @@ export default function StudentProfileDashboard() {
     if (student) {
       setEditFormData({
         name: student.name || "",
-        rollNumber: student.rollNumber || "",
-        department: student.department || "",
+        contactNumber: student.contactNumber || "",
         year: student.year?.toString() || "",
-        branch: student.branch || "",
-        section: student.section || "",
+        branch: student.branch || student.department || "",
+        cgpa: student.cgpa !== undefined && student.cgpa !== null ? student.cgpa.toString() : "",
         codechefUsername: formatToFullUrl(student.codechefUsername, "codechef"),
         leetcodeUsername: formatToFullUrl(student.leetcodeUsername, "leetcode"),
+        codeforcesUsername: formatToFullUrl(student.codeforcesUsername, "codeforces"),
         githubUsername: formatToFullUrl(student.githubUsername, "github"),
         linkedinUrl: formatToFullUrl(student.linkedinUrl, "linkedin"),
       });
@@ -186,12 +190,13 @@ export default function StudentProfileDashboard() {
     try {
       const payload = {
         name: editFormData.name,
-        department: editFormData.department,
+        contactNumber: editFormData.contactNumber,
         year: editFormData.year,
         branch: editFormData.branch,
-        section: editFormData.section,
+        cgpa: editFormData.cgpa,
         codechefUsername: editFormData.codechefUsername,
         leetcodeUsername: editFormData.leetcodeUsername,
+        codeforcesUsername: editFormData.codeforcesUsername,
         githubUsername: editFormData.githubUsername,
         linkedinUrl: editFormData.linkedinUrl,
       };
@@ -464,7 +469,7 @@ export default function StudentProfileDashboard() {
             )}
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-wider">
-                {student.department} • {student.year} Year • Sec {student.section}
+                {student.branch || student.department} • {student.year ? `${student.year} Year` : "Year N/A"}
               </span>
               <span className={`inline-flex px-2 py-0.5 border rounded-lg text-[8px] font-bold tracking-wider uppercase leading-none ${readinessColor}`}>
                 {readinessLabel}
@@ -505,6 +510,146 @@ export default function StudentProfileDashboard() {
             </span>
           </div>
         </div>
+      </div>
+
+      {/* STUDENT INFORMATION OVERVIEW CARDS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* BASIC INFORMATION */}
+        <div className="border border-[#262626] bg-[#111111]/70 p-6 rounded-3xl flex flex-col gap-4 shadow-lg">
+          <div className="flex items-center gap-2 pb-2 border-b border-[#262626]">
+            <h3 className="text-xs font-black uppercase tracking-widest text-[#EAB308]">BASIC INFORMATION</h3>
+          </div>
+          <div className="flex flex-col gap-3">
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">Student Name</span>
+              <span className="text-sm font-extrabold text-[#FAFAFA]">{student.name}</span>
+            </div>
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">Roll Number</span>
+              <span className="text-sm font-extrabold text-[#FAFAFA] flex items-center gap-1.5">
+                {student.rollNumber || "N/A"}
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[8px] font-bold bg-zinc-800 text-zinc-400 border border-zinc-700">
+                  <Lock className="h-2 w-2" /> Permanent ID
+                </span>
+              </span>
+            </div>
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">Contact Number</span>
+              <span className="text-sm font-semibold text-[#FAFAFA]">{student.contactNumber || "Not added yet"}</span>
+            </div>
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">Email ID</span>
+              <span className="text-sm font-semibold text-[#FAFAFA]">{student.email || "Not added yet"}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* ACADEMIC INFORMATION */}
+        <div className="border border-[#262626] bg-[#111111]/70 p-6 rounded-3xl flex flex-col gap-4 shadow-lg">
+          <div className="flex items-center gap-2 pb-2 border-b border-[#262626]">
+            <h3 className="text-xs font-black uppercase tracking-widest text-[#EAB308]">ACADEMIC INFORMATION</h3>
+          </div>
+          <div className="flex flex-col gap-3">
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">Year of Study</span>
+              <span className="text-sm font-extrabold text-[#FAFAFA]">{student.year ? `${student.year} Year` : "N/A"}</span>
+            </div>
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">Branch</span>
+              <span className="text-sm font-extrabold text-[#FAFAFA]">{student.branch || student.department || "N/A"}</span>
+            </div>
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">CGPA</span>
+              <span className="text-sm font-extrabold text-[#FAFAFA]">{student.cgpa !== undefined && student.cgpa !== null ? student.cgpa : "N/A"}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* PLATFORM PROFILE URLS */}
+        <div className="border border-[#262626] bg-[#111111]/70 p-6 rounded-3xl flex flex-col gap-4 shadow-lg">
+          <div className="flex items-center gap-2 pb-2 border-b border-[#262626]">
+            <h3 className="text-xs font-black uppercase tracking-widest text-[#EAB308]">PLATFORM PROFILE URLS</h3>
+          </div>
+          <div className="flex flex-col gap-2.5 text-xs">
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">LeetCode Profile URL</span>
+              {student.leetcodeUsername ? (
+                <a
+                  href={formatToFullUrl(student.leetcodeUsername, "leetcode")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-[#EAB308] hover:underline break-all"
+                >
+                  {formatToFullUrl(student.leetcodeUsername, "leetcode")}
+                </a>
+              ) : (
+                <span className="text-xs text-zinc-500 italic">Not added yet</span>
+              )}
+            </div>
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">CodeChef Profile URL</span>
+              {student.codechefUsername ? (
+                <a
+                  href={formatToFullUrl(student.codechefUsername, "codechef")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-[#EAB308] hover:underline break-all"
+                >
+                  {formatToFullUrl(student.codechefUsername, "codechef")}
+                </a>
+              ) : (
+                <span className="text-xs text-zinc-500 italic">Not added yet</span>
+              )}
+            </div>
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">Codeforces Profile URL</span>
+              {student.codeforcesUsername ? (
+                <a
+                  href={formatToFullUrl(student.codeforcesUsername, "codeforces")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-[#EAB308] hover:underline break-all"
+                >
+                  {formatToFullUrl(student.codeforcesUsername, "codeforces")}
+                </a>
+              ) : (
+                <span className="text-xs text-zinc-500 italic">Not added yet</span>
+              )}
+            </div>
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">GitHub Profile URL</span>
+              {student.githubUsername ? (
+                <a
+                  href={formatToFullUrl(student.githubUsername, "github")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-[#EAB308] hover:underline break-all"
+                >
+                  {formatToFullUrl(student.githubUsername, "github")}
+                </a>
+              ) : (
+                <span className="text-xs text-zinc-500 italic">Not added yet</span>
+              )}
+            </div>
+            <div>
+              <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">LinkedIn Profile URL</span>
+              {student.linkedinUrl ? (
+                <a
+                  href={formatToFullUrl(student.linkedinUrl, "linkedin")}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-semibold text-[#EAB308] hover:underline break-all"
+                >
+                  {formatToFullUrl(student.linkedinUrl, "linkedin")}
+                </a>
+              ) : (
+                <span className="text-xs text-zinc-500 italic">Not added yet</span>
+              )}
+            </div>
+          </div>
+        </div>
+
       </div>
 
       {selectedPlatform === null ? (
@@ -1196,10 +1341,10 @@ export default function StudentProfileDashboard() {
 
               {/* Basic Details */}
               <div className="flex flex-col gap-4">
-                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">Basic Details</h3>
+                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">Basic Information</h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Full Name *</label>
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Student Name *</label>
                     <input
                       type="text"
                       required
@@ -1225,49 +1370,76 @@ export default function StudentProfileDashboard() {
                       className="bg-[#181818] border border-[#262626] rounded-xl px-3 py-2 text-sm text-zinc-400 cursor-not-allowed select-none focus:outline-none"
                     />
                   </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Contact Number</label>
+                    <input
+                      type="text"
+                      value={editFormData.contactNumber}
+                      onChange={(e) => setEditFormData({ ...editFormData, contactNumber: e.target.value })}
+                      placeholder="e.g. +91 9876543210"
+                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50 placeholder-zinc-600"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">EMAIL ID</label>
+                      <span className="inline-flex items-center gap-1 text-[9px] font-semibold text-zinc-500">
+                        <Lock className="h-2.5 w-2.5" />
+                        Registered email cannot be changed
+                      </span>
+                    </div>
+                    <input
+                      type="text"
+                      readOnly
+                      disabled
+                      tabIndex={-1}
+                      value={student?.email || "N/A"}
+                      className="bg-[#181818] border border-[#262626] rounded-xl px-3 py-2 text-sm text-zinc-400 cursor-not-allowed select-none focus:outline-none"
+                    />
+                  </div>
                 </div>
               </div>
 
               {/* Academic Info */}
               <div className="flex flex-col gap-4">
-                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">Academic Info</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">Academic Information</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Department</label>
-                    <input
-                      type="text"
-                      value={editFormData.department}
-                      onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
-                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
-                      placeholder="e.g. CSE"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Year</label>
-                    <input
-                      type="number"
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Year of Study</label>
+                    <select
                       value={editFormData.year}
                       onChange={(e) => setEditFormData({ ...editFormData, year: e.target.value })}
                       className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
-                      placeholder="1, 2, 3, 4"
-                    />
+                    >
+                      <option value="">Select Year</option>
+                      <option value="1">1st Year</option>
+                      <option value="2">2nd Year</option>
+                      <option value="3">3rd Year</option>
+                      <option value="4">4th Year</option>
+                    </select>
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Branch</label>
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Branch *</label>
                     <input
                       type="text"
+                      required
                       value={editFormData.branch}
                       onChange={(e) => setEditFormData({ ...editFormData, branch: e.target.value })}
-                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                      placeholder="e.g. CSE"
+                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50 placeholder-zinc-600"
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Section</label>
+                    <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">CGPA</label>
                     <input
-                      type="text"
-                      value={editFormData.section}
-                      onChange={(e) => setEditFormData({ ...editFormData, section: e.target.value })}
-                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="10"
+                      value={editFormData.cgpa}
+                      onChange={(e) => setEditFormData({ ...editFormData, cgpa: e.target.value })}
+                      placeholder="e.g. 8.5"
+                      className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50 placeholder-zinc-600"
                     />
                   </div>
                 </div>
@@ -1280,6 +1452,21 @@ export default function StudentProfileDashboard() {
                   Changing a platform profile URL will trigger an automatic background sync. The student’s scores and ranks will be recalculated. This may take up to 30 seconds.
                 </p>
                 <div className="flex flex-col gap-3">
+                  <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-lg bg-[#F59E0B]/10 text-[#F59E0B] flex items-center justify-center shrink-0 border border-[#F59E0B]/20">
+                      <Code className="h-4 w-4" />
+                    </div>
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">LEETCODE PROFILE URL</label>
+                      <input
+                        type="text"
+                        value={editFormData.leetcodeUsername}
+                        onChange={(e) => setEditFormData({ ...editFormData, leetcodeUsername: e.target.value })}
+                        placeholder="https://leetcode.com/u/username"
+                        className="w-full bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50 placeholder-zinc-600"
+                      />
+                    </div>
+                  </div>
                   <div className="flex items-center gap-3">
                     <div className="h-8 w-8 rounded-lg bg-[#EAB308]/10 text-[#EAB308] flex items-center justify-center shrink-0 border border-[#EAB308]/20">
                       <Trophy className="h-4 w-4" />
@@ -1296,16 +1483,16 @@ export default function StudentProfileDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-[#F59E0B]/10 text-[#F59E0B] flex items-center justify-center shrink-0 border border-[#F59E0B]/20">
+                    <div className="h-8 w-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center shrink-0 border border-red-500/20">
                       <Code className="h-4 w-4" />
                     </div>
                     <div className="flex-1 flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">LEETCODE PROFILE URL</label>
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">CODEFORCES PROFILE URL</label>
                       <input
                         type="text"
-                        value={editFormData.leetcodeUsername}
-                        onChange={(e) => setEditFormData({ ...editFormData, leetcodeUsername: e.target.value })}
-                        placeholder="https://leetcode.com/u/username"
+                        value={editFormData.codeforcesUsername}
+                        onChange={(e) => setEditFormData({ ...editFormData, codeforcesUsername: e.target.value })}
+                        placeholder="https://codeforces.com/profile/username"
                         className="w-full bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50 placeholder-zinc-600"
                       />
                     </div>
@@ -1326,7 +1513,7 @@ export default function StudentProfileDashboard() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-[#EAB308]/10 text-[#EAB308] flex items-center justify-center shrink-0 border border-[#EAB308]/20">
+                    <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
                       <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
                         <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
                       </svg>

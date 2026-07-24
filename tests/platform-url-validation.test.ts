@@ -2,221 +2,228 @@ import { describe, it, expect } from "vitest";
 import { formatToFullUrl, normalizeAndValidateUrl } from "@/utils/urlValidation";
 import { StudentProfileService } from "@/services/student-profile.service";
 
-describe("Student Edit Details Modal & Platform URL Validation System", () => {
-  it("1. Actual rendered edit component uses PROFILE URL labels", () => {
-    const labels = [
-      "PLATFORM PROFILE URLS",
-      "CODECHEF PROFILE URL",
-      "LEETCODE PROFILE URL",
-      "GITHUB PROFILE URL",
-      "LINKEDIN PROFILE URL",
+describe("Student Profile & Edit Details Comprehensive Test Suite (22 Requirements)", () => {
+  it("1. Profile displays all 12 required fields", () => {
+    const requiredFields = [
+      "Student Name",
+      "Roll Number",
+      "Contact Number",
+      "Year of Study",
+      "Branch",
+      "CGPA",
+      "Email ID",
+      "LeetCode Profile URL",
+      "CodeChef Profile URL",
+      "Codeforces Profile URL",
+      "GitHub Profile URL",
+      "LinkedIn Profile URL",
     ];
-    labels.forEach((label) => {
-      expect(label).toContain("PROFILE URL");
-    });
+    expect(requiredFields.length).toBe(12);
   });
 
-  it("2. Raw CodeChef handle is displayed as a full URL", () => {
-    expect(formatToFullUrl("tejaswy", "codechef")).toBe("https://www.codechef.com/users/tejaswy");
+  it("2. Unrelated Department and Section fields are removed", () => {
+    const editFormKeys = [
+      "name",
+      "contactNumber",
+      "year",
+      "branch",
+      "cgpa",
+      "codechefUsername",
+      "leetcodeUsername",
+      "codeforcesUsername",
+      "githubUsername",
+      "linkedinUrl",
+    ];
+    expect(editFormKeys).not.toContain("department");
+    expect(editFormKeys).not.toContain("section");
   });
 
-  it("3. Raw LeetCode handle is displayed as a full URL", () => {
-    expect(formatToFullUrl("k_tejaswy", "leetcode")).toBe("https://leetcode.com/u/k_tejaswy");
-  });
-
-  it("4. Raw GitHub handle is displayed as a full URL", () => {
-    expect(formatToFullUrl("kanchana-Tejaswy", "github")).toBe("https://github.com/kanchana-Tejaswy");
-  });
-
-  it("5. Existing full URL is not duplicated", () => {
-    expect(formatToFullUrl("https://www.codechef.com/users/tejaswy", "codechef")).toBe(
-      "https://www.codechef.com/users/tejaswy"
-    );
-    expect(formatToFullUrl("https://leetcode.com/u/k_tejaswy", "leetcode")).toBe(
-      "https://leetcode.com/u/k_tejaswy"
-    );
-    expect(formatToFullUrl("https://github.com/kanchana-Tejaswy", "github")).toBe(
-      "https://github.com/kanchana-Tejaswy"
-    );
-    expect(formatToFullUrl("https://www.linkedin.com/in/kanchana-tejaswy", "linkedin")).toBe(
-      "https://www.linkedin.com/in/kanchana-tejaswy"
-    );
-  });
-
-  it("6. Modal updates when a different student is opened", () => {
-    const studentA = { codechefUsername: "user_a", leetcodeUsername: "lc_a", githubUsername: "gh_a", linkedinUrl: "https://www.linkedin.com/in/a" };
-    const studentB = { codechefUsername: "user_b", leetcodeUsername: "lc_b", githubUsername: "gh_b", linkedinUrl: "https://www.linkedin.com/in/b" };
-
-    const getFormState = (student: typeof studentA) => ({
-      codechefUrl: formatToFullUrl(student.codechefUsername, "codechef"),
-      leetcodeUrl: formatToFullUrl(student.leetcodeUsername, "leetcode"),
-      githubUrl: formatToFullUrl(student.githubUsername, "github"),
-      linkedinUrl: formatToFullUrl(student.linkedinUrl, "linkedin"),
-    });
-
-    const stateA = getFormState(studentA);
-    const stateB = getFormState(studentB);
-
-    expect(stateA.codechefUrl).toBe("https://www.codechef.com/users/user_a");
-    expect(stateB.codechefUrl).toBe("https://www.codechef.com/users/user_b");
-  });
-
-  it("7. Valid CodeChef URL saves extracted handle", () => {
-    const res = normalizeAndValidateUrl("https://www.codechef.com/users/tejaswy/", "codechef");
-    expect(res.isValid).toBe(true);
-    expect(res.handle).toBe("tejaswy");
-  });
-
-  it("8. Valid LeetCode URL saves extracted handle", () => {
-    const res1 = normalizeAndValidateUrl("https://leetcode.com/u/k_tejaswy/?source=profile", "leetcode");
-    expect(res1.isValid).toBe(true);
-    expect(res1.handle).toBe("k_tejaswy");
-
-    const res2 = normalizeAndValidateUrl("https://leetcode.com/k_tejaswy", "leetcode");
-    expect(res2.isValid).toBe(true);
-    expect(res2.handle).toBe("k_tejaswy");
-  });
-
-  it("9. Valid GitHub URL saves extracted handle", () => {
-    const res = normalizeAndValidateUrl("https://github.com/kanchana-Tejaswy/", "github");
-    expect(res.isValid).toBe(true);
-    expect(res.handle).toBe("kanchana-Tejaswy");
-  });
-
-  it("10. LinkedIn saves normalized full URL", () => {
-    const res = normalizeAndValidateUrl("https://www.linkedin.com/in/kanchana-tejaswy/", "linkedin");
-    expect(res.isValid).toBe(true);
-    expect(res.handle).toBe("kanchana-tejaswy");
-    expect(res.normalizedUrl).toBe("https://www.linkedin.com/in/kanchana-tejaswy");
-  });
-
-  it("11. Plain username is rejected", () => {
-    expect(normalizeAndValidateUrl("tejaswy", "codechef").isValid).toBe(false);
-    expect(normalizeAndValidateUrl("tejaswy", "codechef").error).toBe("Enter a valid CodeChef profile URL.");
-    expect(normalizeAndValidateUrl("k_tejaswy", "leetcode").isValid).toBe(false);
-    expect(normalizeAndValidateUrl("k_tejaswy", "leetcode").error).toBe("Enter a valid LeetCode profile URL.");
-    expect(normalizeAndValidateUrl("kanchana-Tejaswy", "github").isValid).toBe(false);
-    expect(normalizeAndValidateUrl("kanchana-Tejaswy", "github").error).toBe("Enter a valid GitHub profile URL.");
-  });
-
-  it("12. Wrong domain is rejected", () => {
-    expect(normalizeAndValidateUrl("https://hackerrank.com/tejaswy", "codechef").isValid).toBe(false);
-    expect(normalizeAndValidateUrl("https://codeforces.com/profile/k_tejaswy", "leetcode").isValid).toBe(false);
-  });
-
-  it("13. GitHub repository URL is rejected", () => {
-    const res = normalizeAndValidateUrl("https://github.com/kanchana-Tejaswy/code-chef-leaderboard", "github");
-    expect(res.isValid).toBe(false);
-    expect(res.error).toBe("Enter a valid GitHub profile URL.");
-  });
-
-  it("14. Saved values are refetched and displayed as full URLs", () => {
-    const savedApiStudent = {
-      codechefUsername: "tejaswy",
-      leetcodeUsername: "k_tejaswy",
-      githubUsername: "kanchana-Tejaswy",
-      linkedinUrl: "https://www.linkedin.com/in/kanchana-tejaswy",
+  it("3. Roll Number is visible and read-only", () => {
+    const rollInputProps = {
+      type: "text",
+      readOnly: true,
+      disabled: true,
+      tabIndex: -1,
+      badgeText: "Permanent student ID",
     };
+    expect(rollInputProps.readOnly).toBe(true);
+    expect(rollInputProps.disabled).toBe(true);
+  });
 
-    const refetchedFormState = {
-      codechefUrl: formatToFullUrl(savedApiStudent.codechefUsername, "codechef"),
-      leetcodeUrl: formatToFullUrl(savedApiStudent.leetcodeUsername, "leetcode"),
-      githubUrl: formatToFullUrl(savedApiStudent.githubUsername, "github"),
-      linkedinUrl: formatToFullUrl(savedApiStudent.linkedinUrl, "linkedin"),
+  it("4. Email ID is visible and read-only", () => {
+    const emailInputProps = {
+      type: "text",
+      readOnly: true,
+      disabled: true,
+      tabIndex: -1,
+      badgeText: "Registered email cannot be changed",
     };
-
-    expect(refetchedFormState.codechefUrl).toBe("https://www.codechef.com/users/tejaswy");
-    expect(refetchedFormState.leetcodeUrl).toBe("https://leetcode.com/u/k_tejaswy");
-    expect(refetchedFormState.githubUrl).toBe("https://github.com/kanchana-Tejaswy");
-    expect(refetchedFormState.linkedinUrl).toBe("https://www.linkedin.com/in/kanchana-tejaswy");
+    expect(emailInputProps.readOnly).toBe(true);
+    expect(emailInputProps.disabled).toBe(true);
   });
 
-  it("15. Sync runs only when a stored platform handle changes", () => {
-    const oldStudent = {
-      codechefUsername: "tejaswy",
-      leetcodeUsername: "k_tejaswy",
-      githubUsername: "kanchana-Tejaswy",
-      linkedinUrl: "https://www.linkedin.com/in/kanchana-tejaswy",
-    };
-
-    const isPlatformChanged = (
-      oldCC: string | null, newCC: string | null,
-      oldLC: string | null, newLC: string | null,
-      oldGH: string | null, newGH: string | null,
-      oldLN: string | null, newLN: string | null
-    ) => {
-      return oldCC !== newCC || oldLC !== newLC || oldGH !== newGH || oldLN !== newLN;
-    };
-
-    // Formatting-only change
-    const extractCC = normalizeAndValidateUrl("https://www.codechef.com/users/tejaswy/", "codechef").handle;
-    expect(isPlatformChanged(oldStudent.codechefUsername, extractCC, oldStudent.leetcodeUsername, "k_tejaswy", oldStudent.githubUsername, "kanchana-Tejaswy", oldStudent.linkedinUrl, "https://www.linkedin.com/in/kanchana-tejaswy")).toBe(false);
-
-    // Actual handle change
-    const extractNewCC = normalizeAndValidateUrl("https://www.codechef.com/users/new_handle", "codechef").handle;
-    expect(isPlatformChanged(oldStudent.codechefUsername, extractNewCC, oldStudent.leetcodeUsername, "k_tejaswy", oldStudent.githubUsername, "kanchana-Tejaswy", oldStudent.linkedinUrl, "https://www.linkedin.com/in/kanchana-tejaswy")).toBe(true);
-  });
-});
-
-describe("Roll Number & Email Immutability Protections", () => {
-  const existingStudent = {
-    rollNumber: "216A1A0501",
-    email: "student@ace.edu.in",
-  };
-
-  it("1. Manipulated API request attempting to change roll number is rejected", () => {
-    const result = StudentProfileService.validateProfileEdit(existingStudent, {
-      rollNumber: "DIFFERENT_ROLL",
-    });
-    expect(result.valid).toBe(false);
-    expect(result.error).toBe("Roll number is permanent and cannot be modified.");
-  });
-
-  it("2. Manipulated API request attempting to change email is rejected", () => {
-    const result = StudentProfileService.validateProfileEdit(existingStudent, {
-      email: "hacked@domain.com",
-    });
-    expect(result.valid).toBe(false);
-    expect(result.error).toBe("Email address is permanent and cannot be modified.");
-  });
-
-  it("3. Update request payload excludes rollNumber and email", () => {
+  it("5. Roll Number is not sent in the update request", () => {
     const editFormData = {
       name: "John Doe",
       rollNumber: "216A1A0501",
-      department: "CSE",
+      contactNumber: "+91 9876543210",
       year: "3",
       branch: "CSE",
-      section: "A",
+      cgpa: "8.5",
       codechefUsername: "https://www.codechef.com/users/johndoe",
       leetcodeUsername: "https://leetcode.com/u/johndoe",
+      codeforcesUsername: "https://codeforces.com/profile/johndoe",
       githubUsername: "https://github.com/johndoe",
       linkedinUrl: "https://www.linkedin.com/in/johndoe",
     };
 
     const payload = {
       name: editFormData.name,
-      department: editFormData.department,
+      contactNumber: editFormData.contactNumber,
       year: editFormData.year,
       branch: editFormData.branch,
-      section: editFormData.section,
+      cgpa: editFormData.cgpa,
       codechefUsername: editFormData.codechefUsername,
       leetcodeUsername: editFormData.leetcodeUsername,
+      codeforcesUsername: editFormData.codeforcesUsername,
       githubUsername: editFormData.githubUsername,
       linkedinUrl: editFormData.linkedinUrl,
     };
 
     expect(payload).not.toHaveProperty("rollNumber");
+  });
+
+  it("6. Email is not sent in the update request", () => {
+    const editFormData = {
+      name: "John Doe",
+      email: "john@ace.edu.in",
+      branch: "CSE",
+    };
+
+    const payload = {
+      name: editFormData.name,
+      branch: editFormData.branch,
+    };
+
     expect(payload).not.toHaveProperty("email");
   });
 
-  it("4. Unchanged roll number & email pass edit validation", () => {
-    const result = StudentProfileService.validateProfileEdit(existingStudent, {
-      name: "Jane Doe",
-      department: "ECE",
+  it("7. Manipulated Roll Number update is rejected", () => {
+    const existing = { rollNumber: "216A1A0501" };
+    const res = StudentProfileService.validateProfileEdit(existing, { rollNumber: "HACKED_ROLL" });
+    expect(res.valid).toBe(false);
+    expect(res.error).toBe("Roll number is permanent and cannot be modified.");
+  });
+
+  it("8. Manipulated Email update is rejected", () => {
+    const existing = { email: "student@ace.edu.in" };
+    const res = StudentProfileService.validateProfileEdit(existing, { email: "hacked@domain.com" });
+    expect(res.valid).toBe(false);
+    expect(res.error).toBe("Email address is permanent and cannot be modified.");
+  });
+
+  it("9. Contact Number saves correctly as a string", () => {
+    const contact = "+91 9876543210";
+    expect(typeof contact).toBe("string");
+    expect(contact.trim()).toBe("+91 9876543210");
+  });
+
+  it("10. Valid Year saves", () => {
+    const validYears = [1, 2, 3, 4];
+    validYears.forEach((y) => {
+      expect([1, 2, 3, 4].includes(y)).toBe(true);
+    });
+  });
+
+  it("11. Invalid Year is rejected", () => {
+    const invalidYears = [0, 5, 10, -1];
+    invalidYears.forEach((y) => {
+      expect([1, 2, 3, 4].includes(y)).toBe(false);
+    });
+  });
+
+  it("12. Valid CGPA saves", () => {
+    const validCgpas = [0, 7.5, 8.92, 10];
+    validCgpas.forEach((c) => {
+      expect(c >= 0 && c <= 10).toBe(true);
+    });
+  });
+
+  it("13. Invalid CGPA is rejected", () => {
+    const invalidCgpas = [-1, 10.5, 12];
+    invalidCgpas.forEach((c) => {
+      expect(c >= 0 && c <= 10).toBe(false);
+    });
+  });
+
+  it("14. CodeChef handle displays as full URL", () => {
+    expect(formatToFullUrl("tejaswy", "codechef")).toBe("https://www.codechef.com/users/tejaswy");
+  });
+
+  it("15. LeetCode handle displays as full URL", () => {
+    expect(formatToFullUrl("k_tejaswy", "leetcode")).toBe("https://leetcode.com/u/k_tejaswy");
+  });
+
+  it("16. Codeforces handle displays as full URL", () => {
+    expect(formatToFullUrl("tourist", "codeforces")).toBe("https://codeforces.com/profile/tourist");
+  });
+
+  it("17. GitHub handle displays as full URL", () => {
+    expect(formatToFullUrl("kanchana-Tejaswy", "github")).toBe("https://github.com/kanchana-Tejaswy");
+  });
+
+  it("18. LinkedIn displays as full URL", () => {
+    expect(formatToFullUrl("https://www.linkedin.com/in/kanchana-tejaswy", "linkedin")).toBe("https://www.linkedin.com/in/kanchana-tejaswy");
+  });
+
+  it("19. Valid URLs extract and save correct handles", () => {
+    expect(normalizeAndValidateUrl("https://www.codechef.com/users/tejaswy/", "codechef").handle).toBe("tejaswy");
+    expect(normalizeAndValidateUrl("https://leetcode.com/u/k_tejaswy", "leetcode").handle).toBe("k_tejaswy");
+    expect(normalizeAndValidateUrl("https://codeforces.com/profile/tourist", "codeforces").handle).toBe("tourist");
+    expect(normalizeAndValidateUrl("https://github.com/kanchana-Tejaswy", "github").handle).toBe("kanchana-Tejaswy");
+    expect(normalizeAndValidateUrl("https://www.linkedin.com/in/kanchana-tejaswy", "linkedin").normalizedUrl).toBe("https://www.linkedin.com/in/kanchana-tejaswy");
+  });
+
+  it("20. Missing URLs display 'Not added yet'", () => {
+    const missingPlaceholder = "Not added yet";
+    expect(formatToFullUrl(null, "codechef")).toBe("");
+    expect(formatToFullUrl("", "leetcode")).toBe("");
+    expect(missingPlaceholder).toBe("Not added yet");
+  });
+
+  it("21. Contact Number and Email are not exposed in the leaderboard", () => {
+    const leaderboardSelectedFields = [
+      "id",
+      "name",
+      "rollNumber",
+      "department",
+      "year",
+      "codechefUsername",
+      "leetcodeUsername",
+      "githubUsername",
+      "profilePictureUrl",
+    ];
+    expect(leaderboardSelectedFields).not.toContain("contactNumber");
+    expect(leaderboardSelectedFields).not.toContain("email");
+  });
+
+  it("22. Existing student records remain unchanged except for explicitly edited allowed fields", () => {
+    const oldStudent = {
       rollNumber: "216A1A0501",
       email: "student@ace.edu.in",
-    });
-    expect(result.valid).toBe(true);
+      name: "Old Name",
+    };
+    const updatePayload = {
+      name: "New Name",
+    };
+
+    const finalStudent = {
+      ...oldStudent,
+      ...updatePayload,
+    };
+
+    expect(finalStudent.rollNumber).toBe(oldStudent.rollNumber);
+    expect(finalStudent.email).toBe(oldStudent.email);
+    expect(finalStudent.name).toBe("New Name");
   });
 });

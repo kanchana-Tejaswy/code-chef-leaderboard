@@ -22,13 +22,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { 
       name, 
       email,
-      rollNumber, 
-      department, 
+      rollNumber,
+      contactNumber,
       year, 
       branch, 
-      section, 
+      cgpa,
       codechefUsername, 
       leetcodeUsername, 
+      codeforcesUsername,
       githubUsername,
       linkedinUrl
     } = body;
@@ -39,6 +40,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json({ error: "Name is required." }, { status: 400 });
+    }
+
+    const cleanedName = name.trim().replace(/\s+/g, " ");
+
+    if (branch !== undefined && branch !== null && typeof branch === "string" && !branch.trim()) {
+      return NextResponse.json({ error: "Branch is required." }, { status: 400 });
     }
 
     // Retrieve old student record to check if usernames or immutable fields changed
@@ -68,10 +75,36 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const normOldEmail = oldStudent.email ? oldStudent.email.trim().toLowerCase() : null;
       if (normOldEmail && reqEmail !== normOldEmail) {
         return NextResponse.json(
-          { error: "Email address is permanent and cannot be modified." },
+          { error: "Registered email cannot be changed." },
           { status: 400 }
         );
       }
+    }
+
+    // Year validation (1, 2, 3, 4)
+    let parsedYear: number | null = null;
+    if (year !== undefined && year !== null && String(year).trim() !== "") {
+      const yVal = typeof year === "number" ? year : parseInt(String(year).trim(), 10);
+      if (isNaN(yVal) || ![1, 2, 3, 4].includes(yVal)) {
+        return NextResponse.json(
+          { error: "Year of Study must be 1, 2, 3, or 4." },
+          { status: 400 }
+        );
+      }
+      parsedYear = yVal;
+    }
+
+    // CGPA validation (0 to 10)
+    let parsedCgpa: number | null = null;
+    if (cgpa !== undefined && cgpa !== null && String(cgpa).trim() !== "") {
+      const cVal = typeof cgpa === "number" ? cgpa : parseFloat(String(cgpa).trim());
+      if (isNaN(cVal) || cVal < 0 || cVal > 10) {
+        return NextResponse.json(
+          { error: "CGPA must be a number between 0 and 10." },
+          { status: 400 }
+        );
+      }
+      parsedCgpa = cVal;
     }
 
     const { isValid: isCcValid, handle: newCodechef, error: ccError } = normalizeAndValidateUrl(codechefUsername, "codechef");
@@ -82,6 +115,11 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const { isValid: isLcValid, handle: newLeetcode, error: lcError } = normalizeAndValidateUrl(leetcodeUsername, "leetcode");
     if (!isLcValid) {
       return NextResponse.json({ error: lcError }, { status: 400 });
+    }
+
+    const { isValid: isCfValid, handle: newCodeforces, error: cfError } = normalizeAndValidateUrl(codeforcesUsername, "codeforces");
+    if (!isCfValid) {
+      return NextResponse.json({ error: cfError }, { status: 400 });
     }
 
     const { isValid: isGithubValid, handle: newGithub, error: githubError } = normalizeAndValidateUrl(githubUsername, "github");
@@ -97,6 +135,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const isPlatformChanged = 
       oldStudent.codechefUsername !== newCodechef ||
       oldStudent.leetcodeUsername !== newLeetcode ||
+      oldStudent.codeforcesUsername !== newCodeforces ||
       oldStudent.githubUsername !== newGithub ||
       oldStudent.linkedinUrl !== newLinkedin;
 
@@ -104,13 +143,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const updatedStudent = await prisma.studentProfile.update({
       where: { id: studentId },
       data: { 
-        name: name.trim(),
-        department: department?.trim() || null,
-        year: year ? parseInt(year, 10) : null,
-        branch: branch?.trim() || null,
-        section: section?.trim() || null,
+        name: cleanedName,
+        contactNumber: contactNumber !== undefined ? (contactNumber ? String(contactNumber).trim() : null) : oldStudent.contactNumber,
+        year: parsedYear !== null ? parsedYear : oldStudent.year,
+        branch: branch ? String(branch).trim() : oldStudent.branch,
+        department: branch ? String(branch).trim() : oldStudent.department,
+        cgpa: parsedCgpa !== null ? parsedCgpa : oldStudent.cgpa,
         codechefUsername: newCodechef,
         leetcodeUsername: newLeetcode,
+        codeforcesUsername: newCodeforces,
         githubUsername: newGithub,
         linkedinUrl: newLinkedin,
       },
@@ -122,7 +163,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data: {
         ...(email?.trim() ? { email: email.trim() } : {}),
         ...(rollNumber?.trim() ? { loginId: rollNumber.trim() } : {}),
-        ...(department?.trim() ? { departmentId: department.trim() } : {}),
+        ...(branch?.trim() ? { departmentId: branch.trim() } : {}),
       }
     });
 
