@@ -129,6 +129,11 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
               Insights
             </Link>
           )}
+          {userRole === "ADMIN" && (
+            <Link href="/admin/control-center" prefetch={false} className={navItemClass("/admin/control-center")}>
+              Admin Control
+            </Link>
+          )}
           {userRole === "STUDENT" && studentProfileId && (
             <Link href={`/student/${studentProfileId}`} prefetch={false} className={navItemClass(`/student/${studentProfileId}`)}>
               My Profile
@@ -234,6 +239,16 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
               className={mobileNavItemClass("/insights")}
             >
               Insights
+            </Link>
+          )}
+          {userRole === "ADMIN" && (
+            <Link
+              href="/admin/control-center"
+              prefetch={false}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={mobileNavItemClass("/admin/control-center")}
+            >
+              Admin Control
             </Link>
           )}
           {userRole === "STUDENT" && studentProfileId && (

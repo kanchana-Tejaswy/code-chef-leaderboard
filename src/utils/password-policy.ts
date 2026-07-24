@@ -75,3 +75,22 @@ export function validatePassword(
 
   return { isValid: true };
 }
+
+export function validateAdminPassword(password: string): { valid: boolean; error?: string } {
+  if (!password || password.length < 12) {
+    return { valid: false, error: "Password must be at least 12 characters long." };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one uppercase letter." };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one lowercase letter." };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one number." };
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return { valid: false, error: "Password must contain at least one special character." };
+  }
+  return { valid: true };
+}

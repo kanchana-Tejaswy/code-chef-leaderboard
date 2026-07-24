@@ -23,7 +23,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ success: false, error: "Account not found." }, { status: 404 });
     }
 
-    if (targetAccount.authUserId === adminSession.authUserId) {
+    if (targetAccount.authUserId === adminSession.authUserId || targetAccount.id === adminSession.id) {
       await recordAuditEvent({
         actorUserId: adminSession.authUserId,
         action: AuditAction.ACCOUNT_STATUS_CHANGE_REJECTED,

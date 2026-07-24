@@ -12,13 +12,13 @@ export async function GET(request: NextRequest) {
     
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get("page") || "1", 10);
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50", 10), 100);
+    const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50", 10), 1), 100);
     
     const search = searchParams.get("search")?.trim() || "";
     const role = searchParams.get("role") as UserRole | null;
     const status = searchParams.get("status") as AccountStatus | null;
     const departmentId = searchParams.get("departmentId") || null;
-    const sortBy = searchParams.get("sortBy") || "createdAt"; // "createdAt" or "lastLoginAt"
+    const sortBy = searchParams.get("sortBy") || "createdAt";
     const order = searchParams.get("order") === "asc" ? "asc" : "desc";
 
     const where: Prisma.UserAccessWhereInput = {};
@@ -27,6 +27,8 @@ export async function GET(request: NextRequest) {
       where.OR = [
         { email: { contains: search, mode: "insensitive" } },
         { loginId: { contains: search, mode: "insensitive" } },
+        { studentProfile: { name: { contains: search, mode: "insensitive" } } },
+        { studentProfile: { rollNumber: { contains: search, mode: "insensitive" } } },
       ];
     }
     
@@ -55,6 +57,7 @@ export async function GET(request: NextRequest) {
         },
         select: {
           id: true,
+          authUserId: true,
           loginId: true,
           email: true,
           role: true,
@@ -67,12 +70,45 @@ export async function GET(request: NextRequest) {
           passwordSetAt: true,
           lastLoginAt: true,
           createdAt: true,
+          studentProfile: {
+            select: {
+              id: true,
+              name: true,
+              rollNumber: true,
+              department: true,
+              profilePictureUrl: true,
+            }
+          }
         },
       }),
     ]);
 
-    // Optional audit log for viewing accounts list
-    // Only log occasionally or if there's a specific search, to prevent log bloat
+    // Fetch matching staff profiles for names
+    const emails = accounts.filter(a => a && a.email && a.role !== UserRole.STUDENT).map(a => a.email);
+    let staffProfiles: any[] = [];
+    try {
+      const res = emails.length > 0
+        ? await prisma.profile.findMany({
+            where: { email: { in: emails } },
+            select: { email: true, name: true }
+          })
+        : [];
+      if (Array.isArray(res)) staffProfiles = res;
+    } catch {}
+
+    const staffNameMap = new Map(staffProfiles.map(p => [p.email, p.name]));
+
+    const items = accounts.map(acc => {
+      const emailName = acc.email ? acc.email.split("@")[0] : "";
+      const fullName = acc.studentProfile?.name || (acc.email ? staffNameMap.get(acc.email) : null) || emailName;
+      return {
+        ...acc,
+        fullName,
+        rollNumber: acc.studentProfile?.rollNumber || null,
+        department: acc.departmentId || acc.studentProfile?.department || null,
+      };
+    });
+
     if (search || role || status) {
       await recordAuditEvent({
         actorUserId: adminSession.authUserId,
@@ -84,7 +120,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        items: accounts,
+        items,
         total,
         page,
         limit,
