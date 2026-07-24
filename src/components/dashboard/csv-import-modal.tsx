@@ -125,28 +125,100 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
     }
   };
 
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
+
   const executeImport = async () => {
     if (!parsedRows || parsedRows.length === 0) return;
     setIsImporting(true);
     setErrorMsg(null);
+
+    const BATCH_SIZE = 25;
+    const totalBatches = Math.ceil(parsedRows.length / BATCH_SIZE);
+
+    let aggregatedSummary = {
+      totalRows: parsedRows.length,
+      actuallyCreated: 0,
+      incompleteCreated: 0,
+      duplicateRollSkipped: 0,
+      duplicateEmailSkipped: 0,
+      invalidIdentitySkipped: 0,
+      duplicateHandlesCleared: 0,
+      databaseFailures: 0,
+    };
+    let aggregatedFailedRows: any[] = [];
+    let allImportedIds: string[] = [];
+
     try {
-      const res = await fetch("/api/students/import", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "import", rows: parsedRows, autoSync }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setImportReport(data);
-        onSuccess();
-      } else {
-        setErrorMsg(data.error || "Failed to complete CSV import.");
+      for (let b = 0; b < totalBatches; b++) {
+        setImportProgress({ current: b + 1, total: totalBatches });
+        const chunk = parsedRows.slice(b * BATCH_SIZE, (b + 1) * BATCH_SIZE);
+
+        const res = await fetch("/api/students/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "import_batch",
+            rows: chunk,
+            autoSync: autoSync && (b === totalBatches - 1),
+            batchIndex: b + 1,
+            totalBatches,
+          }),
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || `Batch ${b + 1} of ${totalBatches} failed.`);
+        }
+
+        const s = data.summary;
+        aggregatedSummary.actuallyCreated += s.actuallyCreated || 0;
+        aggregatedSummary.incompleteCreated += s.incompleteCreated || 0;
+        aggregatedSummary.duplicateRollSkipped += s.duplicateRollSkipped || 0;
+        aggregatedSummary.duplicateEmailSkipped += s.duplicateEmailSkipped || 0;
+        aggregatedSummary.invalidIdentitySkipped += s.invalidIdentitySkipped || 0;
+        aggregatedSummary.duplicateHandlesCleared += s.duplicateHandlesCleared || 0;
+        aggregatedSummary.databaseFailures += s.databaseFailures || 0;
+
+        if (Array.isArray(data.failedRows)) {
+          aggregatedFailedRows = aggregatedFailedRows.concat(data.failedRows);
+        }
+        if (Array.isArray(data.importedIds)) {
+          allImportedIds = allImportedIds.concat(data.importedIds);
+        }
       }
-    } catch (err) {
+
+      const totalSkipped = aggregatedSummary.duplicateRollSkipped + aggregatedSummary.duplicateEmailSkipped + aggregatedSummary.invalidIdentitySkipped;
+
+      setImportReport({
+        summary: {
+          totalRows: aggregatedSummary.totalRows,
+          createdCount: aggregatedSummary.actuallyCreated,
+          readyCount: aggregatedSummary.actuallyCreated - aggregatedSummary.incompleteCreated,
+          incompleteCount: aggregatedSummary.incompleteCreated,
+          skippedDuplicateRollCount: aggregatedSummary.duplicateRollSkipped,
+          skippedDuplicateEmailCount: aggregatedSummary.duplicateEmailSkipped,
+          skippedDuplicatePlatformCount: aggregatedSummary.duplicateHandlesCleared,
+          skippedInvalidCount: aggregatedSummary.invalidIdentitySkipped,
+          failedCount: aggregatedSummary.databaseFailures,
+        },
+        rowDetails: aggregatedFailedRows.map((f) => ({
+          rowNumber: f.rowNumber,
+          name: "Student Profile",
+          rollNumber: f.maskedRollNumber,
+          email: "masked@student",
+          status: f.status,
+          reason: f.reason,
+        })),
+        displayText: `${aggregatedSummary.actuallyCreated} profiles created, ${totalSkipped} skipped, ${aggregatedSummary.databaseFailures} failed.`,
+      } as any);
+
+      onSuccess();
+    } catch (err: any) {
       console.error(err);
-      setErrorMsg("Network error occurred during bulk import.");
+      setErrorMsg(err.message || "Network error occurred during batch bulk import.");
     } finally {
       setIsImporting(false);
+      setImportProgress(null);
     }
   };
 
@@ -498,7 +570,7 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
               {isImporting ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Importing Batch...</span>
+                  <span>{importProgress ? `Processing batch ${importProgress.current} of ${importProgress.total}...` : "Importing Batch..."}</span>
                 </>
               ) : (
                 <>

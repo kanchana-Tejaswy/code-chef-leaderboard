@@ -337,53 +337,50 @@ export class StudentProfileService {
     try {
       const targetId = crypto.randomUUID();
 
+      // Ensure CGPA is valid float/null and year is int
+      const parsedCgpa = data.cgpa !== null && !isNaN(Number(data.cgpa)) ? Number(data.cgpa) : null;
+      const parsedYear = !isNaN(Number(data.year)) ? Math.min(Math.max(Number(data.year), 1), 4) : 1;
+      const contactStr = data.contactNumber ? String(data.contactNumber).trim() : null;
+
       const profile = await dbClient.studentProfile.create({
         data: {
           id: targetId,
           name: data.name,
           rollNumber: data.rollNumber,
           email: data.email,
-          contactNumber: data.contactNumber,
-          department: data.department,
-          branch: data.branch,
-          section: data.section,
-          year: data.year,
-          cgpa: data.cgpa,
+          contactNumber: contactStr,
+          department: data.department || "CSE",
+          branch: data.branch || "CSE",
+          section: data.section || "A",
+          year: parsedYear,
+          cgpa: parsedCgpa,
           codechefUsername: data.codechefUsername,
           leetcodeUsername: data.leetcodeUsername,
           codeforcesUsername: data.codeforcesUsername,
           githubUsername: data.githubUsername,
           linkedinUrl: data.linkedinUrl,
           profilePictureUrl: data.profilePictureUrl,
-          profileStatus: (data.codechefUsername || data.leetcodeUsername || data.codeforcesUsername) ? "PENDING_VERIFICATION" : "INCOMPLETE",
+          profileStatus: (data.codechefUsername && data.leetcodeUsername) ? "PENDING_VERIFICATION" : "INCOMPLETE",
           leaderboardEligible: false,
           dashboardEligible: false,
           verificationStatus: "UNABLE_TO_VERIFY",
-          leaderboardEntry: {
-            create: {
-              rank: 0,
-              rating: 0,
-              stars: 1,
-              talentScore: 0,
-              overallScore: 0,
-              codechefScore: 0,
-              leetcodeScore: 0,
-              trendDirection: "NEUTRAL",
-            },
-          },
         },
       });
 
-      await ActivityService.logEvent(
-        "STUDENT_ADD",
-        profile.id,
-        `${data.name} (${data.department}) profile was created.`
-      );
+      try {
+        await ActivityService.logEvent(
+          "STUDENT_ADD",
+          profile.id,
+          `${data.name} (${data.department}) profile was created.`
+        );
+      } catch (actErr) {
+        // Activity log failure should never block profile creation
+      }
 
       return { success: true, profile };
     } catch (err: any) {
-      console.error("Error in createProfile:", err);
-      return { success: false, error: err.message || "Failed to create student profile" };
+      console.error(`Error in createProfile for roll ${data.rollNumber}:`, err);
+      return { success: false, error: err.message || "Failed to create student profile record." };
     }
   }
 
@@ -433,115 +430,171 @@ export class StudentProfileService {
   }
 
   /**
-   * Processes a complete bulk CSV import using batch database transactions.
+   * Processes a single batch of student rows with individual isolated row execution.
    */
-  static async processBulkCsvImport(rows: RawStudentInput[]): Promise<{
+  static async processBatchImport(
+    rows: RawStudentInput[],
+    batchIndex: number = 0,
+    totalBatches: number = 1
+  ): Promise<{
     success: boolean;
+    batchIndex: number;
+    totalBatches: number;
     summary: {
       totalRows: number;
-      createdCount: number;
-      readyCount: number;
-      incompleteCount: number;
-      skippedDuplicateRollCount: number;
-      skippedDuplicateEmailCount: number;
-      skippedDuplicatePlatformCount: number;
-      skippedInvalidCount: number;
-      failedCount: number;
+      actuallyCreated: number;
+      incompleteCreated: number;
+      duplicateRollSkipped: number;
+      duplicateEmailSkipped: number;
+      invalidIdentitySkipped: number;
+      duplicateHandlesCleared: number;
+      databaseFailures: number;
     };
-    rowDetails: Array<{
+    failedRows: Array<{
       rowNumber: number;
-      name: string;
-      rollNumber: string;
-      email: string;
-      status: RowClassification;
+      maskedRollNumber: string;
+      status: string;
       reason: string;
     }>;
-    importedIds: string[];
+    createdProfileIds: string[];
   }> {
     const evaluated = await this.evaluateRows(rows);
 
-    const importableRows = evaluated.filter(
-      (r) => r.classification === "READY" || r.classification === "INCOMPLETE"
-    );
+    let actuallyCreated = 0;
+    let incompleteCreated = 0;
+    let duplicateRollSkipped = 0;
+    let duplicateEmailSkipped = 0;
+    let invalidIdentitySkipped = 0;
+    let duplicateHandlesCleared = 0;
+    let databaseFailures = 0;
 
-    let createdCount = 0;
-    let readyCount = 0;
-    let incompleteCount = 0;
-    let skippedDuplicateRollCount = 0;
-    let skippedDuplicateEmailCount = 0;
-    let skippedDuplicatePlatformCount = 0;
-    let skippedInvalidCount = 0;
-    let failedCount = 0;
-
-    const rowDetails: Array<{
+    const failedRows: Array<{
       rowNumber: number;
-      name: string;
-      rollNumber: string;
-      email: string;
-      status: RowClassification;
+      maskedRollNumber: string;
+      status: string;
       reason: string;
     }> = [];
 
-    const importedIds: string[] = [];
+    const createdProfileIds: string[] = [];
 
-    // Process evaluation metrics
+    const maskRoll = (roll: string) => {
+      if (!roll) return "N/A";
+      return roll.length > 4 ? `${roll.slice(0, 4)}***` : `${roll.slice(0, 2)}***`;
+    };
+
     for (const item of evaluated) {
-      const reason = item.reasons.join(" ") || "Valid row.";
-      rowDetails.push({
-        rowNumber: item.index + 1,
-        name: item.normalized.name || item.raw.name || "N/A",
-        rollNumber: item.normalized.rollNumber || item.raw.rollNumber || item.raw.roll_number || "N/A",
-        email: item.normalized.email || item.raw.email || "N/A",
-        status: item.classification,
-        reason,
-      });
+      if (item.hadDuplicateHandle) {
+        duplicateHandlesCleared++;
+      }
 
-      if (item.hadDuplicateHandle) skippedDuplicatePlatformCount++;
-      if (item.classification === "DUPLICATE_ROLL_NUMBER") skippedDuplicateRollCount++;
-      else if (item.classification === "DUPLICATE_EMAIL") skippedDuplicateEmailCount++;
-      else if (item.classification !== "READY" && item.classification !== "INCOMPLETE") skippedInvalidCount++;
-    }
+      if (item.classification === "DUPLICATE_ROLL_NUMBER") {
+        duplicateRollSkipped++;
+        failedRows.push({
+          rowNumber: item.index + 1,
+          maskedRollNumber: maskRoll(item.normalized.rollNumber || item.raw.rollNumber || item.raw.roll_number || ""),
+          status: "DUPLICATE_ROLL_NUMBER",
+          reason: item.reasons.join(" ") || "Duplicate roll number skipped.",
+        });
+        continue;
+      }
 
-    // Execute safe database batch transactions (batch size = 25)
-    const BATCH_SIZE = 25;
-    for (let i = 0; i < importableRows.length; i += BATCH_SIZE) {
-      const chunk = importableRows.slice(i, i + BATCH_SIZE);
+      if (item.classification === "DUPLICATE_EMAIL") {
+        duplicateEmailSkipped++;
+        failedRows.push({
+          rowNumber: item.index + 1,
+          maskedRollNumber: maskRoll(item.normalized.rollNumber || item.raw.rollNumber || item.raw.roll_number || ""),
+          status: "DUPLICATE_EMAIL",
+          reason: item.reasons.join(" ") || "Duplicate email address skipped.",
+        });
+        continue;
+      }
 
-      await prisma.$transaction(async (tx) => {
-        for (const item of chunk) {
-          try {
-            const res = await this.createProfile(item.normalized, tx as any);
-            if (res.success && res.profile) {
-              createdCount++;
-              importedIds.push(res.profile.id);
-              if (item.classification === "READY") readyCount++;
-              else incompleteCount++;
-            } else {
-              failedCount++;
-            }
-          } catch (chunkErr) {
-            console.error(`Failed chunk insert for ${item.normalized.rollNumber}:`, chunkErr);
-            failedCount++;
+      if (item.classification !== "READY" && item.classification !== "INCOMPLETE") {
+        invalidIdentitySkipped++;
+        failedRows.push({
+          rowNumber: item.index + 1,
+          maskedRollNumber: maskRoll(item.normalized.rollNumber || item.raw.rollNumber || item.raw.roll_number || ""),
+          status: item.classification,
+          reason: item.reasons.join(" ") || "Invalid identity data skipped.",
+        });
+        continue;
+      }
+
+      // Execute isolated insertion per student profile (NO monolithic transaction)
+      try {
+        const res = await this.createProfile(item.normalized);
+        if (res.success && res.profile) {
+          actuallyCreated++;
+          createdProfileIds.push(res.profile.id);
+          if (item.classification === "INCOMPLETE" || item.hadDuplicateHandle) {
+            incompleteCreated++;
           }
+        } else {
+          databaseFailures++;
+          failedRows.push({
+            rowNumber: item.index + 1,
+            maskedRollNumber: maskRoll(item.normalized.rollNumber),
+            status: "DATABASE_ERROR",
+            reason: res.error || "Database insertion error.",
+          });
         }
-      });
+      } catch (rowErr: any) {
+        databaseFailures++;
+        failedRows.push({
+          rowNumber: item.index + 1,
+          maskedRollNumber: maskRoll(item.normalized.rollNumber),
+          status: "DATABASE_ERROR",
+          reason: rowErr?.message || "Unexpected exception during row creation.",
+        });
+      }
     }
 
     return {
       success: true,
+      batchIndex,
+      totalBatches,
       summary: {
         totalRows: rows.length,
-        createdCount,
-        readyCount,
-        incompleteCount,
-        skippedDuplicateRollCount,
-        skippedDuplicateEmailCount,
-        skippedDuplicatePlatformCount,
-        skippedInvalidCount,
-        failedCount,
+        actuallyCreated,
+        incompleteCreated,
+        duplicateRollSkipped,
+        duplicateEmailSkipped,
+        invalidIdentitySkipped,
+        duplicateHandlesCleared,
+        databaseFailures,
       },
-      rowDetails,
-      importedIds,
+      failedRows,
+      createdProfileIds,
+    };
+  }
+
+  /**
+   * Alias for backward compatibility with monolithic calls.
+   */
+  static async processBulkCsvImport(rows: RawStudentInput[]) {
+    const res = await this.processBatchImport(rows, 0, 1);
+    return {
+      success: res.success,
+      summary: {
+        totalRows: res.summary.totalRows,
+        createdCount: res.summary.actuallyCreated,
+        readyCount: res.summary.actuallyCreated - res.summary.incompleteCreated,
+        incompleteCount: res.summary.incompleteCreated,
+        skippedDuplicateRollCount: res.summary.duplicateRollSkipped,
+        skippedDuplicateEmailCount: res.summary.duplicateEmailSkipped,
+        skippedDuplicatePlatformCount: res.summary.duplicateHandlesCleared,
+        skippedInvalidCount: res.summary.invalidIdentitySkipped,
+        failedCount: res.summary.databaseFailures,
+      },
+      rowDetails: res.failedRows.map((f) => ({
+        rowNumber: f.rowNumber,
+        name: "Student",
+        rollNumber: f.maskedRollNumber,
+        email: "masked@student",
+        status: f.status as any,
+        reason: f.reason,
+      })),
+      importedIds: res.createdProfileIds,
     };
   }
 }

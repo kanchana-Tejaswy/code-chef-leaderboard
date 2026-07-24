@@ -9,11 +9,11 @@ export async function POST(request: NextRequest) {
   try {
     await requireAdmin();
     const body = await request.json().catch(() => ({}));
-    const { action, rows, autoSync } = body;
+    const { action, rows, autoSync, batchIndex = 0, totalBatches = 1 } = body;
 
-    if (action !== "preview" && action !== "import") {
+    if (action !== "preview" && action !== "import" && action !== "import_batch") {
       return NextResponse.json(
-        { success: false, error: "Invalid action. Use 'preview' or 'import'." },
+        { success: false, error: "Invalid action. Use 'preview', 'import', or 'import_batch'." },
         { status: 400 }
       );
     }
@@ -88,15 +88,14 @@ export async function POST(request: NextRequest) {
       }, { headers: { "Cache-Control": "private, no-store" } });
     }
 
-    // Action is "import"
-    // Revalidate all rows on server - NEVER trust preview results sent from browser
-    const importResult = await StudentProfileService.processBulkCsvImport(rows);
+    // Action is "import" or "import_batch"
+    const batchResult = await StudentProfileService.processBatchImport(rows, batchIndex, totalBatches);
 
-    // Queue autoSync for newly imported students with concurrency limit = 2
-    if (autoSync && importResult.importedIds.length > 0) {
-      const idsToSync = importResult.importedIds;
+    // Queue autoSync for newly imported students ONLY IF explicitly requested (defaults to false)
+    if (autoSync && batchResult.createdProfileIds.length > 0) {
+      const idsToSync = batchResult.createdProfileIds;
       after(async () => {
-        console.log(`[Bulk Import] Starting queued background sync for ${idsToSync.length} students...`);
+        console.log(`[Bulk Import Batch] Starting background sync for ${idsToSync.length} students...`);
         const CONCURRENCY = 2;
         for (let i = 0; i < idsToSync.length; i += CONCURRENCY) {
           const chunk = idsToSync.slice(i, i + CONCURRENCY);
@@ -117,9 +116,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      summary: importResult.summary,
-      rowDetails: importResult.rowDetails,
-      importedIds: importResult.importedIds,
+      batchIndex: batchResult.batchIndex,
+      totalBatches: batchResult.totalBatches,
+      summary: batchResult.summary,
+      failedRows: batchResult.failedRows,
+      importedIds: batchResult.createdProfileIds,
     }, { headers: { "Cache-Control": "private, no-store" } });
 
   } catch (err: any) {

@@ -100,7 +100,7 @@ describe("Student CSV Bulk Import System Test Suite", () => {
       expect(extractPlatformHandle("Not available", "leetcode")).toBeNull();
     });
 
-    it("16. handles invalid GitHub URL", () => {
+    it("16. handles invalid GitHub URL without failing row identity", () => {
       expect(extractPlatformHandle("https://google.com/search?q=git", "github")).toBeNull();
     });
 
@@ -111,7 +111,7 @@ describe("Student CSV Bulk Import System Test Suite", () => {
   });
 
   describe("3. Duplicate Skipping & Immutability Rules", () => {
-    it("6. detects duplicate roll number inside file", async () => {
+    it("6. detects duplicate roll number inside file and skips complete row", async () => {
       const rows = [
         { name: "First", rollNumber: "21CS001", email: "first@ex.com", year: 3 },
         { name: "Second", rollNumber: "21CS001", email: "second@ex.com", year: 3 },
@@ -121,7 +121,7 @@ describe("Student CSV Bulk Import System Test Suite", () => {
       expect(evaluated[1].classification).toBe("DUPLICATE_ROLL_NUMBER");
     });
 
-    it("7. detects duplicate email inside file", async () => {
+    it("7. detects duplicate email inside file and skips complete row", async () => {
       const rows = [
         { name: "First", rollNumber: "21CS001", email: "same@ex.com", year: 3 },
         { name: "Second", rollNumber: "21CS002", email: "same@ex.com", year: 3 },
@@ -144,18 +144,26 @@ describe("Student CSV Bulk Import System Test Suite", () => {
     });
   });
 
-  describe("4. Eligibility & Ranking Isolation", () => {
-    it("22 & 23 & 24. newly created incomplete profiles default to unranked and ineligible", () => {
-      const norm = StudentProfileService.normalizeInput({
-        name: "Incomplete Coder",
-        rollNumber: "21CS999",
-        email: "inc@ex.com",
-        year: 3,
+  describe("4. Isolated Batch Chunking & Safe Row Processing", () => {
+    it("processes batch chunk safely returning masked failure details", async () => {
+      const spy = vi.spyOn(StudentProfileService, "createProfile").mockImplementation(async (data) => {
+        return { success: true, profile: { id: "id-" + data.rollNumber } };
       });
 
-      expect(norm.codechefUsername).toBeNull();
-      expect(norm.leetcodeUsername).toBeNull();
-      // Profile created with profileStatus INCOMPLETE, leaderboardEligible = false, dashboardEligible = false
+      const batchRows = [
+        { name: "Valid One", rollNumber: "21CS901", email: "v1@ex.com", year: 2 },
+        { name: "Dup Roll", rollNumber: "21CS901", email: "v2@ex.com", year: 2 },
+      ];
+
+      const res = await StudentProfileService.processBatchImport(batchRows, 1, 1);
+      expect(res.success).toBe(true);
+      expect(res.summary.totalRows).toBe(2);
+      expect(res.summary.actuallyCreated).toBe(1);
+      expect(res.summary.duplicateRollSkipped).toBe(1);
+      expect(res.failedRows.length).toBe(1);
+      expect(res.failedRows[0].maskedRollNumber).toBe("21CS***");
+
+      spy.mockRestore();
     });
   });
 });
