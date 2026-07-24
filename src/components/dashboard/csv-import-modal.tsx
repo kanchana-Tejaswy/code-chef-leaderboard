@@ -62,6 +62,7 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>("ALL");
+  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
 
   if (!isOpen) return null;
 
@@ -124,8 +125,6 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
       setIsPreviewLoading(false);
     }
   };
-
-  const [importProgress, setImportProgress] = useState<{ current: number; total: number } | null>(null);
 
   const executeImport = async () => {
     if (!parsedRows || parsedRows.length === 0) return;
