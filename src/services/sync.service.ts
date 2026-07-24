@@ -190,36 +190,25 @@ export class SyncService {
       const existingCc = await prisma.codechefProfile.findUnique({ where: { studentId } });
       const existingLc = await prisma.leetcodeProfile.findUnique({ where: { studentId } });
 
-      if (student.codechefUsername && !codechefSuccess && existingCc && existingCc.username.toLowerCase() === student.codechefUsername.toLowerCase()) {
-        codechefSuccess = true;
-      }
-      if (student.leetcodeUsername && !leetcodeSuccess && existingLc && existingLc.username.toLowerCase() === student.leetcodeUsername.toLowerCase()) {
-        leetcodeSuccess = true;
-      }
-
-      let verificationStatus = "UNABLE_TO_VERIFY";
-      const configuredCount = [student.codechefUsername, student.leetcodeUsername].filter(Boolean).length;
-      const successCount = [codechefSuccess, leetcodeSuccess].filter(x => x === true).length;
+      const isCcVerified = Boolean(codechefData || (existingCc && existingCc.username.toLowerCase() === student.codechefUsername?.toLowerCase()));
+      const isLcVerified = Boolean(leetcodeData || (existingLc && existingLc.username.toLowerCase() === student.leetcodeUsername?.toLowerCase()));
+      const bothVerified = isCcVerified && isLcVerified;
 
       let profileStatus = "INCOMPLETE";
       let leaderboardEligible = false;
       let dashboardEligible = false;
+      let verificationStatus = "UNABLE_TO_VERIFY";
 
-      if (configuredCount === 0) {
-        profileStatus = "INCOMPLETE";
-        leaderboardEligible = false;
-        dashboardEligible = false;
-        verificationStatus = "UNABLE_TO_VERIFY";
-      } else if (successCount > 0) {
+      if (bothVerified) {
         profileStatus = "VERIFIED";
         leaderboardEligible = true;
         dashboardEligible = true;
-        verificationStatus = successCount === configuredCount ? "VERIFIED" : "PARTIAL";
+        verificationStatus = "VERIFIED";
       } else {
-        profileStatus = "INVALID";
+        profileStatus = "INCOMPLETE";
         leaderboardEligible = false;
         dashboardEligible = false;
-        verificationStatus = "UNABLE_TO_VERIFY";
+        verificationStatus = (isCcVerified || isLcVerified) ? "PARTIAL" : "UNABLE_TO_VERIFY";
       }
 
       // 3. Database Storage Phase: Update Database inside a transaction
@@ -650,14 +639,11 @@ export class SyncService {
     try {
       const { OverallScoreService } = await import("@/services/overallScore.service");
 
-      // Fetch all active leaderboard entries, pre-sorted deterministically using our competitive ranking order
+      // Fetch all eligible leaderboard entries (both platforms verified)
       const entries = await prisma.leaderboardEntry.findMany({
         where: {
           student: {
-            OR: [
-              { codechefUsername: { not: null } },
-              { leetcodeUsername: { not: null } }
-            ]
+            leaderboardEligible: true
           }
         },
         include: {

@@ -9,7 +9,7 @@ const getCachedStats = async (departmentFilter?: string) => {
   return unstable_cache(
     async () => {
       const studentWhere = departmentFilter ? { department: departmentFilter } : {};
-      const lbWhere = departmentFilter ? { student: { department: departmentFilter } } : {};
+      const lbWhere = departmentFilter ? { student: { department: departmentFilter, dashboardEligible: true } } : { student: { dashboardEligible: true } };
 
       // 1. Group 1: Core Aggregates
       const [totalStudents, activeCodechefCount] = await Promise.all([

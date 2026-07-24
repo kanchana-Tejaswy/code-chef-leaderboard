@@ -19,26 +19,26 @@ export async function GET(request: NextRequest) {
   try {
     await requireLeaderboardAccess();
 
-    // 1. Build Query Filters
-    const whereClause: any = {};
+    // 1. Build Query Filters (Only BOTH-platform verified eligible students appear)
+    const whereClause: any = {
+      student: {
+        leaderboardEligible: true,
+      },
+    };
 
-    if (search || departments.length > 0 || years.length > 0) {
-      whereClause.student = {};
+    if (search) {
+      whereClause.student.OR = [
+        { name: { contains: search } },
+        { rollNumber: { contains: search } },
+      ];
+    }
 
-      if (search) {
-        whereClause.student.OR = [
-          { name: { contains: search } },
-          { rollNumber: { contains: search } },
-        ];
-      }
+    if (departments.length > 0) {
+      whereClause.student.department = { in: departments };
+    }
 
-      if (departments.length > 0) {
-        whereClause.student.department = { in: departments };
-      }
-
-      if (years.length > 0) {
-        whereClause.student.year = { in: years };
-      }
+    if (years.length > 0) {
+      whereClause.student.year = { in: years };
     }
 
     if (stars.length > 0) {
