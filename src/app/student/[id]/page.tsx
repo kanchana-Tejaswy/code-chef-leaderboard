@@ -21,6 +21,7 @@ import {
   RefreshCw
 } from "lucide-react";
 import { useAuth } from "@/app/providers";
+import { formatToFullUrl } from "@/utils/urlValidation";
 
 function Github(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -149,10 +150,10 @@ export default function StudentProfileDashboard() {
         year: student.year?.toString() || "",
         branch: student.branch || "",
         section: student.section || "",
-        codechefUsername: student.codechefUsername || "",
-        leetcodeUsername: student.leetcodeUsername || "",
-        githubUsername: student.githubUsername || "",
-        linkedinUrl: student.linkedinUrl || "",
+        codechefUsername: formatToFullUrl(student.codechefUsername, "codechef"),
+        leetcodeUsername: formatToFullUrl(student.leetcodeUsername, "leetcode"),
+        githubUsername: formatToFullUrl(student.githubUsername, "github"),
+        linkedinUrl: formatToFullUrl(student.linkedinUrl, "linkedin"),
       });
       setSaveDetailsError(null);
       setIsEditModalOpen(true);
@@ -1235,9 +1236,9 @@ export default function StudentProfileDashboard() {
 
               {/* Platform Profiles */}
               <div className="flex flex-col gap-4">
-                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">Platform Usernames</h3>
+                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">Platform Profile URLs</h3>
                 <p className="text-[10px] text-zinc-500 mb-1 leading-snug">
-                  Warning: Changing a platform username will trigger an automatic background sync. The student's scores and ranks will be recalculated. This may take up to 30 seconds.
+                  Changing a platform profile URL will trigger an automatic background sync. The student’s scores and ranks will be recalculated.
                 </p>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-3">
@@ -1245,12 +1246,13 @@ export default function StudentProfileDashboard() {
                       <Trophy className="h-4 w-4" />
                     </div>
                     <div className="flex-1 flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">CodeChef Username</label>
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">CODECHEF PROFILE URL</label>
                       <input
                         type="text"
                         value={editFormData.codechefUsername}
                         onChange={(e) => setEditFormData({ ...editFormData, codechefUsername: e.target.value })}
-                        className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                        placeholder="https://www.codechef.com/users/username"
+                        className="w-full bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50 placeholder-zinc-600"
                       />
                     </div>
                   </div>
@@ -1259,12 +1261,13 @@ export default function StudentProfileDashboard() {
                       <Code className="h-4 w-4" />
                     </div>
                     <div className="flex-1 flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">LeetCode Username</label>
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">LEETCODE PROFILE URL</label>
                       <input
                         type="text"
                         value={editFormData.leetcodeUsername}
                         onChange={(e) => setEditFormData({ ...editFormData, leetcodeUsername: e.target.value })}
-                        className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                        placeholder="https://leetcode.com/u/username"
+                        className="w-full bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50 placeholder-zinc-600"
                       />
                     </div>
                   </div>
@@ -1273,28 +1276,30 @@ export default function StudentProfileDashboard() {
                       <Github className="h-4 w-4" />
                     </div>
                     <div className="flex-1 flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">GitHub Profile URL</label>
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">GITHUB PROFILE URL</label>
                       <input
                         type="text"
                         value={editFormData.githubUsername}
                         onChange={(e) => setEditFormData({ ...editFormData, githubUsername: e.target.value })}
-                        className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                        placeholder="https://github.com/username"
+                        className="w-full bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50 placeholder-zinc-600"
                       />
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="h-8 w-8 rounded-lg bg-blue-500/10 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/20">
+                    <div className="h-8 w-8 rounded-lg bg-[#EAB308]/10 text-[#EAB308] flex items-center justify-center shrink-0 border border-[#EAB308]/20">
                       <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
                         <path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.761-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/>
                       </svg>
                     </div>
                     <div className="flex-1 flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">LinkedIn Profile URL</label>
+                      <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">LINKEDIN PROFILE URL</label>
                       <input
                         type="text"
                         value={editFormData.linkedinUrl}
                         onChange={(e) => setEditFormData({ ...editFormData, linkedinUrl: e.target.value })}
-                        className="bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50"
+                        placeholder="https://www.linkedin.com/in/username"
+                        className="w-full bg-[#111111] border border-[#262626] rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-[#EAB308]/50 placeholder-zinc-600"
                       />
                     </div>
                   </div>

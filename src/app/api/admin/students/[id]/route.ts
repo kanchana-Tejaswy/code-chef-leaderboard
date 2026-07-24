@@ -50,29 +50,31 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "Student not found." }, { status: 404 });
     }
 
-    // Clean up empty strings to null for usernames
-    const normalizeUsername = (username: any) => {
-        if (typeof username !== "string") return null;
-        const trimmed = username.trim();
-        return trimmed === "" ? null : trimmed;
-    };
+    const { isValid: isCcValid, handle: newCodechef, error: ccError } = normalizeAndValidateUrl(codechefUsername, "codechef");
+    if (!isCcValid) {
+      return NextResponse.json({ error: ccError }, { status: 400 });
+    }
 
-    const newCodechef = normalizeUsername(codechefUsername);
-    const newLeetcode = normalizeUsername(leetcodeUsername);
-    
-    const { isValid: isGithubValid, normalizedUrl: newGithub, error: githubError } = normalizeAndValidateUrl(githubUsername, "github");
+    const { isValid: isLcValid, handle: newLeetcode, error: lcError } = normalizeAndValidateUrl(leetcodeUsername, "leetcode");
+    if (!isLcValid) {
+      return NextResponse.json({ error: lcError }, { status: 400 });
+    }
+
+    const { isValid: isGithubValid, handle: newGithub, error: githubError } = normalizeAndValidateUrl(githubUsername, "github");
     if (!isGithubValid) {
-        return NextResponse.json({ error: githubError }, { status: 400 });
+      return NextResponse.json({ error: githubError }, { status: 400 });
     }
     
     const { isValid: isLinkedinValid, normalizedUrl: newLinkedin, error: linkedinError } = normalizeAndValidateUrl(linkedinUrl, "linkedin");
     if (!isLinkedinValid) {
-        return NextResponse.json({ error: linkedinError }, { status: 400 });
+      return NextResponse.json({ error: linkedinError }, { status: 400 });
     }
 
     const isPlatformChanged = 
       oldStudent.codechefUsername !== newCodechef ||
-      oldStudent.leetcodeUsername !== newLeetcode;
+      oldStudent.leetcodeUsername !== newLeetcode ||
+      oldStudent.githubUsername !== newGithub ||
+      oldStudent.linkedinUrl !== newLinkedin;
 
     // Update database record
     const updatedStudent = await prisma.studentProfile.update({
@@ -104,13 +106,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     if (isPlatformChanged) {
       // Changed platform URLs trigger profile resync
-      // Trigger sync manually without waiting if we don't want to block, but the prompt says 
-      // "Server verifies ADMIN role -> Database record is updated -> Changed platform URLs trigger profile resync"
-      // We will await it so the client knows it's done and gets the latest data
-      
       const syncResult = await SyncService.syncStudent(studentId, "ADMIN_FORCE");
       if (!syncResult.success) {
-        // We log the error but still return success for the update part
         console.error("Sync failed after admin update:", syncResult.error);
       }
     } else {
