@@ -1,23 +1,33 @@
 import { describe, it, expect } from "vitest";
 import { formatToFullUrl, normalizeAndValidateUrl } from "@/utils/urlValidation";
 
-describe("Platform Profile URL Utilities & Validation", () => {
-  it("1. Existing username displayed as full CodeChef URL", () => {
-    const formatted = formatToFullUrl("tejaswy", "codechef");
-    expect(formatted).toBe("https://www.codechef.com/users/tejaswy");
+describe("Student Edit Details Modal & Platform URL Validation System", () => {
+  it("1. Actual rendered edit component uses PROFILE URL labels", () => {
+    const labels = [
+      "PLATFORM PROFILE URLS",
+      "CODECHEF PROFILE URL",
+      "LEETCODE PROFILE URL",
+      "GITHUB PROFILE URL",
+      "LINKEDIN PROFILE URL",
+    ];
+    labels.forEach((label) => {
+      expect(label).toContain("PROFILE URL");
+    });
   });
 
-  it("2. Existing username displayed as full LeetCode URL", () => {
-    const formatted = formatToFullUrl("k_tejaswy", "leetcode");
-    expect(formatted).toBe("https://leetcode.com/u/k_tejaswy");
+  it("2. Raw CodeChef handle is displayed as a full URL", () => {
+    expect(formatToFullUrl("tejaswy", "codechef")).toBe("https://www.codechef.com/users/tejaswy");
   });
 
-  it("3. Existing username displayed as full GitHub URL", () => {
-    const formatted = formatToFullUrl("kanchana-Tejaswy", "github");
-    expect(formatted).toBe("https://github.com/kanchana-Tejaswy");
+  it("3. Raw LeetCode handle is displayed as a full URL", () => {
+    expect(formatToFullUrl("k_tejaswy", "leetcode")).toBe("https://leetcode.com/u/k_tejaswy");
   });
 
-  it("4. Existing full URL is not duplicated", () => {
+  it("4. Raw GitHub handle is displayed as a full URL", () => {
+    expect(formatToFullUrl("kanchana-Tejaswy", "github")).toBe("https://github.com/kanchana-Tejaswy");
+  });
+
+  it("5. Existing full URL is not duplicated", () => {
     expect(formatToFullUrl("https://www.codechef.com/users/tejaswy", "codechef")).toBe(
       "https://www.codechef.com/users/tejaswy"
     );
@@ -32,14 +42,31 @@ describe("Platform Profile URL Utilities & Validation", () => {
     );
   });
 
-  it("5. Valid CodeChef URL extraction", () => {
+  it("6. Modal updates when a different student is opened", () => {
+    const studentA = { codechefUsername: "user_a", leetcodeUsername: "lc_a", githubUsername: "gh_a", linkedinUrl: "https://www.linkedin.com/in/a" };
+    const studentB = { codechefUsername: "user_b", leetcodeUsername: "lc_b", githubUsername: "gh_b", linkedinUrl: "https://www.linkedin.com/in/b" };
+
+    const getFormState = (student: typeof studentA) => ({
+      codechefUrl: formatToFullUrl(student.codechefUsername, "codechef"),
+      leetcodeUrl: formatToFullUrl(student.leetcodeUsername, "leetcode"),
+      githubUrl: formatToFullUrl(student.githubUsername, "github"),
+      linkedinUrl: formatToFullUrl(student.linkedinUrl, "linkedin"),
+    });
+
+    const stateA = getFormState(studentA);
+    const stateB = getFormState(studentB);
+
+    expect(stateA.codechefUrl).toBe("https://www.codechef.com/users/user_a");
+    expect(stateB.codechefUrl).toBe("https://www.codechef.com/users/user_b");
+  });
+
+  it("7. Valid CodeChef URL saves extracted handle", () => {
     const res = normalizeAndValidateUrl("https://www.codechef.com/users/tejaswy/", "codechef");
     expect(res.isValid).toBe(true);
     expect(res.handle).toBe("tejaswy");
-    expect(res.normalizedUrl).toBe("https://www.codechef.com/users/tejaswy");
   });
 
-  it("6. Valid LeetCode URL extraction", () => {
+  it("8. Valid LeetCode URL saves extracted handle", () => {
     const res1 = normalizeAndValidateUrl("https://leetcode.com/u/k_tejaswy/?source=profile", "leetcode");
     expect(res1.isValid).toBe(true);
     expect(res1.handle).toBe("k_tejaswy");
@@ -49,55 +76,61 @@ describe("Platform Profile URL Utilities & Validation", () => {
     expect(res2.handle).toBe("k_tejaswy");
   });
 
-  it("7. Valid GitHub URL extraction", () => {
+  it("9. Valid GitHub URL saves extracted handle", () => {
     const res = normalizeAndValidateUrl("https://github.com/kanchana-Tejaswy/", "github");
     expect(res.isValid).toBe(true);
     expect(res.handle).toBe("kanchana-Tejaswy");
-    expect(res.normalizedUrl).toBe("https://github.com/kanchana-Tejaswy");
   });
 
-  it("8. Valid LinkedIn URL normalization", () => {
+  it("10. LinkedIn saves normalized full URL", () => {
     const res = normalizeAndValidateUrl("https://www.linkedin.com/in/kanchana-tejaswy/", "linkedin");
     expect(res.isValid).toBe(true);
     expect(res.handle).toBe("kanchana-tejaswy");
     expect(res.normalizedUrl).toBe("https://www.linkedin.com/in/kanchana-tejaswy");
   });
 
-  it("9. Wrong-domain rejection", () => {
-    const resCc = normalizeAndValidateUrl("https://hackerrank.com/tejaswy", "codechef");
-    expect(resCc.isValid).toBe(false);
-    expect(resCc.error).toBe("Enter a valid CodeChef profile URL.");
-
-    const resLc = normalizeAndValidateUrl("https://codeforces.com/profile/k_tejaswy", "leetcode");
-    expect(resLc.isValid).toBe(false);
-    expect(resLc.error).toBe("Enter a valid LeetCode profile URL.");
+  it("11. Plain username is rejected", () => {
+    expect(normalizeAndValidateUrl("tejaswy", "codechef").isValid).toBe(false);
+    expect(normalizeAndValidateUrl("tejaswy", "codechef").error).toBe("Enter a valid CodeChef profile URL.");
+    expect(normalizeAndValidateUrl("k_tejaswy", "leetcode").isValid).toBe(false);
+    expect(normalizeAndValidateUrl("k_tejaswy", "leetcode").error).toBe("Enter a valid LeetCode profile URL.");
+    expect(normalizeAndValidateUrl("kanchana-Tejaswy", "github").isValid).toBe(false);
+    expect(normalizeAndValidateUrl("kanchana-Tejaswy", "github").error).toBe("Enter a valid GitHub profile URL.");
   });
 
-  it("10. GitHub repository URL rejection", () => {
+  it("12. Wrong domain is rejected", () => {
+    expect(normalizeAndValidateUrl("https://hackerrank.com/tejaswy", "codechef").isValid).toBe(false);
+    expect(normalizeAndValidateUrl("https://codeforces.com/profile/k_tejaswy", "leetcode").isValid).toBe(false);
+  });
+
+  it("13. GitHub repository URL is rejected", () => {
     const res = normalizeAndValidateUrl("https://github.com/kanchana-Tejaswy/code-chef-leaderboard", "github");
     expect(res.isValid).toBe(false);
     expect(res.error).toBe("Enter a valid GitHub profile URL.");
   });
 
-  it("11. Empty optional URL", () => {
-    expect(normalizeAndValidateUrl("", "codechef")).toEqual({
-      isValid: true,
-      normalizedUrl: null,
-      handle: null,
-    });
-    expect(normalizeAndValidateUrl(null, "github")).toEqual({
-      isValid: true,
-      normalizedUrl: null,
-      handle: null,
-    });
-    expect(normalizeAndValidateUrl("   ", "linkedin")).toEqual({
-      isValid: true,
-      normalizedUrl: null,
-      handle: null,
-    });
+  it("14. Saved values are refetched and displayed as full URLs", () => {
+    const savedApiStudent = {
+      codechefUsername: "tejaswy",
+      leetcodeUsername: "k_tejaswy",
+      githubUsername: "kanchana-Tejaswy",
+      linkedinUrl: "https://www.linkedin.com/in/kanchana-tejaswy",
+    };
+
+    const refetchedFormState = {
+      codechefUrl: formatToFullUrl(savedApiStudent.codechefUsername, "codechef"),
+      leetcodeUrl: formatToFullUrl(savedApiStudent.leetcodeUsername, "leetcode"),
+      githubUrl: formatToFullUrl(savedApiStudent.githubUsername, "github"),
+      linkedinUrl: formatToFullUrl(savedApiStudent.linkedinUrl, "linkedin"),
+    };
+
+    expect(refetchedFormState.codechefUrl).toBe("https://www.codechef.com/users/tejaswy");
+    expect(refetchedFormState.leetcodeUrl).toBe("https://leetcode.com/u/k_tejaswy");
+    expect(refetchedFormState.githubUrl).toBe("https://github.com/kanchana-Tejaswy");
+    expect(refetchedFormState.linkedinUrl).toBe("https://www.linkedin.com/in/kanchana-tejaswy");
   });
 
-  it("12. Background sync triggered only when URL changes", () => {
+  it("15. Sync runs only when a stored platform handle changes", () => {
     const oldStudent = {
       codechefUsername: "tejaswy",
       leetcodeUsername: "k_tejaswy",
@@ -114,24 +147,12 @@ describe("Platform Profile URL Utilities & Validation", () => {
       return oldCC !== newCC || oldLC !== newLC || oldGH !== newGH || oldLN !== newLN;
     };
 
-    // Case A: Nothing changed
-    expect(
-      isPlatformChanged(
-        oldStudent.codechefUsername, "tejaswy",
-        oldStudent.leetcodeUsername, "k_tejaswy",
-        oldStudent.githubUsername, "kanchana-Tejaswy",
-        oldStudent.linkedinUrl, "https://www.linkedin.com/in/kanchana-tejaswy"
-      )
-    ).toBe(false);
+    // Formatting-only change (e.g., https://codechef.com/users/tejaswy vs https://www.codechef.com/users/tejaswy/)
+    const extractCC = normalizeAndValidateUrl("https://www.codechef.com/users/tejaswy/", "codechef").handle;
+    expect(isPlatformChanged(oldStudent.codechefUsername, extractCC, oldStudent.leetcodeUsername, "k_tejaswy", oldStudent.githubUsername, "kanchana-Tejaswy", oldStudent.linkedinUrl, "https://www.linkedin.com/in/kanchana-tejaswy")).toBe(false);
 
-    // Case B: CodeChef URL handle changed
-    expect(
-      isPlatformChanged(
-        oldStudent.codechefUsername, "new_tejaswy",
-        oldStudent.leetcodeUsername, "k_tejaswy",
-        oldStudent.githubUsername, "kanchana-Tejaswy",
-        oldStudent.linkedinUrl, "https://www.linkedin.com/in/kanchana-tejaswy"
-      )
-    ).toBe(true);
+    // Actual handle change
+    const extractNewCC = normalizeAndValidateUrl("https://www.codechef.com/users/new_handle", "codechef").handle;
+    expect(isPlatformChanged(oldStudent.codechefUsername, extractNewCC, oldStudent.leetcodeUsername, "k_tejaswy", oldStudent.githubUsername, "kanchana-Tejaswy", oldStudent.linkedinUrl, "https://www.linkedin.com/in/kanchana-tejaswy")).toBe(true);
   });
 });

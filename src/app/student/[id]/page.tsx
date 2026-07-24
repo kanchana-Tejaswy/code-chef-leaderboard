@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Trophy,
@@ -87,6 +87,7 @@ interface StudentDetails {
 export default function StudentProfileDashboard() {
   const { profile } = useAuth();
   const params = useParams();
+  const router = useRouter();
   const studentId = params?.id as string;
 
   const [student, setStudent] = useState<StudentDetails | null>(null);
@@ -141,6 +142,23 @@ export default function StudentProfileDashboard() {
   const [isSavingDetails, setIsSavingDetails] = useState(false);
   const [saveDetailsError, setSaveDetailsError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (student) {
+      setEditFormData({
+        name: student.name || "",
+        rollNumber: student.rollNumber || "",
+        department: student.department || "",
+        year: student.year?.toString() || "",
+        branch: student.branch || "",
+        section: student.section || "",
+        codechefUsername: formatToFullUrl(student.codechefUsername, "codechef"),
+        leetcodeUsername: formatToFullUrl(student.leetcodeUsername, "leetcode"),
+        githubUsername: formatToFullUrl(student.githubUsername, "github"),
+        linkedinUrl: formatToFullUrl(student.linkedinUrl, "linkedin"),
+      });
+    }
+  }, [student]);
+
   const handleOpenEditModal = () => {
     if (student) {
       setEditFormData({
@@ -174,6 +192,7 @@ export default function StudentProfileDashboard() {
       if (response.ok && data.success) {
         setStudent(data.student);
         setIsEditModalOpen(false);
+        router.refresh();
       } else {
         setSaveDetailsError(data.error || "Failed to update details.");
       }
@@ -1236,9 +1255,9 @@ export default function StudentProfileDashboard() {
 
               {/* Platform Profiles */}
               <div className="flex flex-col gap-4">
-                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">Platform Profile URLs</h3>
+                <h3 className="text-[10px] font-black text-[#EAB308] tracking-widest uppercase">PLATFORM PROFILE URLS</h3>
                 <p className="text-[10px] text-zinc-500 mb-1 leading-snug">
-                  Changing a platform profile URL will trigger an automatic background sync. The student’s scores and ranks will be recalculated.
+                  Changing a platform profile URL will trigger an automatic background sync. The student’s scores and ranks will be recalculated. This may take up to 30 seconds.
                 </p>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center gap-3">
