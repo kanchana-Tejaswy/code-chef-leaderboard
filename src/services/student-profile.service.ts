@@ -71,6 +71,7 @@ export interface EvaluatedRow {
   normalized: NormalizedStudentData;
   classification: RowClassification;
   reasons: string[];
+  hadDuplicateHandle?: boolean;
 }
 
 export class StudentProfileService {
@@ -254,62 +255,72 @@ export class StudentProfileService {
         reasons.push(`Duplicate email ${norm.email} within uploaded CSV.`);
       }
 
+      if (classification === "DUPLICATE_ROLL_NUMBER" || classification === "DUPLICATE_EMAIL") {
+        evaluated.push({ index, raw, normalized: norm, classification, reasons });
+        continue;
+      }
+
+      let hadDuplicateHandle = false;
+
       if (norm.codechefUsername) {
         const lowerCc = norm.codechefUsername.toLowerCase();
         if (dbCcSet.has(lowerCc) || batchCcSet.has(lowerCc)) {
-          classification = "DUPLICATE_PLATFORM_USERNAME";
-          reasons.push(`CodeChef username ${norm.codechefUsername} is already taken.`);
+          hadDuplicateHandle = true;
+          reasons.push(`Duplicate CodeChef handle '${norm.codechefUsername}' cleared.`);
+          norm.codechefUsername = null;
+        } else {
+          batchCcSet.add(lowerCc);
         }
       }
 
       if (norm.leetcodeUsername) {
         const lowerLc = norm.leetcodeUsername.toLowerCase();
         if (dbLcSet.has(lowerLc) || batchLcSet.has(lowerLc)) {
-          classification = "DUPLICATE_PLATFORM_USERNAME";
-          reasons.push(`LeetCode username ${norm.leetcodeUsername} is already taken.`);
+          hadDuplicateHandle = true;
+          reasons.push(`Duplicate LeetCode handle '${norm.leetcodeUsername}' cleared.`);
+          norm.leetcodeUsername = null;
+        } else {
+          batchLcSet.add(lowerLc);
         }
       }
 
       if (norm.githubUsername) {
         const lowerGh = norm.githubUsername.toLowerCase();
         if (dbGhSet.has(lowerGh) || batchGhSet.has(lowerGh)) {
-          classification = "DUPLICATE_PLATFORM_USERNAME";
-          reasons.push(`GitHub username ${norm.githubUsername} is already taken.`);
+          hadDuplicateHandle = true;
+          reasons.push(`Duplicate GitHub handle '${norm.githubUsername}' cleared.`);
+          norm.githubUsername = null;
+        } else {
+          batchGhSet.add(lowerGh);
         }
       }
 
       if (norm.codeforcesUsername) {
         const lowerCf = norm.codeforcesUsername.toLowerCase();
         if (dbCfSet.has(lowerCf) || batchCfSet.has(lowerCf)) {
-          classification = "DUPLICATE_PLATFORM_USERNAME";
-          reasons.push(`Codeforces username ${norm.codeforcesUsername} is already taken.`);
+          hadDuplicateHandle = true;
+          reasons.push(`Duplicate Codeforces handle '${norm.codeforcesUsername}' cleared.`);
+          norm.codeforcesUsername = null;
+        } else {
+          batchCfSet.add(lowerCf);
         }
       }
 
-      if (reasons.length > 0) {
-        evaluated.push({ index, raw, normalized: norm, classification, reasons });
-        continue;
-      }
-
-      // Check completeness: if no platform username is provided, mark as INCOMPLETE
-      const hasPlatform = Boolean(
-        norm.codechefUsername || norm.leetcodeUsername || norm.codeforcesUsername || norm.githubUsername
-      );
-
-      if (!hasPlatform) {
+      if (hadDuplicateHandle) {
         classification = "INCOMPLETE";
-        reasons.push("No competitive programming or GitHub profile handles provided.");
+        reasons.push("Profile created as INCOMPLETE due to cleared duplicate platform handle(s).");
+      } else if (!norm.codechefUsername || !norm.leetcodeUsername) {
+        classification = "INCOMPLETE";
+        reasons.push("Profile created as INCOMPLETE (requires both CodeChef and LeetCode URLs).");
+      } else {
+        classification = "READY";
       }
 
-      // Mark batch tracking sets to prevent internal duplicates
+      // Mark batch tracking sets for roll and email
       batchRollSet.add(norm.rollNumber);
       batchEmailSet.add(norm.email);
-      if (norm.codechefUsername) batchCcSet.add(norm.codechefUsername.toLowerCase());
-      if (norm.leetcodeUsername) batchLcSet.add(norm.leetcodeUsername.toLowerCase());
-      if (norm.githubUsername) batchGhSet.add(norm.githubUsername.toLowerCase());
-      if (norm.codeforcesUsername) batchCfSet.add(norm.codeforcesUsername.toLowerCase());
 
-      evaluated.push({ index, raw, normalized: norm, classification, reasons });
+      evaluated.push({ index, raw, normalized: norm, classification, reasons, hadDuplicateHandle });
     }
 
     return evaluated;
@@ -485,9 +496,9 @@ export class StudentProfileService {
         reason,
       });
 
+      if (item.hadDuplicateHandle) skippedDuplicatePlatformCount++;
       if (item.classification === "DUPLICATE_ROLL_NUMBER") skippedDuplicateRollCount++;
       else if (item.classification === "DUPLICATE_EMAIL") skippedDuplicateEmailCount++;
-      else if (item.classification === "DUPLICATE_PLATFORM_USERNAME") skippedDuplicatePlatformCount++;
       else if (item.classification !== "READY" && item.classification !== "INCOMPLETE") skippedInvalidCount++;
     }
 

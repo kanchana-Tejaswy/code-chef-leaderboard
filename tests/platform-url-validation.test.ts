@@ -3,7 +3,7 @@ import { formatToFullUrl, normalizeAndValidateUrl, extractPlatformHandle } from 
 import { StudentProfileService } from "@/services/student-profile.service";
 import { OverallScoreService } from "@/services/overallScore.service";
 
-describe("Strict BOTH-Platform Eligibility Test Suite", () => {
+describe("Strict BOTH-Platform Eligibility & CSV Import Test Suite", () => {
   it("1. Both platforms missing → profileStatus = INCOMPLETE, ineligible", () => {
     const ccVerified = false;
     const lcVerified = false;
@@ -97,24 +97,35 @@ describe("Strict BOTH-Platform Eligibility Test Suite", () => {
     expect(dashboardWhere.student.dashboardEligible).toBe(true);
   });
 
-  it("9. Eligibility enabled automatically after both platforms verify", () => {
-    let ccVerified = false;
-    let lcVerified = false;
-    let bothVerified = ccVerified && lcVerified;
+  it("9. Duplicate platform handle clears handle, preserves student as INCOMPLETE", async () => {
+    const rows = [
+      {
+        name: "Student One",
+        rollNumber: "216A1A0510",
+        email: "s1@ace.edu.in",
+        codechefUsername: "duplicate_cc",
+        leetcodeUsername: "lc_unique_1",
+      },
+      {
+        name: "Student Two",
+        rollNumber: "216A1A0511",
+        email: "s2@ace.edu.in",
+        codechefUsername: "duplicate_cc", // Conflicting handle within batch
+        leetcodeUsername: "lc_unique_2",
+      },
+    ];
 
-    expect(bothVerified).toBe(false);
+    const evaluated = await StudentProfileService.evaluateRows(rows, []);
 
-    // Later both handles are added and verified
-    ccVerified = true;
-    lcVerified = true;
-    bothVerified = ccVerified && lcVerified;
+    // First student gets duplicate_cc
+    expect(evaluated[0].normalized.codechefUsername).toBe("duplicate_cc");
+    expect(evaluated[0].classification).toBe("READY");
 
-    const profileStatus = bothVerified ? "VERIFIED" : "INCOMPLETE";
-    const leaderboardEligible = bothVerified;
-    const dashboardEligible = bothVerified;
-
-    expect(profileStatus).toBe("VERIFIED");
-    expect(leaderboardEligible).toBe(true);
-    expect(dashboardEligible).toBe(true);
+    // Second student has duplicate_cc CLEARED to null, classification set to INCOMPLETE
+    expect(evaluated[1].normalized.codechefUsername).toBe(null);
+    expect(evaluated[1].normalized.leetcodeUsername).toBe("lc_unique_2");
+    expect(evaluated[1].classification).toBe("INCOMPLETE");
+    expect(evaluated[1].hadDuplicateHandle).toBe(true);
+    expect(evaluated[1].reasons.some(r => r.includes("Duplicate CodeChef handle"))).toBe(true);
   });
 });

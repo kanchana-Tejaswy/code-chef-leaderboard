@@ -30,7 +30,7 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
   const [isParsing, setIsParsing] = useState(false);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
-  const [autoSync, setAutoSync] = useState(true);
+  const [autoSync, setAutoSync] = useState(false);
 
   const [previewData, setPreviewData] = useState<{
     summary: {
@@ -299,7 +299,7 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
           {previewData && !importReport && !isPreviewLoading && (
             <div className="space-y-5">
               {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-2.5">
+              <div className="grid grid-cols-2 md:grid-cols-7 gap-2.5">
                 <div className="p-3 bg-zinc-900/40 border border-zinc-800 rounded-xl text-center">
                   <p className="text-[10px] text-zinc-400 font-medium">TOTAL</p>
                   <p className="text-lg font-bold text-white">{previewData.summary.total}</p>
@@ -311,6 +311,10 @@ export function CsvImportModal({ isOpen, onClose, onSuccess }: CsvImportModalPro
                 <div className="p-3 bg-yellow-950/20 border border-yellow-500/30 rounded-xl text-center">
                   <p className="text-[10px] text-yellow-300 font-medium">INCOMPLETE</p>
                   <p className="text-lg font-bold text-yellow-300">{previewData.summary.incomplete}</p>
+                </div>
+                <div className="p-3 bg-purple-950/20 border border-purple-500/30 rounded-xl text-center">
+                  <p className="text-[10px] text-purple-400 font-medium">DUP HANDLE</p>
+                  <p className="text-lg font-bold text-purple-400">{previewData.summary.duplicatePlatformUsername}</p>
                 </div>
                 <div className="p-3 bg-orange-950/20 border border-orange-500/30 rounded-xl text-center">
                   <p className="text-[10px] text-orange-400 font-medium">DUP ROLL</p>

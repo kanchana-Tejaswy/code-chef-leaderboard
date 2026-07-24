@@ -43,11 +43,11 @@ export async function POST(request: NextRequest) {
       let invalidCount = 0;
 
       const previewRows = evaluated.map((e) => {
+        if (e.hadDuplicateHandle) duplicatePlatformCount++;
         if (e.classification === "READY") readyCount++;
         else if (e.classification === "INCOMPLETE") incompleteCount++;
         else if (e.classification === "DUPLICATE_ROLL_NUMBER") duplicateRollCount++;
         else if (e.classification === "DUPLICATE_EMAIL") duplicateEmailCount++;
-        else if (e.classification === "DUPLICATE_PLATFORM_USERNAME") duplicatePlatformCount++;
         else invalidCount++;
 
         return {
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
           linkedinUrl: e.normalized.linkedinUrl,
           classification: e.classification,
           reasons: e.reasons,
+          hadDuplicateHandle: Boolean(e.hadDuplicateHandle),
         };
       });
 
