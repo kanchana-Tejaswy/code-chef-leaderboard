@@ -36,6 +36,23 @@ export async function POST(request: NextRequest) {
          now(),
          1
        )
+       ON CONFLICT DO NOTHING;`,
+      `ALTER TABLE "sync_jobs" ADD COLUMN IF NOT EXISTS "attempt_count" INTEGER NOT NULL DEFAULT 0;`,
+      `ALTER TABLE "sync_jobs" ADD COLUMN IF NOT EXISTS "last_attempted_at" TIMESTAMPTZ;`,
+      `ALTER TABLE "sync_jobs" ADD COLUMN IF NOT EXISTS "last_successful_at" TIMESTAMPTZ;`,
+      `ALTER TABLE "sync_jobs" ADD COLUMN IF NOT EXISTS "error_category" TEXT;`,
+      `CREATE INDEX IF NOT EXISTS "sync_jobs_status_idx" ON "sync_jobs"("status");`,
+      `CREATE INDEX IF NOT EXISTS "sync_jobs_student_id_idx" ON "sync_jobs"("student_id");`,
+      `INSERT INTO "_prisma_migrations" ("id", "checksum", "finished_at", "migration_name", "logs", "started_at", "applied_steps_count")
+       VALUES (
+         gen_random_uuid()::text,
+         '20260726000000_add_durable_sync_queue',
+         now(),
+         '20260726000000_add_durable_sync_queue',
+         NULL,
+         now(),
+         1
+       )
        ON CONFLICT DO NOTHING;`
     ];
 

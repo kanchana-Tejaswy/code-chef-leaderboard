@@ -3,33 +3,161 @@ export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { OverallScoreService } from "@/services/overallScore.service";
 import { prisma } from "@/lib/prisma";
-import * as XLSX from "xlsx";
-
-
 import { requireLeaderboardAccess } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
+  const mode = searchParams.get("viewMode") || searchParams.get("mode") || "ranked"; // "ranked" | "all"
   const search = searchParams.get("search") || "";
-  let departments = searchParams.get("departments")?.split(",").filter(Boolean) || [];
+  const departments = searchParams.get("departments")?.split(",").filter(Boolean) || [];
   const years = searchParams.get("years")?.split(",").map(Number).filter((y) => !isNaN(y)) || [];
-  const stars = searchParams.get("stars")?.split(",").map(Number).filter((s) => !isNaN(s)) || [];
-  const doExport = searchParams.get("export") === "true";
+  const profileStatusFilter = searchParams.get("profileStatus") || "";
+  
+  const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+  const limit = Math.max(1, parseInt(searchParams.get("limit") || "10", 10));
+  const skip = (page - 1) * limit;
 
   try {
     await requireLeaderboardAccess();
 
-    // 1. Build Query Filters (Only BOTH-platform verified eligible students appear)
+    if (mode === "all") {
+      // Query ALL StudentProfile records
+      const studentWhere: any = {};
+
+      if (search) {
+        studentWhere.OR = [
+          { name: { contains: search, mode: "insensitive" } },
+          { rollNumber: { contains: search, mode: "insensitive" } },
+        ];
+      }
+
+      if (departments.length > 0) {
+        studentWhere.department = { in: departments };
+      }
+
+      if (years.length > 0) {
+        studentWhere.year = { in: years };
+      }
+
+      if (profileStatusFilter) {
+        studentWhere.profileStatus = profileStatusFilter;
+      }
+
+      const [students, total] = await Promise.all([
+        prisma.studentProfile.findMany({
+          where: studentWhere,
+          select: {
+            id: true,
+            name: true,
+            rollNumber: true,
+            department: true,
+            year: true,
+            branch: true,
+            codechefUsername: true,
+            leetcodeUsername: true,
+            profileStatus: true,
+            verificationStatus: true,
+            leaderboardEligible: true,
+            dashboardEligible: true,
+            createdAt: true,
+            codechefProfile: {
+              select: {
+                username: true,
+                currentRating: true,
+                stars: true,
+                problemsSolved: true,
+              },
+            },
+            leetcodeProfile: {
+              select: {
+                username: true,
+                problemsSolved: true,
+                contestRating: true,
+              },
+            },
+            leaderboardEntry: {
+              select: {
+                rank: true,
+                overallScore: true,
+                codechefScore: true,
+                leetcodeScore: true,
+                trendDirection: true,
+              },
+            },
+          },
+          orderBy: [{ createdAt: "asc" }],
+          skip,
+          take: limit,
+        }),
+        prisma.studentProfile.count({ where: studentWhere }),
+      ]);
+
+      const formattedStudents = students.map((s) => {
+        const hasCcHandle = Boolean(s.codechefUsername && s.codechefUsername.trim() !== "");
+        const hasLcHandle = Boolean(s.leetcodeUsername && s.leetcodeUsername.trim() !== "");
+        const isCcVerified = Boolean(s.codechefProfile);
+        const isLcVerified = Boolean(s.leetcodeProfile);
+        const isFullyVerified = s.profileStatus === "VERIFIED" && s.leaderboardEligible && isCcVerified && isLcVerified;
+
+        let codechefStatus = "Missing";
+        if (hasCcHandle) {
+          codechefStatus = isCcVerified ? "Verified" : (s.profileStatus === "INVALID" ? "Failed" : "Pending");
+        }
+
+        let leetcodeStatus = "Missing";
+        if (hasLcHandle) {
+          leetcodeStatus = isLcVerified ? "Verified" : (s.profileStatus === "INVALID" ? "Failed" : "Pending");
+        }
+
+        return {
+          id: s.id,
+          name: s.name,
+          rollNumber: s.rollNumber,
+          department: s.department || s.branch || "N/A",
+          year: s.year,
+          codechefUsername: s.codechefUsername,
+          leetcodeUsername: s.leetcodeUsername,
+          profileStatus: s.profileStatus,
+          verificationStatus: s.verificationStatus,
+          leaderboardEligible: s.leaderboardEligible,
+          codechefStatus,
+          leetcodeStatus,
+          // Only show rank and scores if student is verified!
+          rank: isFullyVerified ? (s.leaderboardEntry?.rank || "—") : "—",
+          overallScore: isFullyVerified ? (s.leaderboardEntry?.overallScore || 0) : null,
+          codechefScore: isFullyVerified ? (s.leaderboardEntry?.codechefScore || 0) : null,
+          leetcodeScore: isFullyVerified ? (s.leaderboardEntry?.leetcodeScore || 0) : null,
+          trendDirection: isFullyVerified ? (s.leaderboardEntry?.trendDirection || "NEUTRAL") : "NEUTRAL",
+        };
+      });
+
+      return NextResponse.json(
+        {
+          mode: "all",
+          students: formattedStudents,
+          pagination: {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+          },
+        },
+        { headers: { "Cache-Control": "private, no-store" } }
+      );
+    }
+
+    // RANKED MODE (Default): Returns strictly verified competitive leaderboard entries
     const whereClause: any = {
       student: {
         leaderboardEligible: true,
+        profileStatus: "VERIFIED",
       },
     };
 
     if (search) {
       whereClause.student.OR = [
-        { name: { contains: search } },
-        { rollNumber: { contains: search } },
+        { name: { contains: search, mode: "insensitive" } },
+        { rollNumber: { contains: search, mode: "insensitive" } },
       ];
     }
 
@@ -41,96 +169,25 @@ export async function GET(request: NextRequest) {
       whereClause.student.year = { in: years };
     }
 
-    if (stars.length > 0) {
-      whereClause.stars = { in: stars };
-    }
-
-    // 2. Handle Excel Export Request (Bypasses Pagination)
-    // 2. Handle Excel Export Request (Bypasses Pagination)
-    if (doExport) {
-      const entries = await prisma.leaderboardEntry.findMany({
-        where: whereClause,
-        include: {
-          student: {
-            select: {
-              name: true,
-              rollNumber: true,
-              department: true,
-              year: true,
-              codechefUsername: true,
-              leetcodeUsername: true,
-              githubUsername: true,
-            },
-          },
-        },
-        orderBy: [
-          { rank: "asc" },
-          { overallScore: "desc" },
-        ],
-      });
-
-      const exportData = entries.map((e, idx) => ({
-        Rank: idx + 1,
-        Name: e.student.name,
-        "Roll Number": e.student.rollNumber,
-        Department: e.student.department,
-        Year: `${e.student.year} Year`,
-        "CodeChef Username": e.student.codechefUsername || "N/A",
-        "LeetCode Username": e.student.leetcodeUsername || "N/A",
-        "GitHub Username": e.student.githubUsername || "N/A",
-        "Overall Score": e.overallScore,
-        "CodeChef Score": e.codechefScore,
-        "LeetCode Score": e.leetcodeScore,
-      }));
-
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Leaderboard");
-
-      // Set column widths for presentation
-      const wscols = [
-        { wch: 6 },  // Rank
-        { wch: 22 }, // Name
-        { wch: 15 }, // Roll Number
-        { wch: 12 }, // Department
-        { wch: 8 },  // Year
-        { wch: 20 }, // CodeChef
-        { wch: 20 }, // LeetCode
-        { wch: 20 }, // GitHub
-        { wch: 12 }, // Overall Score
-        { wch: 12 }, // CodeChef Score
-        { wch: 12 }, // LeetCode Score
-        { wch: 12 }, // GitHub Score
-      ];
-      worksheet["!cols"] = wscols;
-
-      const buffer = XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
-
-      return new NextResponse(buffer, {
-        headers: {
-          "Content-Type":
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "Content-Disposition": `attachment; filename=ace_developer_leaderboard_${new Date().toISOString().split("T")[0]}.xlsx`,
-          "Cache-Control": "private, no-store",
-        },
-      });
-    }
-
-    // 3. Paginated & Sorted JSON request
-    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
-    const limit = Math.max(1, parseInt(searchParams.get("limit") || "10", 10));
-    const skip = (page - 1) * limit;
-
     const sortBy = searchParams.get("sortBy") || "overallScore";
     const sortOrder = (searchParams.get("sortOrder") || "desc").toLowerCase() === "asc" ? "asc" : "desc";
-
     const validSortFields = ["rank", "rating", "stars", "talentScore", "overallScore", "codechefScore", "leetcodeScore"];
     const finalSortBy = validSortFields.includes(sortBy) ? sortBy : "overallScore";
 
     const [entries, total] = await Promise.all([
       prisma.leaderboardEntry.findMany({
         where: whereClause,
-        include: {
+        select: {
+          id: true,
+          rank: true,
+          rating: true,
+          stars: true,
+          talentScore: true,
+          overallScore: true,
+          codechefScore: true,
+          leetcodeScore: true,
+          trendDirection: true,
+          updatedAt: true,
           student: {
             select: {
               id: true,
@@ -140,41 +197,14 @@ export async function GET(request: NextRequest) {
               year: true,
               codechefUsername: true,
               leetcodeUsername: true,
-              githubUsername: true,
               profilePictureUrl: true,
-              codechefProfile: {
-                select: {
-                  currentRating: true,
-                  highestRating: true,
-                  stars: true,
-                  globalRank: true,
-                  countryRank: true,
-                }
-              },
-              leetcodeProfile: {
-                select: {
-                  problemsSolved: true,
-                  acceptanceRate: true,
-                  contestRank: true,
-                }
-              },
-              githubProfile: {
-                select: {
-                  totalRepositories: true,
-                  totalStars: true,
-                  openSourceScore: true,
-                }
-              },
-              aiAnalysis: {
-                select: {
-                  talentScore: true,
-                  consistencyScore: true,
-                }
-              },
+              verificationStatus: true,
+              profileStatus: true,
+              leaderboardEligible: true,
             },
           },
         },
-        orderBy: finalSortBy === "overallScore" 
+        orderBy: finalSortBy === "overallScore"
           ? OverallScoreService.getCompetitiveSortOrder(sortOrder as any)
           : [
               { [finalSortBy]: sortOrder },
@@ -183,24 +213,22 @@ export async function GET(request: NextRequest) {
         skip,
         take: limit,
       }),
-      prisma.leaderboardEntry.count({
-        where: whereClause,
-      }),
+      prisma.leaderboardEntry.count({ where: whereClause }),
     ]);
 
-    return NextResponse.json({
-      entries,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+    return NextResponse.json(
+      {
+        mode: "ranked",
+        entries,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
       },
-    }, {
-      headers: {
-        "Cache-Control": "private, no-store",
-      },
-    });
+      { headers: { "Cache-Control": "private, no-store" } }
+    );
   } catch (err: any) {
     console.error("Error fetching leaderboard API:", err);
     if (err.name === "AuthError") {

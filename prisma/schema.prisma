@@ -272,13 +272,19 @@ model NormalizedProfile {
 }
 
 model SyncJob {
-  id        String   @id @default(uuid())
-  studentId String   @map("student_id")
-  status    String   // PENDING | RUNNING | COMPLETED | FAILED
-  error     String?
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  id               String    @id @default(uuid())
+  studentId        String    @map("student_id")
+  status           String    // QUEUED | PROCESSING | CODECHEF_VERIFIED | LEETCODE_VERIFIED | VERIFIED | INCOMPLETE | FAILED | RETRY_PENDING | PENDING | RUNNING | COMPLETED
+  attemptCount     Int       @default(0) @map("attempt_count")
+  lastAttemptedAt  DateTime? @map("last_attempted_at")
+  lastSuccessfulAt DateTime? @map("last_successful_at")
+  errorCategory    String?   @map("error_category")
+  error            String?
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
 
+  @@index([status])
+  @@index([studentId])
   @@map("sync_jobs")
 }
 

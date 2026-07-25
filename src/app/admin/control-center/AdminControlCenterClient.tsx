@@ -37,13 +37,25 @@ export default function AdminControlCenterClient({
   currentAdminId,
   currentAdminEmail,
 }: AdminControlCenterClientProps) {
-  const [activeTab, setActiveTab] = useState<"profile" | "create" | "directory" | "security" | "audit">("directory");
+  const [activeTab, setActiveTab] = useState<"profile" | "create" | "directory" | "security" | "audit" | "sync">("sync");
 
   return (
     <div className="space-y-8">
       {/* Navigation Tabs Header */}
       <div className="border-b border-brand-border bg-brand-card/50 p-2 rounded-xl backdrop-blur-md">
         <nav className="flex flex-wrap gap-2 sm:gap-3" aria-label="Tabs">
+          <button
+            onClick={() => setActiveTab("sync")}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+              activeTab === "sync"
+                ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
+                : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
+            }`}
+          >
+            <RefreshCw className="h-4 w-4" />
+            Platform Verification & Sync
+          </button>
+
           <button
             onClick={() => setActiveTab("profile")}
             className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
@@ -107,6 +119,7 @@ export default function AdminControlCenterClient({
       </div>
 
       {/* Tab Panels */}
+      {activeTab === "sync" && <PlatformSyncTab />}
       {activeTab === "profile" && <MyProfileTab currentAdminEmail={currentAdminEmail} />}
       {activeTab === "create" && <CreateAccountTab onAccountCreated={() => setActiveTab("directory")} />}
       {activeTab === "directory" && <AccountDirectoryTab currentAdminId={currentAdminId} />}
@@ -1413,3 +1426,214 @@ function AuditActivityTab() {
     </div>
   );
 }
+
+// =============================================================================
+// TAB 6: PLATFORM VERIFICATION & SYNC TAB
+// =============================================================================
+function PlatformSyncTab() {
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showQueueWarning, setShowQueueWarning] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/bulk-sync");
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data.stats);
+      }
+    } catch (e) {
+      console.error("Failed to fetch queue stats:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const handleAction = async (action: string, payload: any = {}) => {
+    setActionLoading(true);
+    setMessage(null);
+    try {
+      const res = await fetch("/api/admin/bulk-sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...payload }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setMessage({ type: "success", text: data.message });
+        setStats(data.stats);
+      } else {
+        setMessage({ type: "error", text: data.error || "Action failed." });
+      }
+    } catch (e: any) {
+      setMessage({ type: "error", text: e.message || "Network error occurred." });
+    } finally {
+      setActionLoading(false);
+      setShowQueueWarning(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Warning Modal */}
+      {showQueueWarning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-brand-card border border-brand-border rounded-xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3 text-amber-400">
+              <AlertTriangle className="h-6 w-6 shrink-0" />
+              <h3 className="text-lg font-bold text-brand-text">Confirm Bulk Queue</h3>
+            </div>
+            <p className="text-xs text-brand-muted leading-relaxed">
+              This will verify CodeChef and LeetCode profiles using controlled background batches. Students become ranked only after both platforms are successfully verified.
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setShowQueueWarning(false)}
+                className="px-4 py-2 rounded-lg border border-brand-border text-xs font-bold uppercase text-brand-muted hover:text-brand-text cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleAction("queue-all")}
+                disabled={actionLoading}
+                className="px-4 py-2 rounded-lg bg-[#EAB308] text-black text-xs font-bold uppercase hover:bg-amber-400 transition-colors cursor-pointer"
+              >
+                {actionLoading ? "Queueing..." : "Confirm Queue All"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header & Status Banner */}
+      <div className="rounded-xl border border-brand-border bg-brand-card p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-brand-border pb-4">
+          <div>
+            <h2 className="text-xl font-bold text-brand-text">Platform Verification & Sync</h2>
+            <p className="text-xs text-brand-muted">
+              Durable background queue for CodeChef & LeetCode verification of CSV-imported profiles.
+            </p>
+          </div>
+          <button
+            onClick={fetchStats}
+            disabled={loading}
+            className="rounded-lg border border-brand-border bg-brand-bg px-3 py-2 text-xs font-bold uppercase text-brand-text hover:border-[#EAB308]/40 hover:text-[#EAB308] cursor-pointer flex items-center gap-2"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            Refresh Queue Stats
+          </button>
+        </div>
+
+        {message && (
+          <div
+            className={`p-3 rounded-lg text-xs font-semibold flex items-center gap-2 ${
+              message.type === "success"
+                ? "bg-emerald-500/10 border border-emerald-500/30 text-emerald-400"
+                : "bg-rose-500/10 border border-rose-500/30 text-rose-400"
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+
+        {/* Queue Progress Bar */}
+        {stats && (
+          <div className="space-y-2 pt-2">
+            <div className="flex justify-between text-xs font-bold text-brand-muted uppercase">
+              <span>Verification Progress</span>
+              <span className="text-[#EAB308]">{stats.percentageCompleted}% Completed</span>
+            </div>
+            <div className="w-full bg-brand-bg h-3 rounded-full overflow-hidden border border-brand-border">
+              <div
+                className="bg-gradient-to-r from-amber-500 to-[#EAB308] h-full transition-all duration-500"
+                style={{ width: `${stats.percentageCompleted}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Total Profiles</div>
+            <div className="text-lg font-bold text-brand-text mt-1">{stats?.totalProfiles ?? "—"}</div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Eligible Handles</div>
+            <div className="text-lg font-bold text-amber-400 mt-1">{stats?.eligibleForQueue ?? "—"}</div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Queued / Processing</div>
+            <div className="text-lg font-bold text-sky-400 mt-1">
+              {(stats?.queued ?? 0) + (stats?.processing ?? 0)}
+            </div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Both Verified</div>
+            <div className="text-lg font-bold text-emerald-400 mt-1">{stats?.verified ?? "—"}</div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Incomplete / Invalid</div>
+            <div className="text-lg font-bold text-rose-400 mt-1">
+              {(stats?.incomplete ?? 0) + (stats?.failed ?? 0)}
+            </div>
+          </div>
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-brand-border">
+          <button
+            onClick={() => setShowQueueWarning(true)}
+            disabled={actionLoading}
+            className="px-4 py-2.5 rounded-lg bg-[#EAB308] text-black text-xs font-bold uppercase hover:bg-amber-400 transition-all cursor-pointer shadow-md shadow-[#EAB308]/20 flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Queue All Pending Students
+          </button>
+
+          <button
+            onClick={() => handleAction("process-batch", { limit: 5 })}
+            disabled={actionLoading || (stats?.remaining ?? 0) === 0}
+            className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-bold uppercase hover:bg-emerald-500 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
+          >
+            Process Next Batch (5)
+          </button>
+
+          <button
+            onClick={() => handleAction("retry-failed")}
+            disabled={actionLoading}
+            className="px-4 py-2.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-200 text-xs font-bold uppercase hover:bg-zinc-700 transition-all cursor-pointer"
+          >
+            Retry Failed
+          </button>
+
+          {stats?.isPaused ? (
+            <button
+              onClick={() => handleAction("resume")}
+              disabled={actionLoading}
+              className="px-4 py-2.5 rounded-lg bg-amber-600/30 border border-amber-500/50 text-amber-300 text-xs font-bold uppercase hover:bg-amber-600/40 transition-all cursor-pointer"
+            >
+              Resume Queue
+            </button>
+          ) : (
+            <button
+              onClick={() => handleAction("pause")}
+              disabled={actionLoading}
+              className="px-4 py-2.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-bold uppercase hover:bg-zinc-700 transition-all cursor-pointer"
+            >
+              Pause Queue
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
