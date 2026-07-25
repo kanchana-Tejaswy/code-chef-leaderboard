@@ -67,8 +67,111 @@ export class BulkSyncService {
 
   /**
    * Queue all eligible students who have both CodeChef and LeetCode usernames.
-   * If a student is missing one or both handles, updates profileStatus to INCOMPLETE and eligibility to false.
+   * Runs database-driven queries in safe transactions with chunking (50 records per chunk).
    */
+  static async queueAllPending(): Promise<{
+    totalEligible: number;
+    newlyQueued: number;
+    alreadyQueued: number;
+    missingPlatformData: number;
+    failedToQueue: number;
+  }> {
+    // 1. Count students missing platform data (who are not verified)
+    const missingPlatformData = await prisma.studentProfile.count({
+      where: {
+        OR: [
+          { codechefUsername: null },
+          { codechefUsername: "" },
+          { leetcodeUsername: null },
+          { leetcodeUsername: "" }
+        ],
+        profileStatus: { not: "VERIFIED" }
+      }
+    });
+
+    // 2. Count students already queued/processing
+    const alreadyQueued = await prisma.syncJob.count({
+      where: {
+        status: { in: ["QUEUED", "PROCESSING"] }
+      }
+    });
+
+    // 3. Query all active student IDs in syncJob to exclude them
+    const activeJobs = await prisma.syncJob.findMany({
+      where: {
+        status: { in: ["QUEUED", "PROCESSING"] }
+      },
+      select: { studentId: true }
+    });
+    const activeStudentIds = activeJobs.map(job => job.studentId);
+
+    // 4. Query all eligible student IDs
+    const eligibleStudents = await prisma.studentProfile.findMany({
+      where: {
+        AND: [
+          ...(activeStudentIds.length > 0 ? [{ id: { notIn: activeStudentIds } }] : []),
+          { codechefUsername: { not: null } },
+          { codechefUsername: { not: "" } },
+          { leetcodeUsername: { not: null } },
+          { leetcodeUsername: { not: "" } },
+          {
+            OR: [
+              { profileStatus: { not: "VERIFIED" } },
+              { leaderboardEligible: false },
+              { dashboardEligible: false }
+            ]
+          }
+        ]
+      },
+      select: { id: true }
+    });
+
+    const totalEligible = eligibleStudents.length;
+    let newlyQueued = 0;
+    let failedToQueue = 0;
+
+    // Process in chunks of 50
+    const chunkSize = 50;
+    for (let i = 0; i < eligibleStudents.length; i += chunkSize) {
+      const chunk = eligibleStudents.slice(i, i + chunkSize);
+      
+      for (const student of chunk) {
+        try {
+          await prisma.$transaction([
+            prisma.studentProfile.update({
+              where: { id: student.id },
+              data: {
+                profileStatus: "PENDING_VERIFICATION",
+                leaderboardEligible: false,
+                dashboardEligible: false
+              }
+            }),
+            prisma.syncJob.create({
+              data: {
+                studentId: student.id,
+                status: "QUEUED",
+                attemptCount: 0
+              }
+            })
+          ]);
+          newlyQueued++;
+        } catch (err) {
+          console.error(`Failed to queue student ${student.id}:`, err);
+          failedToQueue++;
+        }
+      }
+    }
+
+    return {
+      totalEligible,
+      newlyQueued,
+      alreadyQueued,
+      missingPlatformData,
+      failedToQueue
+    };
+  }
+
+  // Legacy compatibility
   static async queueEligibleStudents(): Promise<{ queuedCount: number; incompleteCount: number }> {
     // 1. Fetch all student profiles
     const students = await prisma.studentProfile.findMany({

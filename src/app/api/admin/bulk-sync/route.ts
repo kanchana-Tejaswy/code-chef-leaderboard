@@ -6,8 +6,20 @@ export const maxDuration = 60;
 
 async function checkAuth(request: NextRequest) {
   const secretHeader = request.headers.get("x-admin-secret") || request.headers.get("authorization");
-  if (secretHeader && (secretHeader.includes("apply-migration-now") || secretHeader.includes("your-super-secure-cron-token"))) {
-    return;
+  const adminSecret = process.env.ADMIN_SYNC_SECRET || process.env.CRON_SECRET;
+  
+  if (secretHeader) {
+    if (!adminSecret) {
+      const err = new Error("Authentication system is not configured on the server") as any;
+      err.code = "CONFIGURATION_ERROR";
+      throw err;
+    }
+    if (secretHeader === adminSecret || secretHeader === `Bearer ${adminSecret}`) {
+      return;
+    }
+    const err = new Error("Unauthorized") as any;
+    err.code = "UNAUTHORIZED";
+    throw err;
   }
   await requireAdmin();
 }
@@ -18,7 +30,9 @@ export async function GET(request: NextRequest) {
     const stats = await BulkSyncService.getQueueProgressStats();
     return NextResponse.json({ success: true, stats }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err: any) {
-    const status = err?.code === "UNAUTHORIZED" ? 401 : 403;
+    let status = 403;
+    if (err?.code === "UNAUTHORIZED") status = 401;
+    if (err?.code === "CONFIGURATION_ERROR") status = 500;
     return NextResponse.json({ success: false, error: err.message || "Unauthorized" }, { status });
   }
 }
@@ -29,12 +43,12 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const action = body.action || "process-batch";
 
-    if (action === "queue-all") {
-      const result = await BulkSyncService.queueEligibleStudents();
+    if (action === "queue-all" || action === "queue-all-pending") {
+      const result = await BulkSyncService.queueAllPending();
       const stats = await BulkSyncService.getQueueProgressStats();
       return NextResponse.json({
         success: true,
-        message: `Queued ${result.queuedCount} eligible students (${result.incompleteCount} marked incomplete).`,
+        message: `Queued ${result.newlyQueued} eligible students (${result.missingPlatformData} missing platform data).`,
         result,
         stats,
       });
@@ -93,7 +107,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: false, error: "Invalid action" }, { status: 400 });
   } catch (err: any) {
     console.error("Error in bulk-sync route:", err);
-    const status = err?.code === "UNAUTHORIZED" ? 401 : 403;
+    let status = 403;
+    if (err?.code === "UNAUTHORIZED") status = 401;
+    if (err?.code === "CONFIGURATION_ERROR") status = 500;
     return NextResponse.json({ success: false, error: err.message || "Internal server error" }, { status });
   }
 }

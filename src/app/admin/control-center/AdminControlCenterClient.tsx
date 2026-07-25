@@ -1491,7 +1491,7 @@ function PlatformSyncTab() {
               <h3 className="text-lg font-bold text-brand-text">Confirm Bulk Queue</h3>
             </div>
             <p className="text-xs text-brand-muted leading-relaxed">
-              This will verify CodeChef and LeetCode profiles using controlled background batches. Students become ranked only after both platforms are successfully verified.
+              This will queue all students with both CodeChef and LeetCode profiles. Verification will run in controlled batches with a maximum concurrency of 2.
             </p>
             <div className="flex justify-end gap-3 pt-2">
               <button
@@ -1501,7 +1501,7 @@ function PlatformSyncTab() {
                 Cancel
               </button>
               <button
-                onClick={() => handleAction("queue-all")}
+                onClick={() => handleAction("queue-all-pending")}
                 disabled={actionLoading}
                 className="px-4 py-2 rounded-lg bg-[#EAB308] text-black text-xs font-bold uppercase hover:bg-amber-400 transition-colors cursor-pointer"
               >
@@ -1570,20 +1570,32 @@ function PlatformSyncTab() {
             <div className="text-lg font-bold text-amber-400 mt-1">{stats?.eligibleForQueue ?? "—"}</div>
           </div>
           <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
-            <div className="text-[10px] text-brand-muted font-bold uppercase">Queued / Processing</div>
-            <div className="text-lg font-bold text-sky-400 mt-1">
-              {(stats?.queued ?? 0) + (stats?.processing ?? 0)}
-            </div>
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Queued</div>
+            <div className="text-lg font-bold text-sky-400 mt-1">{stats?.queued ?? 0}</div>
           </div>
           <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
-            <div className="text-[10px] text-brand-muted font-bold uppercase">Both Verified</div>
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Processing</div>
+            <div className="text-lg font-bold text-indigo-400 mt-1">{stats?.processing ?? 0}</div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Verified</div>
             <div className="text-lg font-bold text-emerald-400 mt-1">{stats?.verified ?? "—"}</div>
           </div>
           <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
-            <div className="text-[10px] text-brand-muted font-bold uppercase">Incomplete / Invalid</div>
-            <div className="text-lg font-bold text-rose-400 mt-1">
-              {(stats?.incomplete ?? 0) + (stats?.failed ?? 0)}
-            </div>
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Incomplete</div>
+            <div className="text-lg font-bold text-amber-500 mt-1">{stats?.incomplete ?? "—"}</div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Failed</div>
+            <div className="text-lg font-bold text-rose-500 mt-1">{stats?.failed ?? "—"}</div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Remaining</div>
+            <div className="text-lg font-bold text-zinc-400 mt-1">{stats?.remaining ?? "—"}</div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border col-span-2 sm:col-span-1">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Completion</div>
+            <div className="text-lg font-bold text-yellow-400 mt-1">{stats?.percentageCompleted ?? 0}%</div>
           </div>
         </div>
 
@@ -1595,7 +1607,7 @@ function PlatformSyncTab() {
             className="px-4 py-2.5 rounded-lg bg-[#EAB308] text-black text-xs font-bold uppercase hover:bg-amber-400 transition-all cursor-pointer shadow-md shadow-[#EAB308]/20 flex items-center gap-2"
           >
             <RefreshCw className="h-4 w-4" />
-            Queue All Pending Students
+            Queue All Eligible Students
           </button>
 
           <button
