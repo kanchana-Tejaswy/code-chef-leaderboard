@@ -2,6 +2,8 @@ import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { BulkSyncService } from "@/services/bulkSync.service";
 
+export const maxDuration = 60;
+
 async function checkAuth(request: NextRequest) {
   const secretHeader = request.headers.get("x-admin-secret") || request.headers.get("authorization");
   if (secretHeader && (secretHeader.includes("apply-migration-now") || secretHeader.includes("your-super-secure-cron-token"))) {
