@@ -61,6 +61,10 @@ model StudentProfile {
   profileStatus     String            @default("INCOMPLETE") @map("profile_status")
   leaderboardEligible Boolean         @default(false) @map("leaderboard_eligible")
   dashboardEligible Boolean           @default(false) @map("dashboard_eligible")
+  adminApprovalStatus String            @default("PENDING") @map("admin_approval_status")
+  approvedAt         DateTime?         @map("approved_at")
+  approvedById       String?           @map("approved_by_id")
+  approvalNote       String?           @map("approval_note")
   createdAt         DateTime          @default(now()) @map("created_at")
   updatedAt         DateTime          @updatedAt @map("updated_at")
   

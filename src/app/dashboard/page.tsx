@@ -98,6 +98,13 @@ interface StatsData {
   activeLeetcode?: SparklineData;
   activeGithub?: SparklineData;
   activeOverall?: SparklineData;
+  verifiedCount?: SparklineData;
+  pendingVerificationCount?: SparklineData;
+  incompleteCount?: SparklineData;
+  failedCount?: SparklineData;
+  awaitingApprovalCount?: SparklineData;
+  approvedCount?: SparklineData;
+  rejectedCount?: SparklineData;
 }
 
 interface ActivityItem {
@@ -1521,7 +1528,9 @@ export default function LandingPage() {
           </div>
 
           <div className={`grid grid-cols-2 sm:grid-cols-3 ${
-            dashboardFilter === "overall" || dashboardFilter === "codechef"
+            dashboardFilter === "overall"
+              ? "lg:grid-cols-4 xl:grid-cols-7"
+              : dashboardFilter === "codechef"
               ? "lg:grid-cols-6"
               : "lg:grid-cols-5"
           } gap-4`}>
@@ -1539,97 +1548,126 @@ export default function LandingPage() {
                         {stats.totalStudents.value}
                       </span>
                     </div>
-                    {getTrendBadge(stats.totalStudents.trend)}
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.totalStudents.sparkline} color="#EAB308" />
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Cohort Size</span>
+                    <span className="text-[9px] text-[#EAB308] font-bold">417 Total</span>
                   </div>
                 </div>
 
-                {/* Card 2: Active Profiles */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+                {/* Card 2: Verified Profiles */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-green-500/30 transition-all group duration-300">
                   <div className="flex items-start justify-between">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <Code className="h-3.5 w-3.5 text-[#F59E0B]" />
-                        Active Profiles
+                        <ShieldCheck className="h-3.5 w-3.5 text-[#22C55E]" />
+                        Verified Profiles
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.activeCodechef.value}
+                        {stats.verifiedCount?.value || 0}
                       </span>
                     </div>
-                    {getTrendBadge(stats.activeCodechef.trend)}
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.activeCodechef.sparkline} color="#F59E0B" />
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Scrape Done</span>
+                    <span className="text-[9px] text-[#22C55E] font-bold">Platforms Ok</span>
                   </div>
                 </div>
 
-                {/* Card 3: Average Score */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+                {/* Card 3: Awaiting Admin Approval */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group duration-300">
                   <div className="flex items-start justify-between">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <TrendingUp className="h-3.5 w-3.5 text-[#22C55E]" />
-                        Average Score
+                        <Clock className="h-3.5 w-3.5 text-[#F59E0B]" />
+                        Awaiting Approval
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.averageRating.value}
+                        {stats.awaitingApprovalCount?.value || 0}
                       </span>
                     </div>
-                    {getTrendBadge(stats.averageRating.trend)}
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.averageRating.sparkline} color="#22C55E" />
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Awaiting Action</span>
+                    <span className="text-[9px] text-[#F59E0B] font-bold">Pending Review</span>
                   </div>
                 </div>
 
-                {/* Card 4: Participation Rate */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+                {/* Card 4: Approved Students */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-green-500/30 transition-all group duration-300">
                   <div className="flex items-start justify-between">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <Target className="h-3.5 w-3.5 text-[#F59E0B]" />
-                        Participation Rate
+                        <CheckCircle className="h-3.5 w-3.5 text-[#22C55E]" />
+                        Approved Students
                       </span>
                       <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.contestParticipationPercent?.value || 0}%
+                        {stats.approvedCount?.value || 0}
                       </span>
                     </div>
-                    {getTrendBadge(stats.contestParticipationPercent?.trend || "")}
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.contestParticipationPercent?.sparkline || [0, 0, 0, 0, 0, 0]} color="#F59E0B" />
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">On Leaderboard</span>
+                    <span className="text-[9px] text-[#22C55E] font-bold">Ranked & Visible</span>
                   </div>
                 </div>
 
-                {/* Card 5: Top Department */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-[#EAB308]/30 transition-all group duration-300">
+                {/* Card 5: Rejected Students */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-red-500/30 transition-all group duration-300">
                   <div className="flex items-start justify-between">
                     <div className="flex flex-col">
                       <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <GraduationCap className="h-3.5 w-3.5 text-[#EAB308]" />
-                        Top Department
+                        <X className="h-3.5 w-3.5 text-[#EF4444]" />
+                        Rejected Students
                       </span>
-                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight truncate max-w-[6.5rem] block">
-                        {stats.topDepartment.value}
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.rejectedCount?.value || 0}
                       </span>
                     </div>
-                    <span className="text-[10px] font-bold text-[#EAB308] bg-[#EAB308]/5 px-2 py-0.5 rounded-full border border-[#EAB308]/15">
-                      {stats.topDepartment.trend}
-                    </span>
                   </div>
                   <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.topDepartment.sparkline} color="#EAB308" />
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Access Denied</span>
+                    <span className="text-[9px] text-[#EF4444] font-bold">Rejected</span>
                   </div>
                 </div>
 
+                {/* Card 6: Incomplete Profiles */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <Zap className="h-3.5 w-3.5 text-[#F59E0B]" />
+                        Incomplete Profiles
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.incompleteCount?.value || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Missing Handles</span>
+                    <span className="text-[9px] text-[#F59E0B] font-bold">Incomplete</span>
+                  </div>
+                </div>
 
+                {/* Card 7: Sync Pending */}
+                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-blue-500/30 transition-all group duration-300">
+                  <div className="flex items-start justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
+                        <RefreshCw className="h-3.5 w-3.5 text-[#3B82F6]" />
+                        Sync Pending
+                      </span>
+                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
+                        {stats.pendingVerificationCount?.value || 0}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
+                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Queued for Sync</span>
+                    <span className="text-[9px] text-[#3B82F6] font-bold">Pending Sync</span>
+                  </div>
+                </div>
               </>
             )}
 

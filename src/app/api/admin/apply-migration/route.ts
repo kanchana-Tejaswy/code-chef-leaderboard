@@ -58,6 +58,21 @@ export async function POST(request: NextRequest) {
          now(),
          1
        )
+       ON CONFLICT DO NOTHING;`,
+      `ALTER TABLE "student_profiles" ADD COLUMN IF NOT EXISTS "admin_approval_status" TEXT NOT NULL DEFAULT 'PENDING';`,
+      `ALTER TABLE "student_profiles" ADD COLUMN IF NOT EXISTS "approved_at" TIMESTAMPTZ;`,
+      `ALTER TABLE "student_profiles" ADD COLUMN IF NOT EXISTS "approved_by_id" TEXT;`,
+      `ALTER TABLE "student_profiles" ADD COLUMN IF NOT EXISTS "approval_note" TEXT;`,
+      `INSERT INTO "_prisma_migrations" ("id", "checksum", "finished_at", "migration_name", "logs", "started_at", "applied_steps_count")
+       VALUES (
+         gen_random_uuid()::text,
+         '20260726000001_add_admin_approval_fields',
+         now(),
+         '20260726000001_add_admin_approval_fields',
+         NULL,
+         now(),
+         1
+       )
        ON CONFLICT DO NOTHING;`
     ];
 

@@ -11,7 +11,12 @@ const getCachedAnalytics = async (departmentFilter?: string) => {
       const studentWhere = departmentFilter ? { department: departmentFilter } : {};
 
       const students = await prisma.studentProfile.findMany({
-        where: studentWhere,
+        where: {
+          ...studentWhere,
+          adminApprovalStatus: "APPROVED",
+          dashboardEligible: true,
+          profileStatus: "VERIFIED",
+        },
         select: {
         department: true,
         createdAt: true,

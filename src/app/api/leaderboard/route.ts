@@ -59,6 +59,7 @@ export async function GET(request: NextRequest) {
             verificationStatus: true,
             leaderboardEligible: true,
             dashboardEligible: true,
+            adminApprovalStatus: true,
             createdAt: true,
             codechefProfile: {
               select: {
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
         const hasLcHandle = Boolean(s.leetcodeUsername && s.leetcodeUsername.trim() !== "");
         const isCcVerified = Boolean(s.codechefProfile);
         const isLcVerified = Boolean(s.leetcodeProfile);
-        const isFullyVerified = s.profileStatus === "VERIFIED" && s.leaderboardEligible && isCcVerified && isLcVerified;
+        const isFullyVerified = s.profileStatus === "VERIFIED" && s.adminApprovalStatus === "APPROVED" && s.leaderboardEligible && isCcVerified && isLcVerified;
 
         let codechefStatus = "Missing";
         if (hasCcHandle) {
@@ -122,12 +123,22 @@ export async function GET(request: NextRequest) {
           leaderboardEligible: s.leaderboardEligible,
           codechefStatus,
           leetcodeStatus,
-          // Only show rank and scores if student is verified!
+          // Only show rank and scores if student is verified and approved!
           rank: isFullyVerified ? (s.leaderboardEntry?.rank || "—") : "—",
           overallScore: isFullyVerified ? (s.leaderboardEntry?.overallScore || 0) : null,
           codechefScore: isFullyVerified ? (s.leaderboardEntry?.codechefScore || 0) : null,
           leetcodeScore: isFullyVerified ? (s.leaderboardEntry?.leetcodeScore || 0) : null,
           trendDirection: isFullyVerified ? (s.leaderboardEntry?.trendDirection || "NEUTRAL") : "NEUTRAL",
+          adminApprovalStatus: s.adminApprovalStatus,
+          statusText: s.profileStatus === "VERIFIED" && s.adminApprovalStatus !== "APPROVED"
+            ? "Awaiting Approval"
+            : s.profileStatus === "PENDING_VERIFICATION"
+            ? "Verification Pending"
+            : s.profileStatus === "INCOMPLETE"
+            ? "Incomplete"
+            : s.profileStatus === "INVALID"
+            ? "Failed"
+            : "Verified"
         };
       });
 
@@ -151,6 +162,7 @@ export async function GET(request: NextRequest) {
       student: {
         leaderboardEligible: true,
         profileStatus: "VERIFIED",
+        adminApprovalStatus: "APPROVED",
       },
     };
 

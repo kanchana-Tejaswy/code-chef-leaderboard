@@ -12,27 +12,33 @@ export async function GET(request: NextRequest) {
     const activeCodechefCount = await prisma.codechefProfile.count({
       where: {
         username: { not: "" },
-        currentRating: { not: null }
+        currentRating: { not: null },
+        student: { adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" }
       }
     });
 
     const activeLeetcodeCount = await prisma.leetcodeProfile.count({
       where: {
         username: { not: "" },
-        problemsSolved: { not: null }
+        problemsSolved: { not: null },
+        student: { adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" }
       }
     });
 
     const activeGithubCount = await prisma.githubProfile.count({
       where: {
         username: { not: "" },
-        totalRepositories: { not: null }
+        totalRepositories: { not: null },
+        student: { adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" }
       }
     });
 
     // Overall active profiles (students having at least one valid profile)
     const activeOverallCount = await prisma.studentProfile.count({
       where: {
+        adminApprovalStatus: "APPROVED",
+        dashboardEligible: true,
+        profileStatus: "VERIFIED",
         OR: [
           { codechefProfile: { isNot: null } },
           { leetcodeProfile: { isNot: null } },
@@ -44,11 +50,7 @@ export async function GET(request: NextRequest) {
     // Average scores calculated only among verified profiles
     const ratingAgg = await prisma.leaderboardEntry.aggregate({
       where: {
-        OR: [
-          { student: { codechefUsername: { not: null } } },
-          { student: { leetcodeUsername: { not: null } } },
-          { student: { githubUsername: { not: null } } }
-        ]
+        student: { adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" }
       },
       _avg: { overallScore: true },
       _max: { overallScore: true },
@@ -58,18 +60,24 @@ export async function GET(request: NextRequest) {
     const highestRating = Math.round(ratingAgg._max.overallScore || 0);
 
     const leetcodeAgg = await prisma.leaderboardEntry.aggregate({
-      where: { student: { leetcodeUsername: { not: null } } },
+      where: { student: { leetcodeUsername: { not: null }, adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" } },
       _avg: { leetcodeScore: true }
     });
 
     const codechefAgg = await prisma.leaderboardEntry.aggregate({
-      where: { student: { codechefUsername: { not: null } } },
+      where: { student: { codechefUsername: { not: null }, adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" } },
       _avg: { codechefScore: true }
     });
 
     // Database aggregates for platform-specific averages (ignoring nulls/unregistered)
-    const lcSolvedAgg = await prisma.leetcodeProfile.aggregate({ _avg: { problemsSolved: true, acceptanceRate: true } });
-    const ccContestAgg = await prisma.codechefProfile.aggregate({ _avg: { contestCount: true } });
+    const lcSolvedAgg = await prisma.leetcodeProfile.aggregate({
+      where: { student: { adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" } },
+      _avg: { problemsSolved: true, acceptanceRate: true }
+    });
+    const ccContestAgg = await prisma.codechefProfile.aggregate({
+      where: { student: { adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" } },
+      _avg: { contestCount: true }
+    });
 
     const lcProblemsSolvedAvg = Math.round(lcSolvedAgg._avg.problemsSolved || 0);
     const lcAcceptanceRateAvg = Math.round(lcSolvedAgg._avg.acceptanceRate || 0);
@@ -78,6 +86,7 @@ export async function GET(request: NextRequest) {
     // Active contest participants
     const activeContestParticipants = await prisma.leaderboardEntry.count({
       where: {
+        student: { adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" },
         OR: [
           { rating: { gt: 0 } },
           { leetcodeScore: { gt: 0 } }
@@ -86,11 +95,17 @@ export async function GET(request: NextRequest) {
     });
 
     const fourStarCoders = await prisma.leaderboardEntry.count({
-      where: { overallScore: { gte: 70, lt: 85 } },
+      where: {
+        student: { adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" },
+        overallScore: { gte: 70, lt: 85 }
+      },
     });
 
     const fiveStarCoders = await prisma.leaderboardEntry.count({
-      where: { overallScore: { gte: 85 } },
+      where: {
+        student: { adminApprovalStatus: "APPROVED", dashboardEligible: true, profileStatus: "VERIFIED" },
+        overallScore: { gte: 85 }
+      },
     });
 
     const contestParticipationPercent = totalStudents > 0

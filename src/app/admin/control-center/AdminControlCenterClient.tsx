@@ -26,6 +26,9 @@ import {
   Wrench,
   ChevronLeft,
   ChevronRight,
+  Clock,
+  X,
+  ShieldCheck,
 } from "lucide-react";
 
 interface AdminControlCenterClientProps {
@@ -37,7 +40,7 @@ export default function AdminControlCenterClient({
   currentAdminId,
   currentAdminEmail,
 }: AdminControlCenterClientProps) {
-  const [activeTab, setActiveTab] = useState<"profile" | "create" | "directory" | "security" | "audit" | "sync">("sync");
+  const [activeTab, setActiveTab] = useState<"profile" | "create" | "directory" | "security" | "audit" | "sync" | "approvals">("sync");
 
   return (
     <div className="space-y-8">
@@ -105,6 +108,18 @@ export default function AdminControlCenterClient({
           </button>
 
           <button
+            onClick={() => setActiveTab("approvals")}
+            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+              activeTab === "approvals"
+                ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
+                : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
+            }`}
+          >
+            <Check className="h-4 w-4" />
+            Student Approvals
+          </button>
+
+          <button
             onClick={() => setActiveTab("audit")}
             className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
               activeTab === "audit"
@@ -125,6 +140,7 @@ export default function AdminControlCenterClient({
       {activeTab === "directory" && <AccountDirectoryTab currentAdminId={currentAdminId} />}
       {activeTab === "security" && <SecurityTab currentAdminEmail={currentAdminEmail} />}
       {activeTab === "audit" && <AuditActivityTab />}
+      {activeTab === "approvals" && <StudentApprovalsTab />}
     </div>
   );
 }
@@ -1739,6 +1755,837 @@ function PlatformSyncTab() {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// TAB 7: STUDENT APPROVALS TAB
+// =============================================================================
+function StudentApprovalsTab() {
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  
+  // Search & Filters State
+  const [search, setSearch] = useState("");
+  const [branch, setBranch] = useState("");
+  const [year, setYear] = useState("");
+  const [profileStatus, setProfileStatus] = useState("");
+  const [adminApprovalStatus, setAdminApprovalStatus] = useState("");
+  const [codechefStatus, setCodechefStatus] = useState("");
+  const [leetcodeStatus, setLeetcodeStatus] = useState("");
+  const [leaderboardEligible, setLeaderboardEligible] = useState("");
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const [limit] = useState(15);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
+
+  // Aggregated Stats
+  const [stats, setStats] = useState<any>(null);
+
+  // Modals state
+  const [viewingStudent, setViewingStudent] = useState<any | null>(null);
+  const [editingStudent, setEditingStudent] = useState<any | null>(null);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [noteState, setNoteState] = useState<{ id: string; action: "approve" | "reject" | "revoke"; note: string } | null>(null);
+
+  // Form edit fields
+  const [editForm, setEditForm] = useState({
+    name: "",
+    year: "1",
+    branch: "CSE",
+    cgpa: "",
+    contactNumber: "",
+    codechefUsername: "",
+    leetcodeUsername: "",
+    githubUsername: "",
+    codeforcesUsername: "",
+    linkedinUrl: ""
+  });
+  const [editError, setEditError] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
+  const branches = ["CSE", "ECE", "EEE", "MECH", "CIVIL", "IT", "AIML", "DATA_SCIENCE"];
+
+  useEffect(() => {
+    fetchData();
+  }, [page, search, branch, year, profileStatus, adminApprovalStatus, codechefStatus, leetcodeStatus, leaderboardEligible]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+      });
+      if (search) params.append("search", search);
+      if (branch) params.append("branch", branch);
+      if (year) params.append("year", year);
+      if (profileStatus) params.append("profileStatus", profileStatus);
+      if (adminApprovalStatus) params.append("adminApprovalStatus", adminApprovalStatus);
+      if (codechefStatus) params.append("codechefStatus", codechefStatus);
+      if (leetcodeStatus) params.append("leetcodeStatus", leetcodeStatus);
+      if (leaderboardEligible) params.append("leaderboardEligible", leaderboardEligible);
+
+      const res = await fetch(`/api/admin/student-approvals?${params.toString()}`);
+      const data = await res.json();
+      if (data.success) {
+        setStudents(data.students);
+        setTotalPages(data.pagination.totalPages);
+        setTotalCount(data.pagination.total);
+        setStats(data.stats);
+      }
+    } catch (err) {
+      console.error("Failed to fetch approvals:", err);
+    }
+    setLoading(false);
+  };
+
+  const handleSingleAction = async (id: string, action: "approve" | "reject" | "revoke", note: string = "") => {
+    setActionLoading(id);
+    try {
+      const res = await fetch(`/api/admin/student-approvals/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, note })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchData();
+      } else {
+        alert(data.error || `Failed to perform ${action}.`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred.");
+    }
+    setActionLoading(null);
+    setNoteState(null);
+  };
+
+  const handleSyncStudent = async (id: string) => {
+    setActionLoading(id + "-sync");
+    try {
+      const res = await fetch(`/api/admin/student-approvals/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "sync" })
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Verification completed successfully for student.");
+        fetchData();
+      } else {
+        alert(data.error || "Sync execution failed.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred.");
+    }
+    setActionLoading(null);
+  };
+
+  const handleBulkApprove = async () => {
+    setBulkLoading(true);
+    try {
+      const res = await fetch("/api/admin/student-approvals/bulk-approve", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || "Bulk approval completed.");
+        setShowBulkConfirm(false);
+        fetchData();
+      } else {
+        alert(data.error || "Bulk approval failed.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred.");
+    }
+    setBulkLoading(false);
+  };
+
+  const openEditModal = (student: any) => {
+    setEditingStudent(student);
+    setEditError("");
+    setEditForm({
+      name: student.name || "",
+      year: student.year?.toString() || "1",
+      branch: student.branch || "CSE",
+      cgpa: student.cgpa?.toString() || "",
+      contactNumber: student.contactNumber || "",
+      codechefUsername: student.codechefUsername || "",
+      leetcodeUsername: student.leetcodeUsername || "",
+      githubUsername: student.githubUsername || "",
+      codeforcesUsername: student.codeforcesUsername || "",
+      linkedinUrl: student.linkedinUrl || ""
+    });
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEditSaving(true);
+    setEditError("");
+    try {
+      const res = await fetch(`/api/admin/students/${editingStudent.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...editForm,
+          year: parseInt(editForm.year, 10),
+          cgpa: editForm.cgpa ? parseFloat(editForm.cgpa) : null
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEditingStudent(null);
+        fetchData();
+      } else {
+        setEditError(data.error || "Failed to save student details.");
+      }
+    } catch (err) {
+      setEditError("Network error occurred.");
+    }
+    setEditSaving(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* 1. Header & Quick Aggregates */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-xl font-black text-brand-text">Student Approvals Board</h2>
+          <p className="text-xs text-brand-muted">Approve, reject, or revoke leaderboard access and view verified student metrics.</p>
+        </div>
+        <button
+          onClick={() => setShowBulkConfirm(true)}
+          disabled={!stats?.eligibleForApproval}
+          className="px-5 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-green-600/20"
+        >
+          Approve All Verified Students
+        </button>
+      </div>
+
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="border border-brand-border bg-brand-card p-4 rounded-xl">
+            <span className="text-[10px] font-black text-brand-muted uppercase tracking-wider block">Eligible for Approval</span>
+            <span className="text-xl font-black text-green-400 mt-1 block">{stats.eligibleForApproval}</span>
+          </div>
+          <div className="border border-brand-border bg-brand-card p-4 rounded-xl">
+            <span className="text-[10px] font-black text-brand-muted uppercase tracking-wider block">Approved Students</span>
+            <span className="text-xl font-black text-[#22C55E] mt-1 block">{stats.alreadyApproved}</span>
+          </div>
+          <div className="border border-brand-border bg-brand-card p-4 rounded-xl">
+            <span className="text-[10px] font-black text-brand-muted uppercase tracking-wider block">Awaiting Verification</span>
+            <span className="text-xl font-black text-amber-500 mt-1 block">{stats.pendingVerification}</span>
+          </div>
+          <div className="border border-brand-border bg-brand-card p-4 rounded-xl">
+            <span className="text-[10px] font-black text-brand-muted uppercase tracking-wider block">Incomplete Profiles</span>
+            <span className="text-xl font-black text-zinc-400 mt-1 block">{stats.stillIncomplete}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Advanced Search & Filters */}
+      <div className="border border-brand-border bg-brand-card/50 p-4 rounded-2xl space-y-4">
+        <div className="flex items-center gap-2 text-brand-muted">
+          <Filter className="h-4 w-4 text-[#EAB308]" />
+          <span className="text-xs font-bold uppercase tracking-wider">Search & Filters</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Search field */}
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-brand-muted" />
+            <input
+              type="text"
+              placeholder="Search Student/Roll..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none focus:border-[#EAB308]"
+            />
+          </div>
+
+          {/* Branch filter */}
+          <select
+            value={branch}
+            onChange={(e) => setBranch(e.target.value)}
+            className="w-full px-3 py-2 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none focus:border-[#EAB308]"
+          >
+            <option value="">All Branches</option>
+            {branches.map(b => <option key={b} value={b}>{b}</option>)}
+          </select>
+
+          {/* Year filter */}
+          <select
+            value={year}
+            onChange={(e) => setYear(e.target.value)}
+            className="w-full px-3 py-2 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none focus:border-[#EAB308]"
+          >
+            <option value="">All Years</option>
+            <option value="1">1st Year</option>
+            <option value="2">2nd Year</option>
+            <option value="3">3rd Year</option>
+            <option value="4">4th Year</option>
+          </select>
+
+          {/* Profile Status filter */}
+          <select
+            value={profileStatus}
+            onChange={(e) => setProfileStatus(e.target.value)}
+            className="w-full px-3 py-2 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none focus:border-[#EAB308]"
+          >
+            <option value="">All Profile Statuses</option>
+            <option value="VERIFIED">Verified</option>
+            <option value="PENDING_VERIFICATION">Pending Verification</option>
+            <option value="INCOMPLETE">Incomplete</option>
+            <option value="INVALID">Failed / Invalid</option>
+          </select>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Approval Status filter */}
+          <select
+            value={adminApprovalStatus}
+            onChange={(e) => setAdminApprovalStatus(e.target.value)}
+            className="w-full px-3 py-2 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none focus:border-[#EAB308]"
+          >
+            <option value="">All Approval Statuses</option>
+            <option value="PENDING">Pending Approval</option>
+            <option value="APPROVED">Approved</option>
+            <option value="REJECTED">Rejected</option>
+            <option value="REVOKED">Revoked Approval</option>
+          </select>
+
+          {/* CodeChef verified filter */}
+          <select
+            value={codechefStatus}
+            onChange={(e) => setCodechefStatus(e.target.value)}
+            className="w-full px-3 py-2 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none focus:border-[#EAB308]"
+          >
+            <option value="">CodeChef Status: Any</option>
+            <option value="Verified">Verified Only</option>
+            <option value="Pending">Sync Pending</option>
+            <option value="Missing">No Username</option>
+            <option value="Failed">Failed Only</option>
+          </select>
+
+          {/* LeetCode verified filter */}
+          <select
+            value={leetcodeStatus}
+            onChange={(e) => setLeetcodeStatus(e.target.value)}
+            className="w-full px-3 py-2 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none focus:border-[#EAB308]"
+          >
+            <option value="">LeetCode Status: Any</option>
+            <option value="Verified">Verified Only</option>
+            <option value="Pending">Sync Pending</option>
+            <option value="Missing">No Username</option>
+            <option value="Failed">Failed Only</option>
+          </select>
+        </div>
+      </div>
+
+      {/* 3. Students Approvals Table */}
+      <div className="border border-brand-border bg-brand-card rounded-2xl overflow-hidden shadow-xl">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-brand-border bg-brand-bg/50">
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Student & Email</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Roll Number</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Branch/Year</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Platforms</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider text-center">Profile Status</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider text-center">Approval</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider text-center font-bold">Eligibility</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="p-12 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <RefreshCw className="h-7 w-7 text-[#EAB308] animate-spin" />
+                      <span className="text-xs text-brand-muted uppercase font-bold tracking-widest">Loading student approvals...</span>
+                    </div>
+                  </td>
+                </tr>
+              ) : students.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="p-12 text-center text-xs text-brand-muted font-bold uppercase tracking-wider">
+                    No student profiles matched the filter criteria.
+                  </td>
+                </tr>
+              ) : (
+                students.map((student) => {
+                  const verified = student.codechefStatus === "Verified" && student.leetcodeStatus === "Verified";
+                  return (
+                    <tr key={student.id} className="border-b border-brand-border/60 hover:bg-brand-bg/25 transition-all">
+                      <td className="p-4">
+                        <div className="font-bold text-sm text-brand-text leading-tight">{student.name}</div>
+                        <div className="text-[10px] text-brand-muted mt-0.5">{student.email}</div>
+                      </td>
+                      <td className="p-4 text-xs font-mono font-bold text-brand-text">{student.rollNumber}</td>
+                      <td className="p-4 text-xs text-brand-muted uppercase font-bold">
+                        {student.branch} / Y{student.year}
+                      </td>
+                      <td className="p-4 space-y-1">
+                        <div className="flex items-center gap-1.5 text-[10px]">
+                          <span className="w-16 font-bold text-brand-muted uppercase tracking-wider text-[8px]">CodeChef:</span>
+                          <span className={`px-1.5 py-0.5 rounded-full font-black text-[8px] uppercase tracking-wider ${
+                            student.codechefStatus === "Verified" ? "bg-green-500/10 text-green-400 border border-green-500/20" :
+                            student.codechefStatus === "Pending" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse" :
+                            student.codechefStatus === "Failed" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                            "bg-zinc-800 text-zinc-500 border border-zinc-700"
+                          }`}>{student.codechefStatus}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px]">
+                          <span className="w-16 font-bold text-brand-muted uppercase tracking-wider text-[8px]">LeetCode:</span>
+                          <span className={`px-1.5 py-0.5 rounded-full font-black text-[8px] uppercase tracking-wider ${
+                            student.leetcodeStatus === "Verified" ? "bg-green-500/10 text-green-400 border border-green-500/20" :
+                            student.leetcodeStatus === "Pending" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse" :
+                            student.leetcodeStatus === "Failed" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                            "bg-zinc-800 text-zinc-500 border border-zinc-700"
+                          }`}>{student.leetcodeStatus}</span>
+                        </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className={`px-2 py-0.5 rounded-full font-black text-[9px] uppercase tracking-widest ${
+                          student.profileStatus === "VERIFIED" ? "bg-green-600/20 text-green-400 border border-green-600/30" :
+                          student.profileStatus === "PENDING_VERIFICATION" ? "bg-amber-600/20 text-amber-400 border border-amber-600/30" :
+                          student.profileStatus === "INCOMPLETE" ? "bg-zinc-800 text-zinc-400 border border-zinc-700" :
+                          "bg-rose-950/30 text-rose-400 border border-rose-900/30"
+                        }`}>{student.profileStatus}</span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className={`px-2 py-0.5 rounded-full font-black text-[9px] uppercase tracking-widest ${
+                          student.adminApprovalStatus === "APPROVED" ? "bg-green-500 text-black shadow-md shadow-green-500/10" :
+                          student.adminApprovalStatus === "REJECTED" ? "bg-red-900/40 text-red-400 border border-red-800/40" :
+                          student.adminApprovalStatus === "REVOKED" ? "bg-amber-950/40 text-amber-400 border border-amber-900/40" :
+                          "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                        }`}>{student.adminApprovalStatus || "PENDING"}</span>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex flex-col gap-1 items-center">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-bold text-brand-muted uppercase">LBoard:</span>
+                            <span className={`text-[9px] font-black ${student.leaderboardEligible ? "text-green-400" : "text-zinc-500"}`}>
+                              {student.leaderboardEligible ? "YES" : "NO"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[8px] font-bold text-brand-muted uppercase">Dash:</span>
+                            <span className={`text-[9px] font-black ${student.dashboardEligible ? "text-green-400" : "text-zinc-500"}`}>
+                              {student.dashboardEligible ? "YES" : "NO"}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          <button
+                            onClick={() => setViewingStudent(student)}
+                            className="p-1.5 rounded-lg border border-brand-border text-brand-muted hover:text-brand-text hover:bg-brand-bg transition-all cursor-pointer"
+                            title="View Profile"
+                          >
+                            <Eye className="h-3.5 w-3.5" />
+                          </button>
+                          
+                          <button
+                            onClick={() => openEditModal(student)}
+                            className="px-2 py-1.5 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:text-[#EAB308] hover:bg-brand-bg transition-all cursor-pointer"
+                            title="Edit Details"
+                          >
+                            Edit
+                          </button>
+
+                          <button
+                            disabled={actionLoading === student.id + "-sync" || actionLoading === student.id}
+                            onClick={() => handleSyncStudent(student.id)}
+                            className="px-2 py-1.5 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:text-blue-400 hover:bg-brand-bg transition-all cursor-pointer disabled:opacity-50"
+                            title="Verify/Sync"
+                          >
+                            {actionLoading === student.id + "-sync" ? (
+                              <RefreshCw className="h-3 w-3 animate-spin" />
+                            ) : "Sync"}
+                          </button>
+
+                          {student.adminApprovalStatus === "APPROVED" ? (
+                            <button
+                              disabled={!!actionLoading}
+                              onClick={() => setNoteState({ id: student.id, action: "revoke", note: "" })}
+                              className="px-2 py-1.5 bg-amber-600 hover:bg-amber-700 text-black text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                              title="Revoke Approval"
+                            >
+                              Revoke
+                            </button>
+                          ) : (
+                            <>
+                              <button
+                                disabled={!verified || !!actionLoading}
+                                onClick={() => setNoteState({ id: student.id, action: "approve", note: "" })}
+                                className="px-2 py-1.5 bg-[#22C55E] hover:bg-green-600 disabled:bg-zinc-800 disabled:text-zinc-600 border border-transparent disabled:border-zinc-700 text-black text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                                title={!verified ? "Both CodeChef and LeetCode profiles must be verified before approval." : "Approve student"}
+                              >
+                                Approve
+                              </button>
+
+                              <button
+                                disabled={!!actionLoading}
+                                onClick={() => setNoteState({ id: student.id, action: "reject", note: "" })}
+                                className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                                title="Reject student"
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* 4. Pagination */}
+        {totalPages > 1 && (
+          <div className="p-4 border-t border-brand-border bg-brand-bg/30 flex items-center justify-between">
+            <span className="text-xs text-brand-muted">
+              Showing page <strong className="text-brand-text">{page}</strong> of <strong className="text-brand-text">{totalPages}</strong> ({totalCount} students)
+            </span>
+            <div className="flex gap-2">
+              <button
+                disabled={page === 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className="p-2 rounded-lg border border-brand-border text-brand-muted hover:text-brand-text disabled:opacity-40 cursor-pointer"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                disabled={page === totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className="p-2 rounded-lg border border-brand-border text-brand-muted hover:text-brand-text disabled:opacity-40 cursor-pointer"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* MODAL 1: VIEW STUDENT PROFILE DETAILS */}
+      {viewingStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-2xl border border-brand-border bg-brand-card p-6 shadow-2xl space-y-6 relative">
+            <button
+              onClick={() => setViewingStudent(null)}
+              className="absolute right-4 top-4 text-brand-muted hover:text-brand-text cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            <div>
+              <h3 className="text-lg font-black text-brand-text">{viewingStudent.name}</h3>
+              <p className="text-xs text-brand-muted font-mono">{viewingStudent.rollNumber}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-xs">
+              <div>
+                <span className="block text-[9px] uppercase font-bold text-brand-muted">Email Address</span>
+                <span className="text-brand-text font-medium">{viewingStudent.email}</span>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase font-bold text-brand-muted">Branch / Year</span>
+                <span className="text-brand-text font-bold uppercase">{viewingStudent.branch} / Year {viewingStudent.year}</span>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase font-bold text-brand-muted">CodeChef Handle</span>
+                <span className="text-brand-text font-mono">{viewingStudent.codechefUsername || "Not configured"}</span>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase font-bold text-brand-muted">LeetCode Handle</span>
+                <span className="text-brand-text font-mono">{viewingStudent.leetcodeUsername || "Not configured"}</span>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase font-bold text-brand-muted">Profile Status</span>
+                <span className="text-brand-text font-bold uppercase text-[#EAB308]">{viewingStudent.profileStatus}</span>
+              </div>
+              <div>
+                <span className="block text-[9px] uppercase font-bold text-brand-muted">Approval Status</span>
+                <span className="text-brand-text font-bold uppercase text-[#22C55E]">{viewingStudent.adminApprovalStatus || "PENDING"}</span>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-brand-border flex justify-end">
+              <button
+                onClick={() => setViewingStudent(null)}
+                className="px-4 py-2 border border-brand-border rounded-lg text-xs font-bold uppercase tracking-wider text-brand-muted hover:text-brand-text cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: EDIT STUDENT PROFILE DETAILS */}
+      {editingStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="w-full max-w-lg rounded-2xl border border-brand-border bg-brand-card p-6 shadow-2xl space-y-6 my-8">
+            <div className="flex items-center justify-between border-b border-brand-border pb-3">
+              <h3 className="text-base font-black text-brand-text">Edit Student Profile Details</h3>
+              <button onClick={() => setEditingStudent(null)} className="text-brand-muted hover:text-brand-text cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {editError && (
+              <div className="p-3 bg-red-950/40 border border-red-800/40 text-red-200 text-xs font-bold uppercase rounded-lg flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4 shrink-0" />
+                <span>{editError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleEditSubmit} className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">Student Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.name}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-brand-text focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">CGPA (0 to 10)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="10"
+                    value={editForm.cgpa}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, cgpa: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-brand-text focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">Branch *</label>
+                  <select
+                    value={editForm.branch}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, branch: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-brand-text focus:outline-none"
+                  >
+                    {branches.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">Year of Study *</label>
+                  <select
+                    value={editForm.year}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, year: e.target.value }))}
+                    className="w-full px-3 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-brand-text focus:outline-none"
+                  >
+                    <option value="1">1st Year</option>
+                    <option value="2">2nd Year</option>
+                    <option value="3">3rd Year</option>
+                    <option value="4">4th Year</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">CodeChef Handle or URL</label>
+                  <input
+                    type="text"
+                    value={editForm.codechefUsername}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, codechefUsername: e.target.value }))}
+                    placeholder="https://www.codechef.com/users/username"
+                    className="w-full px-3 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-brand-text focus:outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">LeetCode Handle or URL</label>
+                  <input
+                    type="text"
+                    value={editForm.leetcodeUsername}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, leetcodeUsername: e.target.value }))}
+                    placeholder="https://leetcode.com/username"
+                    className="w-full px-3 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-brand-text focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">GitHub Handle or URL</label>
+                  <input
+                    type="text"
+                    value={editForm.githubUsername}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, githubUsername: e.target.value }))}
+                    placeholder="username"
+                    className="w-full px-3 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-brand-text focus:outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">Codeforces Username</label>
+                  <input
+                    type="text"
+                    value={editForm.codeforcesUsername}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, codeforcesUsername: e.target.value }))}
+                    placeholder="username"
+                    className="w-full px-3 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-brand-text focus:outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">LinkedIn URL</label>
+                  <input
+                    type="text"
+                    value={editForm.linkedinUrl}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, linkedinUrl: e.target.value }))}
+                    placeholder="https://linkedin.com/in/username"
+                    className="w-full px-3 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-brand-text focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-brand-border flex gap-3 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditingStudent(null)}
+                  className="px-4 py-2 border border-brand-border rounded-lg text-xs font-bold uppercase text-brand-muted hover:text-brand-text cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSaving}
+                  className="px-5 py-2 bg-[#EAB308] text-black text-xs font-bold uppercase rounded-lg hover:bg-amber-400 transition-all cursor-pointer disabled:opacity-50"
+                >
+                  {editSaving ? "Saving..." : "Save Details"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: ADMIN ACTION NOTE DIALOG (APPROVE / REJECT / REVOKE) */}
+      {noteState && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-brand-border bg-brand-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-brand-border">
+              <h3 className="text-sm font-black text-brand-text uppercase tracking-wider">
+                Confirm Approval Action: {noteState.action}
+              </h3>
+              <button onClick={() => setNoteState(null)} className="text-brand-muted hover:text-brand-text cursor-pointer">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            
+            <p className="text-xs text-brand-muted">
+              Add any optional notes or reasons for this administrative change.
+            </p>
+
+            <textarea
+              value={noteState.note}
+              onChange={(e) => setNoteState(prev => prev ? { ...prev, note: e.target.value } : null)}
+              placeholder="e.g. Profile verified, student cleared."
+              rows={3}
+              className="w-full p-3 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none focus:border-[#EAB308]"
+            />
+
+            <div className="flex justify-end gap-3 pt-2">
+              <button
+                onClick={() => setNoteState(null)}
+                className="px-4 py-2 border border-brand-border rounded-lg text-xs font-bold uppercase text-brand-muted hover:text-brand-text cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleSingleAction(noteState.id, noteState.action, noteState.note)}
+                className={`px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider text-black transition-all cursor-pointer ${
+                  noteState.action === "approve" ? "bg-green-500 hover:bg-green-600" :
+                  noteState.action === "reject" ? "bg-red-600 hover:bg-red-700 text-white" :
+                  "bg-amber-600 hover:bg-amber-700"
+                }`}
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: BULK APPROVAL CONFIRMATION DIALOG */}
+      {showBulkConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-brand-border bg-brand-card p-6 shadow-2xl space-y-6">
+            <div className="flex items-center gap-3 text-green-500">
+              <ShieldCheck className="h-7 w-7" />
+              <h3 className="text-lg font-black text-brand-text">Confirm Bulk Approval</h3>
+            </div>
+
+            <p className="text-xs text-brand-muted leading-relaxed">
+              You are about to bulk-approve all fully verified student profiles for leaderboard and dashboard participation. This will update their status to APPROVED, generate leaderboard entries, and recalculate ranks.
+            </p>
+
+            {stats && (
+              <div className="grid grid-cols-2 gap-3 text-xs border-y border-brand-border py-4">
+                <div>
+                  <span className="block text-[8px] uppercase font-bold text-brand-muted">Eligible for Approval</span>
+                  <span className="text-sm font-black text-green-400">{stats.eligibleForApproval} Students</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] uppercase font-bold text-brand-muted">Already Approved</span>
+                  <span className="text-sm font-black text-[#22C55E]">{stats.alreadyApproved} Students</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] uppercase font-bold text-brand-muted">Still Incomplete</span>
+                  <span className="text-sm font-black text-zinc-400">{stats.stillIncomplete} Profiles</span>
+                </div>
+                <div>
+                  <span className="block text-[8px] uppercase font-bold text-brand-muted">Pending Verification</span>
+                  <span className="text-sm font-black text-amber-500">{stats.pendingVerification} Students</span>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                type="button"
+                disabled={bulkLoading}
+                onClick={() => setShowBulkConfirm(false)}
+                className="px-4 py-2 border border-brand-border rounded-lg text-xs font-bold uppercase text-brand-muted hover:text-brand-text cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={bulkLoading}
+                onClick={handleBulkApprove}
+                className="px-5 py-2 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white text-xs font-bold uppercase rounded-lg transition-all cursor-pointer shadow-lg shadow-green-600/20"
+              >
+                {bulkLoading ? "Approving..." : "Confirm & Approve"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

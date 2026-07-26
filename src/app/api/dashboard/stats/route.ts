@@ -11,10 +11,10 @@ const getCachedStats = async (departmentFilter?: string) => {
     async () => {
       const studentWhere = departmentFilter ? { department: departmentFilter } : {};
       
-      // Strict filter for competitive performance statistics: ONLY verified and dashboardEligible students!
+      // Strict filter for competitive performance statistics: ONLY verified, approved and dashboardEligible students!
       const lbWhere = departmentFilter
-        ? { student: { department: departmentFilter, dashboardEligible: true, profileStatus: "VERIFIED" } }
-        : { student: { dashboardEligible: true, profileStatus: "VERIFIED" } };
+        ? { student: { department: departmentFilter, dashboardEligible: true, profileStatus: "VERIFIED", adminApprovalStatus: "APPROVED" } }
+        : { student: { dashboardEligible: true, profileStatus: "VERIFIED", adminApprovalStatus: "APPROVED" } };
 
       // 1. Core Profile Status Counts
       const [
@@ -26,9 +26,12 @@ const getCachedStats = async (departmentFilter?: string) => {
         codechefVerifiedCount,
         leetcodeVerifiedCount,
         bothPlatformsVerifiedCount,
+        awaitingApprovalCount,
+        approvedCount,
+        rejectedCount,
       ] = await Promise.all([
         prisma.studentProfile.count({ where: studentWhere }),
-        prisma.studentProfile.count({ where: { ...studentWhere, profileStatus: "VERIFIED", dashboardEligible: true } }),
+        prisma.studentProfile.count({ where: { ...studentWhere, profileStatus: "VERIFIED" } }),
         prisma.studentProfile.count({ where: { ...studentWhere, profileStatus: "PENDING_VERIFICATION" } }),
         prisma.studentProfile.count({ where: { ...studentWhere, profileStatus: "INCOMPLETE" } }),
         prisma.studentProfile.count({ where: { ...studentWhere, profileStatus: "INVALID" } }),
@@ -42,6 +45,9 @@ const getCachedStats = async (departmentFilter?: string) => {
             profileStatus: "VERIFIED",
           },
         }),
+        prisma.studentProfile.count({ where: { ...studentWhere, profileStatus: "VERIFIED", adminApprovalStatus: "PENDING" } }),
+        prisma.studentProfile.count({ where: { ...studentWhere, adminApprovalStatus: "APPROVED" } }),
+        prisma.studentProfile.count({ where: { ...studentWhere, adminApprovalStatus: "REJECTED" } }),
       ]);
 
       // Queue Progress Stats
@@ -63,15 +69,15 @@ const getCachedStats = async (departmentFilter?: string) => {
           _avg: { codechefScore: true },
         }),
         prisma.leetcodeProfile.aggregate({
-          where: { student: { ...studentWhere, profileStatus: "VERIFIED", dashboardEligible: true } },
+          where: { student: { ...studentWhere, profileStatus: "VERIFIED", dashboardEligible: true, adminApprovalStatus: "APPROVED" } },
           _avg: { problemsSolved: true, acceptanceRate: true },
         }),
         prisma.codechefProfile.aggregate({
-          where: { student: { ...studentWhere, profileStatus: "VERIFIED", dashboardEligible: true } },
+          where: { student: { ...studentWhere, profileStatus: "VERIFIED", dashboardEligible: true, adminApprovalStatus: "APPROVED" } },
           _avg: { currentRating: true, stars: true, contestCount: true },
         }),
         prisma.githubProfile.aggregate({
-          where: { student: { ...studentWhere, profileStatus: "VERIFIED", dashboardEligible: true } },
+          where: { student: { ...studentWhere, profileStatus: "VERIFIED", dashboardEligible: true, adminApprovalStatus: "APPROVED" } },
           _avg: { totalRepositories: true, totalStars: true, openSourceScore: true },
         }),
       ]);
@@ -84,7 +90,7 @@ const getCachedStats = async (departmentFilter?: string) => {
         prisma.leaderboardEntry.count({ where: { ...lbWhere, overallScore: { gte: 85 } } }),
         prisma.studentProfile.groupBy({
           by: ["department"],
-          where: { ...studentWhere, profileStatus: "VERIFIED", dashboardEligible: true },
+          where: { ...studentWhere, profileStatus: "VERIFIED", dashboardEligible: true, adminApprovalStatus: "APPROVED" },
           _count: { id: true },
         }),
       ]);
@@ -148,6 +154,9 @@ const getCachedStats = async (departmentFilter?: string) => {
           codechefVerifiedCount: { value: codechefVerifiedCount, trend: "CodeChef profiles", sparkline: [codechefVerifiedCount, codechefVerifiedCount] },
           leetcodeVerifiedCount: { value: leetcodeVerifiedCount, trend: "LeetCode profiles", sparkline: [leetcodeVerifiedCount, leetcodeVerifiedCount] },
           bothPlatformsVerifiedCount: { value: bothPlatformsVerifiedCount, trend: "Both platforms verified", sparkline: [bothPlatformsVerifiedCount, bothPlatformsVerifiedCount] },
+          awaitingApprovalCount: { value: awaitingApprovalCount, trend: "Awaiting Admin Approval", sparkline: [awaitingApprovalCount, awaitingApprovalCount] },
+          approvedCount: { value: approvedCount, trend: "Approved students", sparkline: [approvedCount, approvedCount] },
+          rejectedCount: { value: rejectedCount, trend: "Rejected students", sparkline: [rejectedCount, rejectedCount] },
           activeCodechef: { value: codechefVerifiedCount, trend: "", sparkline: [codechefVerifiedCount, codechefVerifiedCount] },
           activeLeetcode: { value: leetcodeVerifiedCount, trend: "", sparkline: [leetcodeVerifiedCount, leetcodeVerifiedCount] },
           activeGithub: { value: ghRepositoriesAvg > 0 ? verifiedCount : 0, trend: "", sparkline: [0, 0] },

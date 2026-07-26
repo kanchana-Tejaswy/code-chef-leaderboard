@@ -201,8 +201,9 @@ export class SyncService {
 
       if (bothVerified) {
         profileStatus = "VERIFIED";
-        leaderboardEligible = true;
-        dashboardEligible = true;
+        const currentApproval = student.adminApprovalStatus || "PENDING";
+        leaderboardEligible = currentApproval === "APPROVED";
+        dashboardEligible = currentApproval === "APPROVED";
         verificationStatus = "VERIFIED";
       } else {
         profileStatus = "INCOMPLETE";
@@ -643,7 +644,9 @@ export class SyncService {
       const entries = await prisma.leaderboardEntry.findMany({
         where: {
           student: {
-            leaderboardEligible: true
+            leaderboardEligible: true,
+            profileStatus: "VERIFIED",
+            adminApprovalStatus: "APPROVED"
           }
         },
         include: {
