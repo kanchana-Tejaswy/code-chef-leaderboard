@@ -37,6 +37,14 @@ export interface QueueProgressStats {
 // Global pause flag stored in memory / state for runtime control
 let queueIsPaused = false;
 
+type StageStudent = {
+  id?: string;
+  profileStatus?: string | null;
+  adminApprovalStatus?: string | null;
+  codechefUsername?: string | null;
+  leetcodeUsername?: string | null;
+};
+
 export class BulkSyncService {
   /**
    * Safe error classification that never exposes private user data or credentials.
@@ -63,6 +71,53 @@ export class BulkSyncService {
       return "PARSING_FAILED";
     }
     return "UNKNOWN_ERROR";
+  }
+
+  static getCurrentStage(student: StageStudent, jobStatus?: string | null): string {
+    if (student.adminApprovalStatus === "APPROVED") return "APPROVED";
+    if (student.adminApprovalStatus === "REJECTED" || student.adminApprovalStatus === "REVOKED") {
+      return "REJECTED_OR_REVOKED";
+    }
+    if (student.profileStatus === "VERIFIED") return "VERIFIED_AWAITING_APPROVAL";
+    if (jobStatus === "PROCESSING") return "PROCESSING";
+    if (jobStatus === "RETRY_PENDING") return "RETRY_PENDING";
+    if (jobStatus === "QUEUED") return "SYNC_PENDING";
+    if (student.profileStatus === "INVALID" || student.profileStatus === "FAILED") return "SYNC_FAILED";
+    if (student.profileStatus === "INCOMPLETE") {
+      const hasCc = Boolean(student.codechefUsername && student.codechefUsername.trim() !== "");
+      const hasLc = Boolean(student.leetcodeUsername && student.leetcodeUsername.trim() !== "");
+      if (!hasCc && !hasLc) return "INCOMPLETE_MISSING_BOTH";
+      if (!hasCc) return "INCOMPLETE_MISSING_CODECHEF";
+      if (!hasLc) return "INCOMPLETE_MISSING_LEETCODE";
+      return "INCOMPLETE_MISSING_BOTH";
+    }
+    return "SYNC_PENDING";
+  }
+
+  static getExclusiveStageCounts(
+    students: StageStudent[],
+    jobStatusesByStudent?: Map<string, string | null>
+  ): Record<string, number> {
+    const counts = {
+      APPROVED: 0,
+      VERIFIED_AWAITING_APPROVAL: 0,
+      REJECTED_OR_REVOKED: 0,
+      PROCESSING: 0,
+      RETRY_PENDING: 0,
+      SYNC_FAILED: 0,
+      SYNC_PENDING: 0,
+      INCOMPLETE_MISSING_CODECHEF: 0,
+      INCOMPLETE_MISSING_LEETCODE: 0,
+      INCOMPLETE_MISSING_BOTH: 0,
+    };
+
+    for (const student of students) {
+      const jobStatus = student.id ? jobStatusesByStudent?.get(student.id) ?? null : null;
+      const stage = this.getCurrentStage(student, jobStatus);
+      counts[stage as keyof typeof counts] += 1;
+    }
+
+    return counts;
   }
 
   /**
@@ -362,62 +417,115 @@ export class BulkSyncService {
     return queueIsPaused;
   }
 
+  static async recoverStuckJobs(timeoutMinutes: number = 10, transaction?: any): Promise<any[]> {
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - timeoutMinutes * 60 * 1000);
+
+    const processRecovery = async (tx: any) => {
+      const staleJobs = (await tx.syncJob.findMany({
+        where: {
+          status: "PROCESSING",
+          OR: [
+            { lastAttemptedAt: { lt: cutoff } },
+            { updatedAt: { lt: cutoff } },
+          ],
+        },
+        orderBy: { updatedAt: "asc" },
+        take: 25,
+      })) || [];
+
+      const recovered: any[] = [];
+      for (const job of staleJobs) {
+        const nextAttemptCount = (job.attemptCount ?? 0) + 1;
+        const maxAttempts = 3;
+        const shouldFail = nextAttemptCount >= maxAttempts;
+        const nextStatus = shouldFail ? "FAILED" : "RETRY_PENDING";
+
+        await tx.syncJob.update({
+          where: { id: job.id },
+          data: {
+            status: nextStatus,
+            attemptCount: nextAttemptCount,
+            lastAttemptedAt: now,
+          },
+        });
+
+        if (tx.studentProfile?.update) {
+          await tx.studentProfile.update({
+            where: { id: job.studentId },
+            data: {
+              profileStatus: shouldFail ? "INVALID" : "PENDING_VERIFICATION",
+              leaderboardEligible: false,
+              dashboardEligible: false,
+            },
+          });
+        }
+
+        recovered.push({ ...job, status: nextStatus, attemptCount: nextAttemptCount });
+      }
+
+      return recovered;
+    };
+
+    if (transaction) {
+      return processRecovery(transaction);
+    }
+
+    return prisma.$transaction(async (tx) => processRecovery(tx));
+  }
+
   /**
    * Claim next available jobs atomically using a database transaction and applying retry backoff.
    */
   static async claimJobs(limit: number): Promise<any[]> {
     const now = new Date();
     return await prisma.$transaction(async (tx) => {
-      // Find jobs that are in runnable state
+      await this.recoverStuckJobs(10, tx);
+
       const potentialJobs = (await tx.syncJob.findMany({
         where: {
-          OR: [
-            { status: { in: ["QUEUED", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] } },
-            {
-              status: "PROCESSING",
-              lastAttemptedAt: { lt: new Date(now.getTime() - 10 * 60 * 1000) }
-            }
-          ]
+          status: { in: ["QUEUED", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] },
         },
         orderBy: { createdAt: "asc" },
-        take: limit * 2,
+        take: limit * 3,
       })) || [];
 
       const claimedJobs: any[] = [];
+      const claimedStudentIds = new Set<string>();
+
       for (const job of potentialJobs) {
         if (claimedJobs.length >= limit) break;
+        if (claimedStudentIds.has(job.studentId)) continue;
 
-        // Apply backoff check for RETRY_PENDING, CODECHEF_VERIFIED, LEETCODE_VERIFIED, PROCESSING if they have been attempted
-        if (job.lastAttemptedAt && (job.status === "RETRY_PENDING" || job.status === "CODECHEF_VERIFIED" || job.status === "LEETCODE_VERIFIED" || job.status === "PROCESSING")) {
+        if (job.lastAttemptedAt && (job.status === "RETRY_PENDING" || job.status === "CODECHEF_VERIFIED" || job.status === "LEETCODE_VERIFIED")) {
           const lastAttempt = new Date(job.lastAttemptedAt).getTime();
-          // Backoff: 2^attemptCount * 10 seconds
-          const attempt = job.attemptCount;
+          const attempt = job.attemptCount ?? 0;
           const backoffMs = Math.pow(2, Math.min(attempt, 5)) * 10 * 1000;
           if (now.getTime() - lastAttempt < backoffMs) {
             continue;
           }
         }
+
         claimedJobs.push(job);
+        claimedStudentIds.add(job.studentId);
       }
 
       if (claimedJobs.length === 0) return [];
 
-      const claimedIds = claimedJobs.map(j => j.id);
-      
-      // Update individually for Vitest mock compatibility
-      for (const id of claimedIds) {
+      for (const job of claimedJobs) {
         await tx.syncJob.update({
-          where: { id },
+          where: { id: job.id },
           data: {
             status: "PROCESSING",
-            attemptCount: { increment: 1 },
+            attemptCount: (job.attemptCount ?? 0) + 1,
             lastAttemptedAt: now,
-          }
+          },
         });
       }
 
       return (await tx.syncJob.findMany({
-        where: { id: { in: claimedIds } }
+        where: { id: { in: claimedJobs.map((job) => job.id) } },
+        orderBy: { createdAt: "asc" },
       })) || [];
     });
   }

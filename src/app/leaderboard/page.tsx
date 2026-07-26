@@ -13,12 +13,14 @@ import {
   Crown, 
   ChevronUp, 
   ChevronDown, 
-  ChevronLeft, 
+  ChevronLeft,
   ChevronRight,
   Edit2,
   Check,
   X,
-  RefreshCw
+  RefreshCw,
+  TrendingUp,
+  TrendingDown
 } from "lucide-react";
 import ContestPlatformCard from "../../components/leaderboard/ContestPlatformCard";
 import { getDisplayRank } from "@/utils/ranking";
@@ -34,6 +36,7 @@ interface LeaderboardEntry {
   codechefScore: number;
   leetcodeScore: number;
   githubScore: number;
+  trendDirection?: string;
   updatedAt: string;
   student: {
     id: string;
@@ -95,7 +98,7 @@ const createPlatformState = (sortBy: string, sortOrder: SortOrder = "desc"): Pla
 const platformStateDefaults: Record<PlatformKey, PlatformLeaderboardState> = {
   overall: createPlatformState("overallScore"),
   codechef: createPlatformState("ccRating"),
-  leetcode: createPlatformState("lcRank", "asc"),
+  leetcode: createPlatformState("lcSolved", "desc"),
 };
 
 const platformTabs: { name: string; value: PlatformKey }[] = [
@@ -513,18 +516,18 @@ function LeaderboardContent() {
   };
 
   const displayMetric = (value: unknown): string | number => {
-    if (value === null || value === undefined || value === "") return notLinkedLabel;
+    if (value === null || value === undefined || value === "") return "—";
     if (typeof value === "number" || typeof value === "string") return value;
     return String(value);
   };
 
   const displayPercent = (value: unknown): string => {
-    if (typeof value !== "number") return notLinkedLabel;
+    if (typeof value !== "number") return "—";
     return `${Math.round(value)}%`;
   };
 
   const displayDate = (value: unknown): string => {
-    if (!value) return notLinkedLabel;
+    if (!value) return "—";
     return new Date(value as string).toLocaleDateString();
   };
 
@@ -927,8 +930,8 @@ function LeaderboardContent() {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-brand-border bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                    <th className="py-4.5 px-4 text-center w-16 select-none font-black">Rank</th>
-                    <th className="py-4.5 px-4 select-none">Student</th>
+                    <th className="py-4.5 px-4 text-center w-16 select-none font-black">{activeTab === "leetcode" ? "LeetCode Rank" : "Rank"}</th>
+                    <th className="py-4.5 px-4 select-none">{activeTab === "leetcode" ? "Student Name" : "Student"}</th>
                     {activeTab === "overall" && (
                       <>
                         <th className="py-4.5 px-4 select-none">Department & Year</th>
@@ -937,9 +940,6 @@ function LeaderboardContent() {
                         </th>
                         <th onClick={() => handleSort("talentScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
                           AI Unified Score {renderSortIcon("talentScore")}
-                        </th>
-                        <th onClick={() => handleSort("consistency")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Consistency {renderSortIcon("consistency")}
                         </th>
                       </>
                     )}
@@ -972,31 +972,25 @@ function LeaderboardContent() {
                     )}
                     {activeTab === "leetcode" && (
                       <>
-                        <th onClick={() => handleSort("lcRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Contest Rating {renderSortIcon("lcRating")}
-                        </th>
-                        <th onClick={() => handleSort("lcRank")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Global Rank {renderSortIcon("lcRank")}
-                        </th>
                         <th onClick={() => handleSort("lcSolved")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Problems {renderSortIcon("lcSolved")}
+                          Total Solved {renderSortIcon("lcSolved")}
                         </th>
                         <th className="py-4.5 px-3 text-center select-none">Easy</th>
                         <th className="py-4.5 px-3 text-center select-none">Medium</th>
                         <th className="py-4.5 px-3 text-center select-none">Hard</th>
-                        <th onClick={() => handleSort("lcAcceptance")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Acceptance {renderSortIcon("lcAcceptance")}
+                        <th onClick={() => handleSort("lcRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Contest Rating {renderSortIcon("lcRating")}
                         </th>
-                        <th className="py-4.5 px-3 text-center select-none">Contests</th>
-                        <th onClick={() => handleSort("lcInterviewReadiness")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
-                          Readiness {renderSortIcon("lcInterviewReadiness")}
+                        <th onClick={() => handleSort("lcRank")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                          Contest Rank {renderSortIcon("lcRank")}
                         </th>
                         <th onClick={() => handleSort("leetcodeScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
                           LeetCode Score {renderSortIcon("leetcodeScore")}
                         </th>
+                        <th className="py-4.5 px-3 text-center select-none">Trend</th>
                       </>
                     )}
-                    <th className="py-4.5 px-6 text-center w-24 select-none">Portfolio</th>
+                    <th className="py-4.5 px-6 text-center w-24 select-none">{activeTab === "leetcode" ? "View Profile" : "Portfolio"}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#262626]/50">
@@ -1165,10 +1159,6 @@ function LeaderboardContent() {
                             <td className="py-4 px-4 text-center font-extrabold text-sm text-zinc-300">
                               {entry.talentScore}
                             </td>
-
-                            <td className="py-4 px-4 text-center font-extrabold text-sm text-zinc-300">
-                              {displayPercent((entry.student as any).normalizedProfile?.consistencyScore)}
-                            </td>
                           </>
                         )}
 
@@ -1216,34 +1206,32 @@ function LeaderboardContent() {
                           return (
                             <>
                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc && lc.contestRating != null ? Math.round(lc.contestRating) : notLinkedLabel}
+                                {lc ? displayMetric(lc.problemsSolved) : "—"}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                                {lc ? displayMetric(lc.easySolvedCount) : "—"}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                                {lc ? displayMetric(lc.mediumSolvedCount) : "—"}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                                {lc ? displayMetric(lc.hardSolvedCount) : "—"}
+                              </td>
+                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                {lc && lc.contestRating != null ? Math.round(lc.contestRating) : "—"}
                               </td>
                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc && lc.contestRank != null ? `#${lc.contestRank}` : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc ? displayMetric(lc.problemsSolved) : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
-                                {lc ? displayMetric(lc.easySolvedCount) : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
-                                {lc ? displayMetric(lc.mediumSolvedCount) : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
-                                {lc ? displayMetric(lc.hardSolvedCount) : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc ? displayPercent(lc.acceptanceRate) : notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {contestCount ?? notLinkedLabel}
-                              </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                {lc ? displayMetric((entry.student as any).aiAnalysis?.placementReadiness) : notLinkedLabel}
+                                {lc && lc.contestRank != null ? `#${lc.contestRank}` : "—"}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
-                                {lc ? displayMetric(entry.leetcodeScore) : notLinkedLabel}
+                                {lc ? displayMetric(entry.leetcodeScore) : "—"}
+                              </td>
+                              <td className="py-4 px-3 text-center">
+                                {(() => {
+                                  if (entry.trendDirection === "UP") return <TrendingUp className="h-4 w-4 mx-auto text-emerald-500" />;
+                                  if (entry.trendDirection === "DOWN") return <TrendingDown className="h-4 w-4 mx-auto text-red-500" />;
+                                  return <span className="text-zinc-500 text-lg mx-auto">—</span>;
+                                })()}
                               </td>
                             </>
                           );

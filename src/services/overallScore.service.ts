@@ -45,7 +45,8 @@ export class OverallScoreService {
       { overallScore: order },
       { codechefScore: order },
       { leetcodeScore: order },
-      { student: { name: secondaryOrder } },
+      { student: { rollNumber: "asc" } },
+      { student: { id: "asc" } },
     ];
   }
 

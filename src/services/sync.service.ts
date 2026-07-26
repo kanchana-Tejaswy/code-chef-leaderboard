@@ -655,13 +655,13 @@ export class SyncService {
         orderBy: OverallScoreService.getCompetitiveSortOrder("desc"),
       });
 
-      // Calculate the dense competition ranks
-      const rankedEntries = OverallScoreService.calculateDenseRank(
-        entries,
-        (entry) => [entry.overallScore, entry.codechefScore, entry.leetcodeScore]
-      );
+      // Calculate the contiguous competition rank
+      const rankedEntries = entries.map((entry, index) => ({
+        ...entry,
+        rank: index + 1
+      }));
 
-      console.log(`[SyncService] Recalculating dense competition rank for ${rankedEntries.length} students...`);
+      console.log(`[SyncService] Recalculating contiguous competition rank for ${rankedEntries.length} students...`);
 
       // First reset all ranks to 0
       await prisma.$executeRawUnsafe(`UPDATE leaderboard_entries SET rank = 0`);

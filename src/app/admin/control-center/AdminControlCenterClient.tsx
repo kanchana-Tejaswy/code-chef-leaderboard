@@ -2097,13 +2097,18 @@ function StudentApprovalsTab() {
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-brand-border bg-brand-bg/50">
-                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Student & Email</th>
-                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Roll Number</th>
-                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Branch/Year</th>
-                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Platforms</th>
-                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider text-center">Profile Status</th>
-                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider text-center">Approval</th>
-                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider text-center font-bold">Eligibility</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Student Name</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Masked Roll</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Branch</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">CodeChef</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">LeetCode</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Sync Status</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Profile Status</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Approval Status</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Leaderboard Status</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Current Stage</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Reason</th>
+                <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Last Attempt</th>
                 <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider text-right">Actions</th>
               </tr>
             </thead>
@@ -2132,29 +2137,30 @@ function StudentApprovalsTab() {
                         <div className="font-bold text-sm text-brand-text leading-tight">{student.name}</div>
                         <div className="text-[10px] text-brand-muted mt-0.5">{student.email}</div>
                       </td>
-                      <td className="p-4 text-xs font-mono font-bold text-brand-text">{student.rollNumber}</td>
-                      <td className="p-4 text-xs text-brand-muted uppercase font-bold">
-                        {student.branch} / Y{student.year}
+                      <td className="p-4 text-xs font-mono font-bold text-brand-text">{student.maskedRollNumber || "—"}</td>
+                      <td className="p-4 text-xs text-brand-muted uppercase font-bold">{student.branch || "CSE"}</td>
+                      <td className="p-4">
+                        <span className={`px-1.5 py-0.5 rounded-full font-black text-[8px] uppercase tracking-wider ${
+                          student.codechefStatus === "Verified" ? "bg-green-500/10 text-green-400 border border-green-500/20" :
+                          student.codechefStatus === "Pending" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse" :
+                          student.codechefStatus === "Failed" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                          "bg-zinc-800 text-zinc-500 border border-zinc-700"
+                        }`}>{student.codechefStatus || "Missing"}</span>
                       </td>
-                      <td className="p-4 space-y-1">
-                        <div className="flex items-center gap-1.5 text-[10px]">
-                          <span className="w-16 font-bold text-brand-muted uppercase tracking-wider text-[8px]">CodeChef:</span>
-                          <span className={`px-1.5 py-0.5 rounded-full font-black text-[8px] uppercase tracking-wider ${
-                            student.codechefStatus === "Verified" ? "bg-green-500/10 text-green-400 border border-green-500/20" :
-                            student.codechefStatus === "Pending" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse" :
-                            student.codechefStatus === "Failed" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
-                            "bg-zinc-800 text-zinc-500 border border-zinc-700"
-                          }`}>{student.codechefStatus}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[10px]">
-                          <span className="w-16 font-bold text-brand-muted uppercase tracking-wider text-[8px]">LeetCode:</span>
-                          <span className={`px-1.5 py-0.5 rounded-full font-black text-[8px] uppercase tracking-wider ${
-                            student.leetcodeStatus === "Verified" ? "bg-green-500/10 text-green-400 border border-green-500/20" :
-                            student.leetcodeStatus === "Pending" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse" :
-                            student.leetcodeStatus === "Failed" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
-                            "bg-zinc-800 text-zinc-500 border border-zinc-700"
-                          }`}>{student.leetcodeStatus}</span>
-                        </div>
+                      <td className="p-4">
+                        <span className={`px-1.5 py-0.5 rounded-full font-black text-[8px] uppercase tracking-wider ${
+                          student.leetcodeStatus === "Verified" ? "bg-green-500/10 text-green-400 border border-green-500/20" :
+                          student.leetcodeStatus === "Pending" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20 animate-pulse" :
+                          student.leetcodeStatus === "Failed" ? "bg-red-500/10 text-red-400 border border-red-500/20" :
+                          "bg-zinc-800 text-zinc-500 border border-zinc-700"
+                        }`}>{student.leetcodeStatus || "Missing"}</span>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className={`px-2 py-0.5 rounded-full font-black text-[9px] uppercase tracking-widest ${
+                          student.syncStatus === "SUCCESS" ? "bg-green-600/20 text-green-400 border border-green-600/30" :
+                          student.syncStatus === "FAILURE" ? "bg-rose-950/30 text-rose-400 border border-rose-900/30" :
+                          "bg-amber-600/20 text-amber-400 border border-amber-600/30"
+                        }`}>{student.syncStatus || "PENDING"}</span>
                       </td>
                       <td className="p-4 text-center">
                         <span className={`px-2 py-0.5 rounded-full font-black text-[9px] uppercase tracking-widest ${
@@ -2172,22 +2178,16 @@ function StudentApprovalsTab() {
                           "bg-zinc-800 text-zinc-400 border border-zinc-700"
                         }`}>{student.adminApprovalStatus || "PENDING"}</span>
                       </td>
-                      <td className="p-4">
-                        <div className="flex flex-col gap-1 items-center">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-bold text-brand-muted uppercase">LBoard:</span>
-                            <span className={`text-[9px] font-black ${student.leaderboardEligible ? "text-green-400" : "text-zinc-500"}`}>
-                              {student.leaderboardEligible ? "YES" : "NO"}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[8px] font-bold text-brand-muted uppercase">Dash:</span>
-                            <span className={`text-[9px] font-black ${student.dashboardEligible ? "text-green-400" : "text-zinc-500"}`}>
-                              {student.dashboardEligible ? "YES" : "NO"}
-                            </span>
-                          </div>
-                        </div>
+                      <td className="p-4 text-center">
+                        <span className={`text-[9px] font-black ${student.leaderboardEligible ? "text-green-400" : "text-zinc-500"}`}>
+                          {student.leaderboardEligible ? "YES" : "NO"}
+                        </span>
                       </td>
+                      <td className="p-4 text-center">
+                        <span className="text-[9px] font-black text-brand-text">{student.currentStage || "SYNC_PENDING"}</span>
+                      </td>
+                      <td className="p-4 text-xs text-brand-muted">{student.reason || "—"}</td>
+                      <td className="p-4 text-xs text-brand-muted">{student.lastAttempt ? new Date(student.lastAttempt).toLocaleString() : "—"}</td>
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1.5 flex-wrap">
                           <button

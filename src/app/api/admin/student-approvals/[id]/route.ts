@@ -56,46 +56,46 @@ export async function PATCH(
         );
       }
 
-      // Update StudentProfile approval fields
-      const updatedStudent = await prisma.studentProfile.update({
-        where: { id: studentId },
-        data: {
-          adminApprovalStatus: "APPROVED",
-          approvedAt: new Date(),
-          approvedById: adminId,
-          approvalNote: note || null,
-          leaderboardEligible: true,
-          dashboardEligible: true,
-          profileStatus: "VERIFIED"
-        }
-      });
-
       // Calculate initial competitive scores and upsert LeaderboardEntry
       const ccScore = OverallScoreService.calculateCodechefScore(student.codechefProfile);
       const lcScore = OverallScoreService.calculateLeetcodeScore(student.leetcodeProfile);
       const active = { codechef: true, leetcode: true };
       const overallScore = OverallScoreService.calculate({ codechef: ccScore, leetcode: lcScore }, active);
 
-      await prisma.leaderboardEntry.upsert({
-        where: { studentId },
-        create: {
-          studentId,
-          rating: student.codechefProfile.currentRating || 0,
-          stars: student.codechefProfile.stars ?? 0,
-          overallScore,
-          codechefScore: ccScore,
-          leetcodeScore: lcScore,
-          trendDirection: "NEUTRAL",
-          rank: 0
-        },
-        update: {
-          rating: student.codechefProfile.currentRating || 0,
-          stars: student.codechefProfile.stars ?? 0,
-          overallScore,
-          codechefScore: ccScore,
-          leetcodeScore: lcScore
-        }
-      });
+      const [updatedStudent, _] = await prisma.$transaction([
+        prisma.studentProfile.update({
+          where: { id: studentId },
+          data: {
+            adminApprovalStatus: "APPROVED",
+            approvedAt: new Date(),
+            approvedById: adminId,
+            approvalNote: note || null,
+            leaderboardEligible: true,
+            dashboardEligible: true,
+            profileStatus: "VERIFIED"
+          }
+        }),
+        prisma.leaderboardEntry.upsert({
+          where: { studentId },
+          create: {
+            studentId,
+            rating: student.codechefProfile.currentRating || 0,
+            stars: student.codechefProfile.stars ?? 0,
+            overallScore,
+            codechefScore: ccScore,
+            leetcodeScore: lcScore,
+            trendDirection: "NEUTRAL",
+            rank: 0
+          },
+          update: {
+            rating: student.codechefProfile.currentRating || 0,
+            stars: student.codechefProfile.stars ?? 0,
+            overallScore,
+            codechefScore: ccScore,
+            leetcodeScore: lcScore
+          }
+        })
+      ]);
 
       // Recalculate dense ranks
       await SyncService.recalculateLeaderboardRanks();

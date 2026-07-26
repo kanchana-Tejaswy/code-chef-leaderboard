@@ -29,6 +29,7 @@ const getCachedStats = async (departmentFilter?: string) => {
         awaitingApprovalCount,
         approvedCount,
         rejectedCount,
+        allProfiles,
       ] = await Promise.all([
         prisma.studentProfile.count({ where: studentWhere }),
         prisma.studentProfile.count({ where: { ...studentWhere, profileStatus: "VERIFIED" } }),
@@ -48,10 +49,22 @@ const getCachedStats = async (departmentFilter?: string) => {
         prisma.studentProfile.count({ where: { ...studentWhere, profileStatus: "VERIFIED", adminApprovalStatus: "PENDING" } }),
         prisma.studentProfile.count({ where: { ...studentWhere, adminApprovalStatus: "APPROVED" } }),
         prisma.studentProfile.count({ where: { ...studentWhere, adminApprovalStatus: "REJECTED" } }),
+        prisma.studentProfile.findMany({
+          where: studentWhere,
+          select: {
+            id: true,
+            profileStatus: true,
+            adminApprovalStatus: true,
+            codechefUsername: true,
+            leetcodeUsername: true,
+          },
+        }),
       ]);
 
       // Queue Progress Stats
       const queueProgress = await BulkSyncService.getQueueProgressStats();
+      const exclusiveStageCounts = BulkSyncService.getExclusiveStageCounts(allProfiles as any);
+      const exclusiveSum = Object.values(exclusiveStageCounts).reduce((sum, value) => sum + value, 0);
 
       // 2. Competitive Performance Metrics (Filtered STRICTLY to VERIFIED students)
       const [ratingAgg, leetcodeAgg, codechefAgg, lcSolvedAgg, ccProfileAgg, ghProfileAgg] = await Promise.all([
@@ -157,6 +170,11 @@ const getCachedStats = async (departmentFilter?: string) => {
           awaitingApprovalCount: { value: awaitingApprovalCount, trend: "Awaiting Admin Approval", sparkline: [awaitingApprovalCount, awaitingApprovalCount] },
           approvedCount: { value: approvedCount, trend: "Approved students", sparkline: [approvedCount, approvedCount] },
           rejectedCount: { value: rejectedCount, trend: "Rejected students", sparkline: [rejectedCount, rejectedCount] },
+          stageBreakdown: {
+            value: exclusiveStageCounts,
+            trend: "Exclusive stage totals",
+            sparkline: [exclusiveSum, exclusiveSum],
+          },
           activeCodechef: { value: codechefVerifiedCount, trend: "", sparkline: [codechefVerifiedCount, codechefVerifiedCount] },
           activeLeetcode: { value: leetcodeVerifiedCount, trend: "", sparkline: [leetcodeVerifiedCount, leetcodeVerifiedCount] },
           activeGithub: { value: ghRepositoriesAvg > 0 ? verifiedCount : 0, trend: "", sparkline: [0, 0] },

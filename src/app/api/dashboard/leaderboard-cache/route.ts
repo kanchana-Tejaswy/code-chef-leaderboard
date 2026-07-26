@@ -108,8 +108,8 @@ const platformConfigs: Record<PlatformKey, PlatformConfig> = {
     },
   },
   leetcode: {
-    defaultSort: "lcRank",
-    defaultOrder: "asc",
+    defaultSort: "lcSolved",
+    defaultOrder: "desc",
     applyFilters: (studentWhere, params) => {
       const ratingMin = numericParam(params, "lcRatingMin");
       const ratingMax = numericParam(params, "lcRatingMax");
@@ -132,8 +132,12 @@ const platformConfigs: Record<PlatformKey, PlatformConfig> = {
     sortFields: {
       lcRank: (order) => [nestedOrder("leetcodeProfile", "contestRank", order)],
       lcRating: (order) => [nestedOrder("leetcodeProfile", "contestRating", order)],
-      lcSolved: (order) => [nestedOrder("leetcodeProfile", "problemsSolved", order)],
-      lcAcceptance: (order) => [nestedOrder("leetcodeProfile", "acceptanceRate", order)],
+      lcSolved: (order) => [
+        nestedOrder("leetcodeProfile", "problemsSolved", order),
+        nestedOrder("leetcodeProfile", "hardSolvedCount", "desc"),
+        nestedOrder("leetcodeProfile", "mediumSolvedCount", "desc"),
+        nestedOrder("leetcodeProfile", "easySolvedCount", "desc"),
+      ],
       lcInterviewReadiness: (order) => [{ leetcodeScore: order }],
       leetcodeScore: (order) => [{ leetcodeScore: order }],
     },

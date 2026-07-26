@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { BulkSyncService } from "@/services/bulkSync.service";
 
 export const dynamic = "force-dynamic";
 
@@ -144,21 +145,33 @@ export async function GET(request: NextRequest) {
         lcStatus = isLcVerified ? "Verified" : (s.profileStatus === "INVALID" ? "Failed" : "Pending");
       }
 
+      const stage = BulkSyncService.getCurrentStage({
+        id: s.id,
+        profileStatus: s.profileStatus,
+        adminApprovalStatus: s.adminApprovalStatus,
+        codechefUsername: s.codechefUsername,
+        leetcodeUsername: s.leetcodeUsername,
+      }, null);
+
       return {
         id: s.id,
         name: s.name,
         rollNumber: s.rollNumber,
-        email: s.email,
+        maskedRollNumber: s.rollNumber ? `${s.rollNumber.slice(0, 2)}***` : "—",
         branch: s.branch || s.department || "CSE",
         year: s.year,
         codechefUsername: s.codechefUsername,
         leetcodeUsername: s.leetcodeUsername,
         codechefStatus: ccStatus,
         leetcodeStatus: lcStatus,
+        syncStatus: s.profileStatus === "VERIFIED" ? "SUCCESS" : s.profileStatus === "INVALID" ? "FAILURE" : "PENDING",
         profileStatus: s.profileStatus,
         adminApprovalStatus: s.adminApprovalStatus,
         leaderboardEligible: s.leaderboardEligible,
         dashboardEligible: s.dashboardEligible,
+        currentStage: stage,
+        reason: s.profileStatus === "INCOMPLETE" ? "Missing handles" : s.profileStatus === "INVALID" ? "Verification failed" : s.adminApprovalStatus === "APPROVED" ? "Approved" : "Pending review",
+        lastAttempt: s.updatedAt?.toISOString() || null,
         updatedAt: s.updatedAt,
       };
     });

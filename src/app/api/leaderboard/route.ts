@@ -123,8 +123,8 @@ export async function GET(request: NextRequest) {
           leaderboardEligible: s.leaderboardEligible,
           codechefStatus,
           leetcodeStatus,
-          // Only show rank and scores if student is verified and approved!
-          rank: isFullyVerified ? (s.leaderboardEntry?.rank || "—") : "—",
+          // Only show rank and scores if student is verified and approved AND rank > 0!
+          rank: (isFullyVerified && s.leaderboardEntry?.rank && s.leaderboardEntry.rank > 0) ? s.leaderboardEntry.rank : "—",
           overallScore: isFullyVerified ? (s.leaderboardEntry?.overallScore || 0) : null,
           codechefScore: isFullyVerified ? (s.leaderboardEntry?.codechefScore || 0) : null,
           leetcodeScore: isFullyVerified ? (s.leaderboardEntry?.leetcodeScore || 0) : null,

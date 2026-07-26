@@ -1385,10 +1385,10 @@ export default function LandingPage() {
   const insights = getAIInsights();
 
   const getRankBadge = (pos: number) => {
-    if (pos === 0) {
+    if (pos === 0 || !pos) {
       return (
         <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-          Unranked
+          Sync Pending
         </span>
       );
     }
@@ -1869,29 +1869,7 @@ export default function LandingPage() {
                   </div>
                 </div>
 
-                {/* Card 4: Acceptance Rate */}
-                <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group duration-300">
-                  <div className="flex items-start justify-between">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-brand-muted uppercase tracking-widest flex items-center gap-1.5">
-                        <Target className="h-3.5 w-3.5 text-emerald-400" />
-                        Avg Acceptance
-                      </span>
-                      <span className="text-2xl font-black text-brand-text mt-3 tracking-tight">
-                        {stats.averageAcceptanceRate?.value || 0}%
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/5 px-2 py-0.5 rounded-full border border-emerald-500/15">
-                      Success Rate
-                    </span>
-                  </div>
-                  <div className="mt-4 border-t border-brand-border/50 pt-3 flex items-center justify-between">
-                    <span className="text-[8px] text-brand-muted font-bold uppercase tracking-wider">Historical Trend</span>
-                    <Sparkline data={stats.averageAcceptanceRate?.sparkline || [0, 0, 0, 0, 0, 0]} color="#10B981" />
-                  </div>
-                </div>
-
-                {/* Card 6: Elite Contest Rate */}
+                {/* Card 5: Elite Contest Rate */}
                 <div className="border border-brand-border bg-brand-card p-5 rounded-2xl flex flex-col justify-between hover:border-amber-500/30 transition-all group duration-300">
                   <div className="flex items-start justify-between">
                     <div className="flex flex-col">
@@ -2439,10 +2417,9 @@ export default function LandingPage() {
                     )}
                     {leaderboardFilter === "leetcodeScore" && (
                       <>
-                        <th className="py-4 px-3 text-center select-none">Rating</th>
-                        <th className="py-4 px-3 text-center select-none">Solved</th>
+                        <th className="py-4 px-3 text-center select-none">Total Solved</th>
                         <th className="py-4 px-3 text-center select-none">E / M / H</th>
-                        <th className="py-4 px-3 text-center select-none">Acceptance</th>
+                        <th className="py-4 px-3 text-center select-none">Contest Rating</th>
                         <th className="py-4 px-3 text-center select-none">Contest Rank</th>
                         <th className="py-4 px-3 text-center select-none">LeetCode Score</th>
                       </>
@@ -2603,22 +2580,19 @@ export default function LandingPage() {
                             return (
                               <>
                                 <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                  {lc && lc.contestRating > 0 ? Math.round(lc.contestRating) : "Not available from platform."}
-                                </td>
-                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                  {lc ? lc.problemsSolved : "Not available from platform."}
+                                  {lc ? lc.problemsSolved : "—"}
                                 </td>
                                 <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
-                                  {lc ? `${lc.easySolvedCount}/${lc.mediumSolvedCount}/${lc.hardSolvedCount}` : "Not available from platform."}
-                                </td>
-                                <td className="py-4 px-3 text-center text-xs font-bold text-emerald-400">
-                                  {lc ? `${lc.acceptanceRate}%` : "Not available from platform."}
+                                  {lc ? `${lc.easySolvedCount}/${lc.mediumSolvedCount}/${lc.hardSolvedCount}` : "—"}
                                 </td>
                                 <td className="py-4 px-3 text-center text-xs font-bold text-white">
-                                  {lc && lc.contestRank > 0 ? lc.contestRank : "Not available from platform."}
+                                  {lc && lc.contestRating > 0 ? Math.round(lc.contestRating) : "—"}
+                                </td>
+                                <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                                  {lc && lc.contestRank > 0 ? `#${lc.contestRank}` : "—"}
                                 </td>
                                 <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
-                                  {entry.leetcodeScore}
+                                  {entry.leetcodeScore ?? "—"}
                                 </td>
                               </>
                             );
