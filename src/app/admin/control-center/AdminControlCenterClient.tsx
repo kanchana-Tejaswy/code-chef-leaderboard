@@ -1436,6 +1436,9 @@ function PlatformSyncTab() {
   const [actionLoading, setActionLoading] = useState(false);
   const [showQueueWarning, setShowQueueWarning] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [newlyQueuedCount, setNewlyQueuedCount] = useState<number | null>(null);
+  const [failedProfiles, setFailedProfiles] = useState<any[]>([]);
+  const [showFailedModal, setShowFailedModal] = useState(false);
 
   const fetchStats = async () => {
     setLoading(true);
@@ -1444,6 +1447,7 @@ function PlatformSyncTab() {
       if (res.ok) {
         const data = await res.json();
         setStats(data.stats);
+        setFailedProfiles(data.failedProfiles || []);
       }
     } catch (e) {
       console.error("Failed to fetch queue stats:", e);
@@ -1469,6 +1473,10 @@ function PlatformSyncTab() {
       if (res.ok && data.success) {
         setMessage({ type: "success", text: data.message });
         setStats(data.stats);
+        setFailedProfiles(data.failedProfiles || []);
+        if (action === "queue-all-pending" && data.result) {
+          setNewlyQueuedCount(data.result.newlyQueued);
+        }
       } else {
         setMessage({ type: "error", text: data.error || "Action failed." });
       }
@@ -1478,6 +1486,13 @@ function PlatformSyncTab() {
       setActionLoading(false);
       setShowQueueWarning(false);
     }
+  };
+
+  const openFailedModal = async () => {
+    setActionLoading(true);
+    await fetchStats();
+    setActionLoading(false);
+    setShowFailedModal(true);
   };
 
   return (
@@ -1506,6 +1521,66 @@ function PlatformSyncTab() {
                 className="px-4 py-2 rounded-lg bg-[#EAB308] text-black text-xs font-bold uppercase hover:bg-amber-400 transition-colors cursor-pointer"
               >
                 {actionLoading ? "Queueing..." : "Confirm Queue All"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Failed Profiles Modal */}
+      {showFailedModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-brand-card border border-brand-border rounded-xl p-6 max-w-4xl w-full space-y-4 shadow-2xl flex flex-col max-h-[85vh]">
+            <div className="flex items-center justify-between border-b border-brand-border pb-3">
+              <div className="flex items-center gap-3 text-rose-400">
+                <AlertTriangle className="h-6 w-6 shrink-0" />
+                <h3 className="text-lg font-bold text-brand-text">Failed Profiles ({failedProfiles.length})</h3>
+              </div>
+              <button 
+                onClick={() => setShowFailedModal(false)}
+                className="text-brand-muted hover:text-brand-text text-sm cursor-pointer"
+              >
+                ✕ Close
+              </button>
+            </div>
+            
+            <div className="overflow-y-auto flex-1 pr-1">
+              {failedProfiles.length === 0 ? (
+                <div className="text-center py-8 text-brand-muted text-xs">
+                  No failed profiles found. All processed profiles are verified or currently retrying.
+                </div>
+              ) : (
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-brand-border bg-brand-bg/80 text-brand-muted uppercase font-bold tracking-wider sticky top-0">
+                    <tr>
+                      <th className="px-4 py-2">Name</th>
+                      <th className="px-4 py-2">Roll Number</th>
+                      <th className="px-4 py-2">Department</th>
+                      <th className="px-4 py-2">CodeChef</th>
+                      <th className="px-4 py-2">LeetCode</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-brand-border">
+                    {failedProfiles.map((student) => (
+                      <tr key={student.id} className="hover:bg-brand-bg/40 transition-colors">
+                        <td className="px-4 py-3 font-semibold text-brand-text">{student.name}</td>
+                        <td className="px-4 py-3 font-mono text-brand-muted">{student.rollNumber || "—"}</td>
+                        <td className="px-4 py-3 text-brand-muted">{student.department || "—"}</td>
+                        <td className="px-4 py-3 font-mono text-[11px] text-zinc-400">{student.codechefUsername || "—"}</td>
+                        <td className="px-4 py-3 font-mono text-[11px] text-zinc-400">{student.leetcodeUsername || "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+            
+            <div className="flex justify-end pt-3 border-t border-brand-border">
+              <button
+                onClick={() => setShowFailedModal(false)}
+                className="px-4 py-2 rounded-lg bg-zinc-800 border border-zinc-700 text-xs font-bold uppercase text-zinc-200 hover:bg-zinc-700 cursor-pointer"
+              >
+                Close
               </button>
             </div>
           </div>
@@ -1543,6 +1618,11 @@ function PlatformSyncTab() {
           </div>
         )}
 
+        {/* Processing Safely Banner */}
+        <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-300 rounded-lg text-xs font-medium">
+          Processing continues safely in the background. You may close this page.
+        </div>
+
         {/* Queue Progress Bar */}
         {stats && (
           <div className="space-y-2 pt-2">
@@ -1560,14 +1640,18 @@ function PlatformSyncTab() {
         )}
 
         {/* Metrics Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 pt-2">
           <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
             <div className="text-[10px] text-brand-muted font-bold uppercase">Total Profiles</div>
             <div className="text-lg font-bold text-brand-text mt-1">{stats?.totalProfiles ?? "—"}</div>
           </div>
           <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
-            <div className="text-[10px] text-brand-muted font-bold uppercase">Eligible Handles</div>
-            <div className="text-lg font-bold text-amber-400 mt-1">{stats?.eligibleForQueue ?? "—"}</div>
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Eligible Profiles</div>
+            <div className="text-lg font-bold text-amber-400 mt-1">{stats?.eligibleProfiles ?? stats?.eligibleForQueue ?? "—"}</div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Newly Queued</div>
+            <div className="text-lg font-bold text-[#EAB308] mt-1">{newlyQueuedCount !== null ? newlyQueuedCount : "—"}</div>
           </div>
           <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
             <div className="text-[10px] text-brand-muted font-bold uppercase">Queued</div>
@@ -1590,12 +1674,22 @@ function PlatformSyncTab() {
             <div className="text-lg font-bold text-rose-500 mt-1">{stats?.failed ?? "—"}</div>
           </div>
           <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Retry Pending</div>
+            <div className="text-lg font-bold text-[#EAB308] mt-1">{stats?.retryPending ?? 0}</div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border">
             <div className="text-[10px] text-brand-muted font-bold uppercase">Remaining</div>
             <div className="text-lg font-bold text-zinc-400 mt-1">{stats?.remaining ?? "—"}</div>
           </div>
           <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border col-span-2 sm:col-span-1">
             <div className="text-[10px] text-brand-muted font-bold uppercase">Completion</div>
             <div className="text-lg font-bold text-yellow-400 mt-1">{stats?.percentageCompleted ?? 0}%</div>
+          </div>
+          <div className="bg-brand-bg/60 p-3 rounded-lg border border-brand-border col-span-2 sm:col-span-1">
+            <div className="text-[10px] text-brand-muted font-bold uppercase">Last Processed Time</div>
+            <div className="text-xs font-bold text-zinc-300 mt-2 truncate">
+              {stats?.lastProcessingTime ? new Date(stats.lastProcessingTime).toLocaleString() : "—"}
+            </div>
           </div>
         </div>
 
@@ -1608,14 +1702,6 @@ function PlatformSyncTab() {
           >
             <RefreshCw className="h-4 w-4" />
             Queue All Eligible Students
-          </button>
-
-          <button
-            onClick={() => handleAction("process-batch", { limit: 5 })}
-            disabled={actionLoading || (stats?.remaining ?? 0) === 0}
-            className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-xs font-bold uppercase hover:bg-emerald-500 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
-          >
-            Process Next Batch (5)
           </button>
 
           <button
@@ -1632,7 +1718,7 @@ function PlatformSyncTab() {
               disabled={actionLoading}
               className="px-4 py-2.5 rounded-lg bg-amber-600/30 border border-amber-500/50 text-amber-300 text-xs font-bold uppercase hover:bg-amber-600/40 transition-all cursor-pointer"
             >
-              Resume Queue
+              Resume Processing
             </button>
           ) : (
             <button
@@ -1640,12 +1726,19 @@ function PlatformSyncTab() {
               disabled={actionLoading}
               className="px-4 py-2.5 rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-bold uppercase hover:bg-zinc-700 transition-all cursor-pointer"
             >
-              Pause Queue
+              Pause Processing
             </button>
           )}
+
+          <button
+            onClick={openFailedModal}
+            disabled={actionLoading}
+            className="px-4 py-2.5 rounded-lg bg-rose-950/40 border border-rose-800/40 text-rose-200 text-xs font-bold uppercase hover:bg-rose-950/60 transition-all cursor-pointer"
+          >
+            View Failed Profiles
+          </button>
         </div>
       </div>
     </div>
   );
 }
-

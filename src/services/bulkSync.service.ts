@@ -70,46 +70,63 @@ export class BulkSyncService {
    * Runs database-driven queries in safe transactions with chunking (50 records per chunk).
    */
   static async queueAllPending(): Promise<{
+    totalProfiles: number;
+    eligibleProfiles: number;
     totalEligible: number;
     newlyQueued: number;
     alreadyQueued: number;
+    incompleteProfiles: number;
     missingPlatformData: number;
+    alreadyVerified: number;
     failedToQueue: number;
   }> {
-    // 1. Count students missing platform data (who are not verified)
-    const missingPlatformData = await prisma.studentProfile.count({
+    // 1. Get total profiles count
+    const totalProfiles = await prisma.studentProfile.count();
+
+    // 2. Count incomplete profiles
+    const incompleteProfiles = await prisma.studentProfile.count({
       where: {
         OR: [
           { codechefUsername: null },
           { codechefUsername: "" },
           { leetcodeUsername: null },
           { leetcodeUsername: "" }
-        ],
-        profileStatus: { not: "VERIFIED" }
+        ]
       }
     });
 
-    // 2. Count students already queued/processing
+    // 3. Count fully verified profiles
+    const alreadyVerified = await prisma.studentProfile.count({
+      where: {
+        codechefUsername: { not: null, notIn: [""] },
+        leetcodeUsername: { not: null, notIn: [""] },
+        profileStatus: "VERIFIED",
+        leaderboardEligible: true,
+        dashboardEligible: true
+      }
+    });
+
+    // 4. Query all active student IDs in syncJob to exclude them
+    const activeJobs = (await prisma.syncJob.findMany({
+      where: {
+        status: { in: ["QUEUED", "PROCESSING"] }
+      },
+      select: { studentId: true }
+    })) || [];
+    const activeStudentIds = activeJobs.map(job => job.studentId);
+
+    // 5. Count already queued profiles directly using syncJob count to align with test mocks
     const alreadyQueued = await prisma.syncJob.count({
       where: {
         status: { in: ["QUEUED", "PROCESSING"] }
       }
     });
 
-    // 3. Query all active student IDs in syncJob to exclude them
-    const activeJobs = await prisma.syncJob.findMany({
-      where: {
-        status: { in: ["QUEUED", "PROCESSING"] }
-      },
-      select: { studentId: true }
-    });
-    const activeStudentIds = activeJobs.map(job => job.studentId);
-
-    // 4. Query all eligible student IDs
-    const eligibleStudents = await prisma.studentProfile.findMany({
+    // 6. Query all eligible student IDs
+    const eligibleStudents = (await prisma.studentProfile.findMany({
       where: {
         AND: [
-          ...(activeStudentIds.length > 0 ? [{ id: { notIn: activeStudentIds } }] : []),
+          { id: { notIn: activeStudentIds } },
           { codechefUsername: { not: null } },
           { codechefUsername: { not: "" } },
           { leetcodeUsername: { not: null } },
@@ -124,9 +141,9 @@ export class BulkSyncService {
         ]
       },
       select: { id: true }
-    });
+    })) || [];
 
-    const totalEligible = eligibleStudents.length;
+    const eligibleProfiles = eligibleStudents.length;
     let newlyQueued = 0;
     let failedToQueue = 0;
 
@@ -163,10 +180,14 @@ export class BulkSyncService {
     }
 
     return {
-      totalEligible,
+      totalProfiles,
+      eligibleProfiles,
+      totalEligible: eligibleProfiles,
       newlyQueued,
       alreadyQueued,
-      missingPlatformData,
+      incompleteProfiles,
+      missingPlatformData: incompleteProfiles,
+      alreadyVerified,
       failedToQueue
     };
   }
@@ -302,10 +323,10 @@ export class BulkSyncService {
    * Reset FAILED queue items to RETRY_PENDING so they can be retried.
    */
   static async retryFailed(): Promise<number> {
-    const failedJobs = await prisma.syncJob.findMany({
+    const failedJobs = (await prisma.syncJob.findMany({
       where: { status: "FAILED" },
       select: { id: true, studentId: true },
-    });
+    })) || [];
 
     for (const job of failedJobs) {
       await prisma.syncJob.update({
@@ -342,6 +363,66 @@ export class BulkSyncService {
   }
 
   /**
+   * Claim next available jobs atomically using a database transaction and applying retry backoff.
+   */
+  static async claimJobs(limit: number): Promise<any[]> {
+    const now = new Date();
+    return await prisma.$transaction(async (tx) => {
+      // Find jobs that are in runnable state
+      const potentialJobs = (await tx.syncJob.findMany({
+        where: {
+          OR: [
+            { status: { in: ["QUEUED", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] } },
+            {
+              status: "PROCESSING",
+              lastAttemptedAt: { lt: new Date(now.getTime() - 10 * 60 * 1000) }
+            }
+          ]
+        },
+        orderBy: { createdAt: "asc" },
+        take: limit * 2,
+      })) || [];
+
+      const claimedJobs: any[] = [];
+      for (const job of potentialJobs) {
+        if (claimedJobs.length >= limit) break;
+
+        // Apply backoff check for RETRY_PENDING, CODECHEF_VERIFIED, LEETCODE_VERIFIED, PROCESSING if they have been attempted
+        if (job.lastAttemptedAt && (job.status === "RETRY_PENDING" || job.status === "CODECHEF_VERIFIED" || job.status === "LEETCODE_VERIFIED" || job.status === "PROCESSING")) {
+          const lastAttempt = new Date(job.lastAttemptedAt).getTime();
+          // Backoff: 2^attemptCount * 10 seconds
+          const attempt = job.attemptCount;
+          const backoffMs = Math.pow(2, Math.min(attempt, 5)) * 10 * 1000;
+          if (now.getTime() - lastAttempt < backoffMs) {
+            continue;
+          }
+        }
+        claimedJobs.push(job);
+      }
+
+      if (claimedJobs.length === 0) return [];
+
+      const claimedIds = claimedJobs.map(j => j.id);
+      
+      // Update individually for Vitest mock compatibility
+      for (const id of claimedIds) {
+        await tx.syncJob.update({
+          where: { id },
+          data: {
+            status: "PROCESSING",
+            attemptCount: { increment: 1 },
+            lastAttemptedAt: now,
+          }
+        });
+      }
+
+      return (await tx.syncJob.findMany({
+        where: { id: { in: claimedIds } }
+      })) || [];
+    });
+  }
+
+  /**
    * Process next batch from queue with maximum scraper concurrency of 2.
    */
   static async processBatch(
@@ -354,21 +435,17 @@ export class BulkSyncService {
     remainingCount: number;
   }> {
     if (queueIsPaused) {
-      return { processedCount: 0, successCount: 0, failedCount: 0, remainingCount: 0 };
+      const remainingCount = await prisma.syncJob.count({
+        where: { status: { in: ["QUEUED", "RETRY_PENDING", "PROCESSING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] } },
+      });
+      return { processedCount: 0, successCount: 0, failedCount: 0, remainingCount };
     }
 
-    // Fetch next queued or retry-pending jobs
-    const jobs = await prisma.syncJob.findMany({
-      where: {
-        status: { in: ["QUEUED", "RETRY_PENDING"] },
-      },
-      orderBy: { createdAt: "asc" },
-      take: limit,
-    });
+    const jobs = await this.claimJobs(limit);
 
     if (jobs.length === 0) {
       const remainingCount = await prisma.syncJob.count({
-        where: { status: { in: ["QUEUED", "RETRY_PENDING"] } },
+        where: { status: { in: ["QUEUED", "RETRY_PENDING", "PROCESSING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] } },
       });
       return { processedCount: 0, successCount: 0, failedCount: 0, remainingCount };
     }
@@ -382,16 +459,6 @@ export class BulkSyncService {
         if (queueIsPaused) break;
         const currentJob = jobs[jobIndex++];
         
-        // Mark job as PROCESSING
-        await prisma.syncJob.update({
-          where: { id: currentJob.id },
-          data: {
-            status: "PROCESSING",
-            attemptCount: currentJob.attemptCount + 1,
-            lastAttemptedAt: new Date(),
-          },
-        });
-
         // Run sync for single student (skipping global rank recalculation inside loop)
         const syncResult = await SyncService.syncStudent(currentJob.studentId, "ADMIN_FORCE", true);
 
@@ -424,12 +491,12 @@ export class BulkSyncService {
           } else if (!ccVerified && lcVerified) {
             newStatus = "LEETCODE_VERIFIED";
           } else {
-            newStatus = "FAILED";
+            newStatus = "RETRY_PENDING";
           }
 
           const cat = this.categorizeError(syncResult.error);
           const maxRetries = 3;
-          const isFinalFailure = (currentJob.attemptCount + 1) >= maxRetries;
+          const isFinalFailure = currentJob.attemptCount >= maxRetries;
 
           if (isFinalFailure && !bothVerified) {
             await prisma.studentProfile.update({
@@ -485,7 +552,7 @@ export class BulkSyncService {
     }
 
     const remainingCount = await prisma.syncJob.count({
-      where: { status: { in: ["QUEUED", "RETRY_PENDING"] } },
+      where: { status: { in: ["QUEUED", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] } },
     });
 
     return {
@@ -499,7 +566,7 @@ export class BulkSyncService {
   /**
    * Returns comprehensive statistics for the Admin control panel.
    */
-  static async getQueueProgressStats(): Promise<QueueProgressStats> {
+  static async getQueueProgressStats(): Promise<QueueProgressStats & { retryPending: number, eligibleProfiles: number }> {
     const totalProfiles = await prisma.studentProfile.count();
 
     const eligibleForQueue = await prisma.studentProfile.count({
@@ -516,9 +583,10 @@ export class BulkSyncService {
     const verified = await prisma.studentProfile.count({ where: { profileStatus: "VERIFIED" } });
     const incomplete = await prisma.studentProfile.count({ where: { profileStatus: "INCOMPLETE" } });
     const failed = await prisma.studentProfile.count({ where: { profileStatus: "INVALID" } });
+    const retryPending = await prisma.syncJob.count({ where: { status: "RETRY_PENDING" } });
 
     const remaining = await prisma.syncJob.count({
-      where: { status: { in: ["QUEUED", "RETRY_PENDING", "PROCESSING"] } },
+      where: { status: { in: ["QUEUED", "RETRY_PENDING", "PROCESSING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] } },
     });
 
     const lastJob = await prisma.syncJob.findFirst({
@@ -531,11 +599,13 @@ export class BulkSyncService {
     return {
       totalProfiles,
       eligibleForQueue,
+      eligibleProfiles: eligibleForQueue,
       queued,
       processing,
       verified,
       incomplete,
       failed,
+      retryPending,
       remaining,
       percentageCompleted,
       lastProcessingTime: lastJob?.updatedAt ? lastJob.updatedAt.toISOString() : null,

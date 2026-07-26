@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { SyncService } from "@/services/sync.service";
+import { BulkSyncService } from "@/services/bulkSync.service";
 import { ActivityService } from "@/services/activity.service";
 import { StudentProfileService } from "@/services/student-profile.service";
 import { normalizeAndValidateUrl } from "@/utils/urlValidation";
@@ -64,12 +65,19 @@ export async function POST(request: NextRequest) {
 
     const profile = res.profile;
 
-    // Background sync via after()
-    if (row.normalized.codechefUsername || row.normalized.leetcodeUsername) {
+    // Background sync via SyncJob queue and processBatch
+    if (row.normalized.codechefUsername && row.normalized.leetcodeUsername) {
+      await prisma.syncJob.create({
+        data: {
+          studentId: profile.id,
+          status: "QUEUED",
+          attemptCount: 0
+        }
+      });
+
       after(async () => {
         try {
-          await SyncService.syncStudent(profile.id, "USER_MANUAL");
-          await SyncService.recalculateLeaderboardRanks();
+          await BulkSyncService.processBatch(2, 2);
         } catch (err) {
           console.error("Background sync error:", err);
         }
@@ -298,24 +306,60 @@ export async function PATCH(request: NextRequest) {
     );
 
     // Trigger background sync safely using after()
-    const shouldSync = body.sync === true || body.autoSync === true || (usernamesChanged && (body.sync !== false && body.autoSync !== false));
-    if (shouldSync && (updatedProfile.codechefUsername || updatedProfile.leetcodeUsername)) {
-      after(async () => {
-        try {
-          const syncRes = await SyncService.syncStudent(id, "USER_MANUAL");
-          if (!syncRes.success) {
-            console.error(`Background update sync failed: ${syncRes.error}`);
-          } else {
-            console.log(`Background update sync succeeded for student ${id}`);
-          }
-          // Recalculate ranks after background sync
-          await SyncService.recalculateLeaderboardRanks();
-        } catch (e) {
-          console.error("Sync error:", e);
+    const hasCc = Boolean(updatedProfile.codechefUsername && updatedProfile.codechefUsername.trim() !== "");
+    const hasLc = Boolean(updatedProfile.leetcodeUsername && updatedProfile.leetcodeUsername.trim() !== "");
+    let triggerSync = false;
+
+    if (!hasCc || !hasLc) {
+      await prisma.studentProfile.update({
+        where: { id },
+        data: {
+          profileStatus: "INCOMPLETE",
+          leaderboardEligible: false,
+          dashboardEligible: false,
+          verificationStatus: "UNABLE_TO_VERIFY"
         }
       });
     } else {
-      // Recalculate ranks immediately if not syncing
+      if (updatedProfile.profileStatus !== "VERIFIED") {
+        await prisma.studentProfile.update({
+          where: { id },
+          data: {
+            profileStatus: "PENDING_VERIFICATION",
+            leaderboardEligible: false,
+            dashboardEligible: false
+          }
+        });
+
+        const activeJob = await prisma.syncJob.findFirst({
+          where: {
+            studentId: id,
+            status: { in: ["QUEUED", "PROCESSING", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] }
+          }
+        });
+
+        if (!activeJob) {
+          await prisma.syncJob.create({
+            data: {
+              studentId: id,
+              status: "QUEUED",
+              attemptCount: 0
+            }
+          });
+        }
+        triggerSync = true;
+      }
+    }
+
+    if (triggerSync) {
+      after(async () => {
+        try {
+          await BulkSyncService.processBatch(2, 2);
+        } catch (e) {
+          console.error("Background update sync failed:", e);
+        }
+      });
+    } else {
       await SyncService.recalculateLeaderboardRanks();
     }
 

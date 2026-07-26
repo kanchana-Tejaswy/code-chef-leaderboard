@@ -1,6 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { BulkSyncService } from "@/services/bulkSync.service";
+import { prisma } from "@/lib/prisma";
 
 export const maxDuration = 60;
 
@@ -24,11 +25,26 @@ async function checkAuth(request: NextRequest) {
   await requireAdmin();
 }
 
+async function getFailedProfiles() {
+  return await prisma.studentProfile.findMany({
+    where: { profileStatus: "INVALID" },
+    select: {
+      id: true,
+      name: true,
+      rollNumber: true,
+      department: true,
+      codechefUsername: true,
+      leetcodeUsername: true,
+    }
+  });
+}
+
 export async function GET(request: NextRequest) {
   try {
     await checkAuth(request);
     const stats = await BulkSyncService.getQueueProgressStats();
-    return NextResponse.json({ success: true, stats }, { headers: { "Cache-Control": "private, no-store" } });
+    const failedProfiles = await getFailedProfiles();
+    return NextResponse.json({ success: true, stats, failedProfiles }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (err: any) {
     let status = 403;
     if (err?.code === "UNAUTHORIZED") status = 401;
@@ -46,11 +62,13 @@ export async function POST(request: NextRequest) {
     if (action === "queue-all" || action === "queue-all-pending") {
       const result = await BulkSyncService.queueAllPending();
       const stats = await BulkSyncService.getQueueProgressStats();
+      const failedProfiles = await getFailedProfiles();
       return NextResponse.json({
         success: true,
-        message: `Queued ${result.newlyQueued} eligible students (${result.missingPlatformData} missing platform data).`,
+        message: `Queued ${result.newlyQueued} eligible students (${result.incompleteProfiles} missing platform data).`,
         result,
         stats,
+        failedProfiles,
       });
     }
 
@@ -58,35 +76,41 @@ export async function POST(request: NextRequest) {
       const limit = body.limit || 5;
       const result = await BulkSyncService.processBatch(limit, 2);
       const stats = await BulkSyncService.getQueueProgressStats();
+      const failedProfiles = await getFailedProfiles();
       return NextResponse.json({
         success: true,
         message: `Processed batch of ${result.processedCount} students (${result.successCount} verified, ${result.failedCount} failed/partial).`,
         result,
         stats,
+        failedProfiles,
       });
     }
 
     if (action === "retry-failed") {
       const retriedCount = await BulkSyncService.retryFailed();
       const stats = await BulkSyncService.getQueueProgressStats();
+      const failedProfiles = await getFailedProfiles();
       return NextResponse.json({
         success: true,
         message: `Reset ${retriedCount} failed profiles for re-verification.`,
         retriedCount,
         stats,
+        failedProfiles,
       });
     }
 
     if (action === "pause") {
       BulkSyncService.setPaused(true);
       const stats = await BulkSyncService.getQueueProgressStats();
-      return NextResponse.json({ success: true, message: "Queue paused", stats });
+      const failedProfiles = await getFailedProfiles();
+      return NextResponse.json({ success: true, message: "Queue paused", stats, failedProfiles });
     }
 
     if (action === "resume") {
       BulkSyncService.setPaused(false);
       const stats = await BulkSyncService.getQueueProgressStats();
-      return NextResponse.json({ success: true, message: "Queue resumed", stats });
+      const failedProfiles = await getFailedProfiles();
+      return NextResponse.json({ success: true, message: "Queue resumed", stats, failedProfiles });
     }
 
     if (action === "sync-selected") {
@@ -96,11 +120,13 @@ export async function POST(request: NextRequest) {
       }
       const queuedCount = await BulkSyncService.queueSelectedStudents(studentIds);
       const stats = await BulkSyncService.getQueueProgressStats();
+      const failedProfiles = await getFailedProfiles();
       return NextResponse.json({
         success: true,
         message: `Queued ${queuedCount} selected students for verification.`,
         queuedCount,
         stats,
+        failedProfiles,
       });
     }
 

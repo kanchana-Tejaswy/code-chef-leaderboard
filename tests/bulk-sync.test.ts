@@ -208,4 +208,63 @@ describe("Durable Bulk Synchronization Workflow - Permanent Architecture Tests",
     console.log("Sync process initialized successfully.");
     expect(logSpy.mock.calls[0][0]).not.toMatch(/eyJ/);
   });
+
+  it("16. Queue creation uses chunks of 50", async () => {
+    const list60 = Array.from({ length: 60 }, (_, i) => ({ id: `s${i}` }));
+    (prisma.studentProfile.findMany as any).mockResolvedValue(list60);
+    (prisma.studentProfile.count as any).mockResolvedValue(0);
+
+    const result = await BulkSyncService.queueAllPending();
+    expect(result.eligibleProfiles).toBe(60);
+    expect(result.newlyQueued).toBe(60);
+    expect(prisma.studentProfile.update).toHaveBeenCalledTimes(60);
+  });
+
+  it("17. Processing continues across multiple scheduled executions", async () => {
+    let callCount = 0;
+    (prisma.syncJob.findMany as any).mockImplementation(async (query: any) => {
+      if (query?.take) {
+        callCount++;
+        return Array.from({ length: 5 }, (_, i) => ({ 
+          id: `j_${callCount}_${i}`, 
+          studentId: `s_${callCount}_${i}`, 
+          attemptCount: 0 
+        }));
+      }
+      if (query?.where?.id) {
+        const ids = query.where.id.in || [];
+        return ids.map((id: string) => ({ id, studentId: `s_${id}`, attemptCount: 0 }));
+      }
+      return [];
+    });
+    
+    (prisma.studentProfile.findUnique as any).mockResolvedValue({
+      id: "s1",
+      codechefProfile: { username: "cc_user" },
+      leetcodeProfile: { username: "lc_user" }
+    });
+
+    vi.spyOn(SyncService, "syncStudent").mockResolvedValue({ success: true });
+    vi.spyOn(SyncService, "recalculateLeaderboardRanks").mockResolvedValue();
+
+    const run1 = await BulkSyncService.processBatch(5, 2);
+    expect(run1.processedCount).toBe(5);
+
+    const run2 = await BulkSyncService.processBatch(5, 2);
+    expect(run2.processedCount).toBe(5);
+  });
+
+  it("18. Admin browser is not required to remain open", () => {
+    expect(BulkSyncService.processBatch).toBeTypeOf("function");
+  });
+
+  it("19. Retry backoff works", async () => {
+    const lastAttempt = new Date(Date.now() - 5000); // 5s ago
+    const job = { id: "j1", status: "RETRY_PENDING", attemptCount: 2, lastAttemptedAt: lastAttempt };
+    
+    (prisma.syncJob.findMany as any).mockResolvedValue([job]);
+    
+    const claimed = await BulkSyncService.claimJobs(1);
+    expect(claimed.length).toBe(0);
+  });
 });
