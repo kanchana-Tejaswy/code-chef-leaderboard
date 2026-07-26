@@ -132,6 +132,7 @@ interface LeaderboardStudent {
     department: string;
     year: number;
     profilePictureUrl: string | null;
+    verificationStatus: string;
     codechefUsername: string;
     leetcodeUsername?: string | null;
     githubUsername?: string | null;
@@ -1385,13 +1386,6 @@ export default function LandingPage() {
   const insights = getAIInsights();
 
   const getRankBadge = (pos: number) => {
-    if (pos === 0 || !pos) {
-      return (
-        <span className="inline-flex items-center justify-center px-2 py-0.5 rounded text-[10px] font-bold bg-zinc-500/10 text-zinc-400 border border-zinc-500/20">
-          Sync Pending
-        </span>
-      );
-    }
     if (pos === 1) {
       return (
         <span className="inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-black bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/30 shadow-[0_0_10px_rgba(255,215,0,0.15)]">
@@ -2386,8 +2380,10 @@ export default function LandingPage() {
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-left">
                 <thead>
-                  <tr className="border-b border-brand-border bg-zinc-950/30 text-[9px] font-black text-brand-muted uppercase tracking-widest">
-                    <th className="py-4 px-4 text-center w-14 select-none">Rank</th>
+                  <tr className="border-b border-brand-border bg-zinc-950 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                    <th className="py-4 px-4 text-center w-20 select-none font-black">
+                      {leaderboardFilter === "overallScore" ? "Overall Rank" : leaderboardFilter === "codechefScore" ? "CodeChef Rank" : "LeetCode Rank"}
+                    </th>
                     <th className="py-4 px-4 select-none">Student Name</th>
                     {leaderboardFilter === "overallScore" && (
                       <>
@@ -2499,9 +2495,26 @@ export default function LandingPage() {
                                 >
                                   {entry.student.name}
                                 </Link>
-                                <span className="text-[9px] text-brand-muted font-semibold mt-0.5">
-                                  {entry.student.rollNumber}
-                                </span>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[9px] text-brand-muted font-semibold">
+                                    {entry.student.rollNumber}
+                                  </span>
+                                  {entry.student.verificationStatus === "PARTIAL" && (
+                                    <span className="text-[8px] bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 font-bold px-1 rounded">
+                                      Partial
+                                    </span>
+                                  )}
+                                  {entry.student.verificationStatus === "UNABLE_TO_VERIFY" && (
+                                    <span className="text-[8px] bg-red-500/10 border border-red-500/20 text-red-400 font-bold px-1 rounded animate-pulse">
+                                      Profile Pending
+                                    </span>
+                                  )}
+                                  {entry.student.verificationStatus !== "UNABLE_TO_VERIFY" && entry.rank === 0 && (
+                                    <span className="text-[8px] bg-zinc-500/10 border border-zinc-500/20 text-zinc-400 font-bold px-1 rounded">
+                                      Sync Pending
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           </td>

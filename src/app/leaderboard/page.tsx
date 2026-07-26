@@ -555,14 +555,7 @@ function LeaderboardContent() {
     return `/api/dashboard/leaderboard-cache?${params.toString()}`;
   };
 
-  const getRankBadge = (pos: number, verificationStatus?: string) => {
-    if (verificationStatus === "UNABLE_TO_VERIFY") {
-      return (
-        <span className="inline-flex items-center justify-center px-1.5 py-0.5 rounded text-[8px] font-black bg-red-500/10 border border-red-500/20 text-red-400 uppercase">
-          Pending
-        </span>
-      );
-    }
+  const getRankBadge = (pos: number) => {
     if (pos === 1) {
       return (
         <span className="inline-flex items-center justify-center h-6 w-6 rounded-full text-xs font-black bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/30 shadow-[0_0_10px_rgba(255,215,0,0.15)]">
@@ -930,7 +923,9 @@ function LeaderboardContent() {
               <table className="w-full border-collapse text-left">
                 <thead>
                   <tr className="border-b border-brand-border bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
-                    <th className="py-4.5 px-4 text-center w-16 select-none font-black">{activeTab === "leetcode" ? "LeetCode Rank" : "Rank"}</th>
+                    <th className="py-4.5 px-4 text-center w-20 select-none font-black">
+                      {activeTab === "overall" ? "Overall Rank" : activeTab === "codechef" ? "CodeChef Rank" : "LeetCode Rank"}
+                    </th>
                     <th className="py-4.5 px-4 select-none">{activeTab === "leetcode" ? "Student Name" : "Student"}</th>
                     {activeTab === "overall" && (
                       <>
@@ -1050,7 +1045,7 @@ function LeaderboardContent() {
                         >
                           {/* Rank */}
                           <td className="py-4 px-6 text-center font-extrabold text-sm text-brand-muted">
-                            {getRankBadge(displayRank, entry.student.verificationStatus)}
+                            {getRankBadge(displayRank)}
                           </td>
 
                         {/* Student Info */}
@@ -1129,7 +1124,12 @@ function LeaderboardContent() {
                                 )}
                                 {entry.student.verificationStatus === "UNABLE_TO_VERIFY" && (
                                   <span className="text-[8px] bg-red-500/10 border border-red-500/20 text-red-400 font-bold px-1 rounded animate-pulse">
-                                    Pending
+                                    Profile Pending
+                                  </span>
+                                )}
+                                {entry.student.verificationStatus !== "UNABLE_TO_VERIFY" && entry.rank === 0 && (
+                                  <span className="text-[8px] bg-zinc-500/10 border border-zinc-500/20 text-zinc-400 font-bold px-1 rounded">
+                                    Sync Pending
                                   </span>
                                 )}
                               </div>
