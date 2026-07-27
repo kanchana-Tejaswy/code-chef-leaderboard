@@ -30,24 +30,24 @@ export default function ContestPlatformCard({
   gradientTo,
 }: ContestPlatformCardProps) {
   return (
-    <Link href={href} className="no-underline block">
+    <Link href={href} className="block w-full min-w-0 no-underline">
       <MotionDiv
-        className="relative flex flex-col items-center justify-center p-6 rounded-xl bg-card/30 border border-[#262626] backdrop-blur-xl shadow-[0_4px_12px_rgba(0,0,0,0.4)] transition-all duration-200 overflow-hidden cursor-pointer"
+        className="relative flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-[#262626] bg-card/30 p-4 shadow-[0_4px_12px_rgba(0,0,0,0.4)] backdrop-blur-xl transition-all duration-200 overflow-hidden cursor-pointer sm:p-6"
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.98 }}
       >
         {/* Gradient border */}
-        <div className="absolute inset-0 rounded-xl opacity-30 pointer-events-none" style={{background: `linear-gradient(to bottom right, ${gradientFrom}, ${gradientTo})`}} />
-        <div className="relative z-10 flex flex-col items-center gap-3">
-          <MotionDiv className="flex items-center gap-2 text-3xl" whileHover={{ rotate: 5 }}>
+        <div className="pointer-events-none absolute inset-0 rounded-xl opacity-30" style={{ background: `linear-gradient(to bottom right, ${gradientFrom}, ${gradientTo})` }} />
+        <div className="relative z-10 flex w-full min-w-0 flex-col items-center gap-2 text-center sm:gap-3">
+          <MotionDiv className="flex min-w-0 items-center justify-center gap-2 text-2xl sm:text-3xl" whileHover={{ rotate: 5 }}>
             {icon}
-            <span className="font-bold text-white text-lg">{title}</span>
+            <span className="text-base font-bold text-white sm:text-lg">{title}</span>
           </MotionDiv>
-          <p className="text-sm text-[#A3A3A3] text-center">{description}</p>
+          <p className="text-sm text-[#A3A3A3] text-center break-words">{description}</p>
         </div>
         {/* Hover glow effect */}
         <MotionSpan
-          className="absolute inset-0 rounded-xl bg-white opacity-0 pointer-events-none"
+          className="pointer-events-none absolute inset-0 rounded-xl bg-white opacity-0"
           animate={{ opacity: 0 }}
           whileHover={{ opacity: 0.08, transition: { duration: 0.25 } }}
         />

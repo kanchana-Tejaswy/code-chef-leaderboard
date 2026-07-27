@@ -126,98 +126,87 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center pt-4 pb-10 w-full select-none">
-      <div className="flex items-end justify-center gap-4 sm:gap-10 max-w-3xl w-full px-4">
-        
-        {/* 2nd Place Podium Stand */}
-        <div className="flex flex-col items-center flex-1 max-w-[12rem] transition-all duration-300 hover:-translate-y-1">
+    <div className="w-full select-none pb-8 pt-4 sm:pb-10">
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-3 sm:flex-row sm:items-end sm:justify-center sm:gap-4 sm:px-4">
+        <div className="flex w-full flex-col items-center sm:order-2 sm:flex-[1.1]">
           <div className="relative mb-3 flex flex-col items-center">
-            <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full border-2 border-zinc-400/30 bg-zinc-950/60 shadow-[0_4px_20px_rgba(161,161,170,0.15)] flex items-center justify-center overflow-hidden">
-              {second.student.profilePictureUrl ? (
-                <img src={second.student.profilePictureUrl} alt={second.student.name} className="h-full w-full object-cover" />
-              ) : (
-                <span className="text-zinc-400 font-extrabold text-lg sm:text-xl">{getInitials(second.student.name)}</span>
-              )}
-            </div>
-            <span className="absolute -bottom-2 bg-zinc-800 text-zinc-200 border border-zinc-700/20 px-2 py-0.5 rounded-full text-[8px] font-black tracking-wider uppercase">
-              2nd Place
-            </span>
-          </div>
-          <Link href={`/student/${second.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
-            {second.student.name}
-          </Link>
-          <span className="text-[9px] text-brand-muted font-bold mb-3">{second.student.rollNumber}</span>
-          
-          {/* Pedestal Stand */}
-          <div className="w-full h-24 sm:h-28 bg-gradient-to-t from-zinc-950/80 to-zinc-900/30 border-t border-x border-zinc-800/40 rounded-t-2xl flex flex-col justify-center items-center shadow-[0_-4px_30px_rgba(0,0,0,0.4)]">
-            <span className="text-3xl font-black text-zinc-650 mb-1">2</span>
-            <div className="flex flex-col items-center">
-              <span className="text-xs font-extrabold text-zinc-300">{second.overallScore}</span>
-              <span className="text-[8px] text-zinc-550 uppercase tracking-widest font-bold">Score</span>
-            </div>
-          </div>
-        </div>
-
-        {/* 1st Place Podium Stand */}
-        <div className="flex flex-col items-center flex-1 max-w-[14rem] relative -top-3 sm:-top-5 transition-all duration-300 hover:-translate-y-1">
-          <div className="relative mb-3 flex flex-col items-center">
-            <Crown className="h-6 w-6 text-[#EAB308] fill-[#EAB308]/20 animate-pulse mb-1" />
-            <div className="h-20 w-20 sm:h-24 sm:w-24 rounded-full border-2 border-[#EAB308]/40 bg-zinc-950/60 shadow-[0_4px_30px_rgba(234,179,8,0.2)] flex items-center justify-center overflow-hidden">
+            <Crown className="mb-1 h-6 w-6 text-[#EAB308] fill-[#EAB308]/20 animate-pulse" />
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-[#EAB308]/40 bg-zinc-950/60 shadow-[0_4px_30px_rgba(234,179,8,0.2)] sm:h-24 sm:w-24">
               {first.student.profilePictureUrl ? (
                 <img src={first.student.profilePictureUrl} alt={first.student.name} className="h-full w-full object-cover" />
               ) : (
-                <span className="text-[#EAB308] font-extrabold text-xl sm:text-2xl">{getInitials(first.student.name)}</span>
+                <span className="text-xl font-extrabold text-[#EAB308] sm:text-2xl">{getInitials(first.student.name)}</span>
               )}
             </div>
-            <span className="absolute bottom-1 bg-[#EAB308]/10 text-[#EAB308] border border-[#EAB308]/25 px-2 py-0.5 rounded-full text-[8px] font-black tracking-wider uppercase">
+            <span className="absolute bottom-1 rounded-full border border-[#EAB308]/25 bg-[#EAB308]/10 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-[#EAB308]">
               1st Place
             </span>
           </div>
-          <Link href={`/student/${first.student.id}`} className="text-xs sm:text-sm font-black text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
+          <Link href={`/student/${first.student.id}`} className="mb-0.5 max-w-full text-center text-xs font-black text-white transition-colors hover:text-[#EAB308] sm:text-sm">
             {first.student.name}
           </Link>
-          <span className="text-[9px] text-brand-muted font-bold mb-3">{first.student.rollNumber}</span>
-
-          {/* Pedestal Stand */}
-          <div className="w-full h-32 sm:h-36 bg-gradient-to-t from-zinc-950/90 to-zinc-900/50 border-t border-x border-[#EAB308]/15 rounded-t-2xl flex flex-col justify-center items-center shadow-[0_-4px_35px_rgba(234,179,8,0.1)] relative">
+          <span className="mb-3 text-[9px] font-bold text-brand-muted">{first.student.rollNumber}</span>
+          <div className="flex h-28 w-full max-w-[14rem] flex-col items-center justify-center rounded-t-2xl border border-[#EAB308]/15 bg-gradient-to-t from-zinc-950/90 to-zinc-900/50 shadow-[0_-4px_35px_rgba(234,179,8,0.1)] sm:h-36">
             <div className="absolute top-0 left-0 right-0 h-[1.5px] bg-gradient-to-r from-amber-500/0 via-[#EAB308]/40 to-amber-500/0" />
-            <span className="text-4xl font-black text-[#EAB308]/70 mb-1">1</span>
+            <span className="mb-1 text-4xl font-black text-[#EAB308]/70">1</span>
             <div className="flex flex-col items-center">
               <span className="text-sm font-black text-white">{first.overallScore}</span>
-              <span className="text-[8px] text-[#EAB308]/60 uppercase tracking-widest font-bold">Score</span>
+              <span className="text-[8px] font-bold uppercase tracking-widest text-[#EAB308]/60">Score</span>
             </div>
           </div>
         </div>
 
-        {/* 3rd Place Podium Stand */}
-        <div className="flex flex-col items-center flex-1 max-w-[12rem] transition-all duration-300 hover:-translate-y-1">
+        <div className="flex w-full flex-col items-center sm:flex-[0.95]">
           <div className="relative mb-3 flex flex-col items-center">
-            <div className="h-16 w-16 sm:h-20 sm:w-20 rounded-full border-2 border-amber-700/30 bg-zinc-950/60 shadow-[0_4px_20px_rgba(180,83,9,0.15)] flex items-center justify-center overflow-hidden">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-zinc-400/30 bg-zinc-950/60 shadow-[0_4px_20px_rgba(161,161,170,0.15)] sm:h-20 sm:w-20">
+              {second.student.profilePictureUrl ? (
+                <img src={second.student.profilePictureUrl} alt={second.student.name} className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-lg font-extrabold text-zinc-400 sm:text-xl">{getInitials(second.student.name)}</span>
+              )}
+            </div>
+            <span className="absolute -bottom-2 rounded-full border border-zinc-700/20 bg-zinc-800 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-zinc-200">
+              2nd Place
+            </span>
+          </div>
+          <Link href={`/student/${second.student.id}`} className="mb-0.5 max-w-full text-center text-xs font-bold text-white transition-colors hover:text-[#EAB308] sm:text-sm">
+            {second.student.name}
+          </Link>
+          <span className="mb-3 text-[9px] font-bold text-brand-muted">{second.student.rollNumber}</span>
+          <div className="flex h-24 w-full max-w-[12rem] flex-col items-center justify-center rounded-t-2xl border border-zinc-800/40 bg-gradient-to-t from-zinc-950/80 to-zinc-900/30 shadow-[0_-4px_30px_rgba(0,0,0,0.4)] sm:h-28">
+            <span className="mb-1 text-3xl font-black text-zinc-650">2</span>
+            <div className="flex flex-col items-center">
+              <span className="text-xs font-extrabold text-zinc-300">{second.overallScore}</span>
+              <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-550">Score</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex w-full flex-col items-center sm:flex-[0.95]">
+          <div className="relative mb-3 flex flex-col items-center">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-amber-700/30 bg-zinc-950/60 shadow-[0_4px_20px_rgba(180,83,9,0.15)] sm:h-20 sm:w-20">
               {third.student.profilePictureUrl ? (
                 <img src={third.student.profilePictureUrl} alt={third.student.name} className="h-full w-full object-cover" />
               ) : (
-                <span className="text-amber-605 font-extrabold text-lg sm:text-xl">{getInitials(third.student.name)}</span>
+                <span className="text-lg font-extrabold text-amber-600 sm:text-xl">{getInitials(third.student.name)}</span>
               )}
             </div>
-            <span className="absolute -bottom-2 bg-amber-955/20 text-amber-600 border border-amber-850/20 px-2 py-0.5 rounded-full text-[8px] font-black tracking-wider uppercase">
+            <span className="absolute -bottom-2 rounded-full border border-amber-850/20 bg-amber-950/20 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-600">
               3rd Place
             </span>
           </div>
-          <Link href={`/student/${third.student.id}`} className="text-xs sm:text-sm font-bold text-white hover:text-[#EAB308] transition-colors text-center truncate max-w-full mb-0.5">
+          <Link href={`/student/${third.student.id}`} className="mb-0.5 max-w-full text-center text-xs font-bold text-white transition-colors hover:text-[#EAB308] sm:text-sm">
             {third.student.name}
           </Link>
-          <span className="text-[9px] text-brand-muted font-bold mb-3">{third.student.rollNumber}</span>
-
-          {/* Pedestal Stand */}
-          <div className="w-full h-20 sm:h-24 bg-gradient-to-t from-zinc-950/80 to-zinc-900/30 border-t border-x border-zinc-800/40 rounded-t-2xl flex flex-col justify-center items-center shadow-[0_-4px_30px_rgba(0,0,0,0.4)]">
-            <span className="text-3xl font-black text-amber-700/60 mb-1">3</span>
+          <span className="mb-3 text-[9px] font-bold text-brand-muted">{third.student.rollNumber}</span>
+          <div className="flex h-20 w-full max-w-[12rem] flex-col items-center justify-center rounded-t-2xl border border-zinc-800/40 bg-gradient-to-t from-zinc-950/80 to-zinc-900/30 shadow-[0_-4px_30px_rgba(0,0,0,0.4)] sm:h-24">
+            <span className="mb-1 text-3xl font-black text-amber-700/60">3</span>
             <div className="flex flex-col items-center">
               <span className="text-xs font-extrabold text-zinc-300">{third.overallScore}</span>
-              <span className="text-[8px] text-zinc-550 uppercase tracking-widest font-bold">Score</span>
+              <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-550">Score</span>
             </div>
           </div>
         </div>
-
       </div>
     </div>
   );
@@ -593,28 +582,28 @@ function LeaderboardContent() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 animate-fade-in flex flex-col gap-8">
-      
+    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-3 py-6 animate-fade-in sm:gap-8 sm:px-6 sm:py-12 lg:px-8">
       {/* Page Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-brand-border pb-6">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-[#EAB308]/10 border border-[#EAB308]/20 text-[#EAB308] rounded-xl">
+      <div className="flex flex-col gap-4 border-b border-brand-border pb-5 sm:pb-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="flex items-start gap-3">
+            <div className="rounded-xl border border-[#EAB308]/20 bg-[#EAB308]/10 p-2.5 text-[#EAB308]">
               <Trophy className="h-6 w-6" />
             </div>
-            <div>
-              <h1 className="text-3xl font-extrabold tracking-tight text-white">ACE Leaderboard</h1>
-              <p className="text-sm text-brand-muted mt-1">Real-time student placement readiness rankings across CodeChef and LeetCode</p>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">ACE Leaderboard</h1>
+              <p className="mt-1 text-sm text-brand-muted">Real-time student placement readiness rankings across CodeChef and LeetCode</p>
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
             {bulkJobProgress ? (
-              <div className="flex items-center gap-3 px-4 py-2 bg-[#EAB308]/10 border border-[#EAB308]/30 rounded-xl">
-                <Loader2 className="w-4 h-4 text-[#EAB308] animate-spin" />
+              <div className="flex items-center gap-3 rounded-xl border border-[#EAB308]/30 bg-[#EAB308]/10 px-4 py-2">
+                <Loader2 className="h-4 w-4 animate-spin text-[#EAB308]" />
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-[#EAB308]">
-                    {bulkJobProgress.status === 'RUNNING' ? 'Refreshing live data...' : 
-                     bulkJobProgress.status === 'SUCCESS' ? 'Refresh Complete!' : 
+                    {bulkJobProgress.status === 'RUNNING' ? 'Refreshing live data...' :
+                     bulkJobProgress.status === 'SUCCESS' ? 'Refresh Complete!' :
                      bulkJobProgress.status === 'PARTIAL_SUCCESS' ? 'Refresh Complete with some errors.' : 'Refresh Failed.'}
                   </span>
                   {bulkJobProgress.status === 'RUNNING' && (
@@ -627,83 +616,85 @@ function LeaderboardContent() {
             ) : (
               <button
                 onClick={() => triggerBulkRefresh("ALL")}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs font-black tracking-widest text-[#111111] uppercase bg-[#EAB308] border border-[#EAB308] hover:bg-[#FACC15] hover:border-[#FACC15] rounded-xl shadow-[0_0_15px_rgba(234,179,8,0.2)] transition-all"
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#EAB308] bg-[#EAB308] px-4 py-2.5 text-xs font-black uppercase tracking-widest text-[#111111] shadow-[0_0_15px_rgba(234,179,8,0.2)] transition-all hover:border-[#FACC15] hover:bg-[#FACC15] sm:w-auto"
               >
                 <RefreshCw className="h-4 w-4" />
                 Refresh All Students
               </button>
             )}
           </div>
-
-
-          {/* Contest Center */}
-          <div className="flex gap-4 mt-4 md:mt-0">
-            <ContestPlatformCard
-              title="CodeChef Contests"
-              icon={<Trophy className="h-6 w-6" />}
-              description="Recent • Upcoming"
-              href="/codechef-contests"
-              gradientFrom="#6B46C1"
-              gradientTo="#9F7AEA"
-            />
-            <ContestPlatformCard
-              title="LeetCode Contests"
-              icon={<Star className="h-6 w-6" />}
-              description="Weekly • Biweekly"
-              href="/leetcode-contests"
-              gradientFrom="#F59E0B"
-              gradientTo="#EF4444"
-            />
-          </div>
-
-          <a
-            href={getExportUrl()}
-            download
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-zinc-900 border border-brand-border hover:border-[#EAB308]/30 text-sm font-bold text-zinc-300 hover:text-white transition-all shadow-[0_1px_10px_rgba(0,0,0,0.4)]"
-          >
-            <Download className="h-4 w-4" />
-            Export Standings
-          </a>
         </div>
+
+        {/* Contest Center */}
+        <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-2">
+          <ContestPlatformCard
+            title="CodeChef Contests"
+            icon={<Trophy className="h-6 w-6" />}
+            description="Recent • Upcoming"
+            href="/codechef-contests"
+            gradientFrom="#6B46C1"
+            gradientTo="#9F7AEA"
+          />
+          <ContestPlatformCard
+            title="LeetCode Contests"
+            icon={<Star className="h-6 w-6" />}
+            description="Weekly • Biweekly"
+            href="/leetcode-contests"
+            gradientFrom="#F59E0B"
+            gradientTo="#EF4444"
+          />
+        </div>
+
+        <a
+          href={getExportUrl()}
+          download
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-brand-border bg-zinc-900 px-4 py-2.5 text-sm font-bold text-zinc-100 shadow-[0_1px_10px_rgba(0,0,0,0.4)] transition-all hover:border-[#EAB308]/30 hover:text-white sm:w-auto"
+        >
+          <Download className="h-4 w-4" />
+          Export Standings
+        </a>
+      </div>
 
       {/* Podium Component */}
       {podiumEntries.length >= 3 && <Podium top3={podiumEntries} />}
 
       {/* Segmented Platform Filters */}
-      <div className="flex border border-brand-border bg-[#111111]/45 p-1 rounded-2xl gap-1 w-full max-w-md relative z-10">
-        {platformTabs.map((tab) => {
-          const active = activeTab === tab.value;
-          return (
-            <button
-              key={tab.value}
-              onClick={() => {
-                setActiveTab(tab.value);
-              }}
-              className={`flex-1 py-1.5 text-center rounded-xl text-[10px] font-black uppercase tracking-wider transition-all ${
-                active
-                  ? "bg-[#EAB308]/20 border border-[#EAB308]/30 text-[#EAB308]"
-                  : "border border-transparent text-brand-muted hover:text-brand-text"
-              }`}
-            >
-              {tab.name}
-            </button>
-          );
-        })}
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-brand-border bg-[#111111]/45 p-1">
+        <div className="grid grid-cols-3 gap-1">
+          {platformTabs.map((tab) => {
+            const active = activeTab === tab.value;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => {
+                  setActiveTab(tab.value);
+                }}
+                className={`min-h-[44px] rounded-xl px-2 py-2 text-center text-[10px] font-black uppercase tracking-wider transition-all sm:text-xs ${
+                  active
+                    ? "border border-[#EAB308]/30 bg-[#EAB308]/20 text-[#EAB308]"
+                    : "border border-transparent text-brand-muted hover:text-brand-text"
+                }`}
+              >
+                {tab.name}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Main Container */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+      <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-4 lg:gap-8">
         
         {/* Filters Sidebar */}
-        <div className="glass-card rounded-2xl p-6 flex flex-col gap-6 lg:sticky lg:top-20">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-bold text-white flex items-center gap-2">
+        <div className="glass-card flex flex-col gap-4 rounded-2xl p-4 sm:p-6 lg:sticky lg:top-20">
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-2 text-sm font-bold text-white">
               <Filter className="h-4 w-4 text-[#EAB308]" />
               Filters
             </span>
             <button
               onClick={clearFilters}
-              className="text-[10px] font-bold text-zinc-500 hover:text-[#EAB308] tracking-wider uppercase transition-colors"
+              className="rounded-lg border border-brand-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 transition-colors hover:text-[#EAB308]"
             >
               Clear All
             </button>
@@ -721,10 +712,10 @@ function LeaderboardContent() {
                   <button
                     key={dept}
                     onClick={() => toggleDept(dept)}
-                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
+                    className={`min-h-[40px] rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all ${
                       active
-                        ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
-                        : "bg-zinc-950/40 border-zinc-900 text-zinc-455 hover:text-zinc-200"
+                        ? "border-[#EAB308]/30 bg-[#EAB308]/20 text-[#EAB308]"
+                        : "border-zinc-900 bg-zinc-950/40 text-zinc-455 hover:text-zinc-200"
                     }`}
                   >
                     {dept}
@@ -739,17 +730,17 @@ function LeaderboardContent() {
             <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
               Academic Year
             </span>
-            <div className="grid grid-cols-4 gap-1.5">
+            <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
               {years.map((year) => {
                 const active = selectedYears.includes(year);
                 return (
                   <button
                     key={year}
                     onClick={() => toggleYear(year)}
-                    className={`py-1 rounded-lg text-xs font-semibold border text-center transition-all ${
+                    className={`min-h-[40px] rounded-lg border py-1 text-center text-xs font-semibold transition-all ${
                       active
-                        ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
-                        : "bg-zinc-950/40 border-zinc-900 text-brand-muted hover:text-zinc-200"
+                        ? "border-[#EAB308]/30 bg-[#EAB308]/20 text-[#EAB308]"
+                        : "border-zinc-900 bg-zinc-950/40 text-brand-muted hover:text-zinc-200"
                     }`}
                   >
                     {year}Y
@@ -836,21 +827,21 @@ function LeaderboardContent() {
                 <span className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">
                   LeetCode Rating
                 </span>
-                <div className="flex gap-2 items-center">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <input
                     type="number"
                     value={lcRatingMin}
                     onChange={(e) => { setLcRatingMin(e.target.value); setPage(1); }}
                     placeholder="Min"
-                    className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                    className="w-full rounded-lg border border-brand-border bg-zinc-950/40 px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
                   />
-                  <span className="text-zinc-650 text-xs">-</span>
+                  <span className="hidden text-xs text-zinc-650 sm:block">-</span>
                   <input
                     type="number"
                     value={lcRatingMax}
                     onChange={(e) => { setLcRatingMax(e.target.value); setPage(1); }}
                     placeholder="Max"
-                    className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                    className="w-full rounded-lg border border-brand-border bg-zinc-950/40 px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
                   />
                 </div>
               </div>
@@ -862,33 +853,33 @@ function LeaderboardContent() {
                 </span>
                 <div className="flex flex-col gap-2.5">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] text-emerald-400 font-extrabold uppercase">Easy</span>
+                    <span className="text-[10px] font-extrabold uppercase text-emerald-400">Easy</span>
                     <input
                       type="number"
                       value={lcEasyMin}
                       onChange={(e) => { setLcEasyMin(e.target.value); setPage(1); }}
                       placeholder="0"
-                      className="w-20 px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white text-right focus:outline-none focus:border-emerald-400/50"
+                      className="w-20 rounded-lg border border-brand-border bg-zinc-950/40 px-3 py-2 text-right text-xs text-white focus:outline-none focus:border-emerald-400/50"
                     />
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] text-amber-500 font-extrabold uppercase">Medium</span>
+                    <span className="text-[10px] font-extrabold uppercase text-amber-500">Medium</span>
                     <input
                       type="number"
                       value={lcMediumMin}
                       onChange={(e) => { setLcMediumMin(e.target.value); setPage(1); }}
                       placeholder="0"
-                      className="w-20 px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white text-right focus:outline-none focus:border-amber-500/50"
+                      className="w-20 rounded-lg border border-brand-border bg-zinc-950/40 px-3 py-2 text-right text-xs text-white focus:outline-none focus:border-amber-500/50"
                     />
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] text-red-500 font-extrabold uppercase">Hard</span>
+                    <span className="text-[10px] font-extrabold uppercase text-red-500">Hard</span>
                     <input
                       type="number"
                       value={lcHardMin}
                       onChange={(e) => { setLcHardMin(e.target.value); setPage(1); }}
                       placeholder="0"
-                      className="w-20 px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white text-right focus:outline-none focus:border-red-500/50"
+                      className="w-20 rounded-lg border border-brand-border bg-zinc-950/40 px-3 py-2 text-right text-xs text-white focus:outline-none focus:border-red-500/50"
                     />
                   </div>
                 </div>
@@ -918,9 +909,9 @@ function LeaderboardContent() {
           </div>
 
           {/* Standings Table Card */}
-          <div className="glass-card rounded-3xl overflow-hidden border border-brand-border shadow-xl">
+          <div className="glass-card overflow-hidden rounded-3xl border border-brand-border shadow-xl">
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse text-left">
+              <table className="min-w-[760px] w-full border-collapse text-left sm:min-w-0">
                 <thead>
                   <tr className="border-b border-brand-border bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
                     <th className="py-4.5 px-4 text-center w-20 select-none font-black">
@@ -1051,7 +1042,7 @@ function LeaderboardContent() {
                         {/* Student Info */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full overflow-hidden border border-brand-border flex items-center justify-center bg-zinc-950 shrink-0">
+                            <div className="h-8 w-8 flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand-border bg-zinc-950">
                               {entry.student.profilePictureUrl ? (
                                 <img src={entry.student.profilePictureUrl} alt={entry.student.name} className="h-full w-full object-cover" />
                               ) : (
@@ -1245,7 +1236,7 @@ function LeaderboardContent() {
                                 onClick={() => handleRefreshStudent(entry.student.id)}
                                 disabled={refreshingIds.has(entry.student.id)}
                                 title="Refresh metrics"
-                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-[#22C55E] hover:border-[#22C55E]/30 hover:bg-zinc-900 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted transition-all hover:border-[#22C55E]/30 hover:bg-zinc-900 hover:text-[#22C55E] disabled:cursor-not-allowed disabled:opacity-50"
                               >
                                 {refreshingIds.has(entry.student.id) ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1256,7 +1247,7 @@ function LeaderboardContent() {
                             )}
                             <Link
                               href={`/student/${entry.student.id}`}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted hover:text-[#EAB308] hover:border-[#EAB308]/30 hover:bg-zinc-900 transition-all"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted transition-all hover:border-[#EAB308]/30 hover:bg-zinc-900 hover:text-[#EAB308]"
                               title="View Student Portfolio"
                             >
                               <Eye className="h-3.5 w-3.5" />
