@@ -127,8 +127,8 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
 
   return (
     <div className="w-full select-none pb-8 pt-4 sm:pb-10">
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-3 sm:flex-row sm:items-end sm:justify-center sm:gap-4 sm:px-4">
-        <div className="flex w-full flex-col items-center sm:order-2 sm:flex-[1.1]">
+      <div className="mx-auto grid w-full max-w-3xl grid-cols-1 gap-3 px-3 min-[350px]:grid-cols-2 sm:gap-4 sm:px-4">
+        <div className="col-span-1 flex w-full flex-col items-center min-[350px]:col-span-2">
           <div className="relative mb-3 flex flex-col items-center">
             <Crown className="mb-1 h-6 w-6 text-[#EAB308] fill-[#EAB308]/20 animate-pulse" />
             <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-[#EAB308]/40 bg-zinc-950/60 shadow-[0_4px_30px_rgba(234,179,8,0.2)] sm:h-24 sm:w-24">
@@ -156,7 +156,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
           </div>
         </div>
 
-        <div className="flex w-full flex-col items-center sm:flex-[0.95]">
+        <div className="flex w-full flex-col items-center">
           <div className="relative mb-3 flex flex-col items-center">
             <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-zinc-400/30 bg-zinc-950/60 shadow-[0_4px_20px_rgba(161,161,170,0.15)] sm:h-20 sm:w-20">
               {second.student.profilePictureUrl ? (
@@ -182,7 +182,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
           </div>
         </div>
 
-        <div className="flex w-full flex-col items-center sm:flex-[0.95]">
+        <div className="flex w-full flex-col items-center">
           <div className="relative mb-3 flex flex-col items-center">
             <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border-2 border-amber-700/30 bg-zinc-950/60 shadow-[0_4px_20px_rgba(180,83,9,0.15)] sm:h-20 sm:w-20">
               {third.student.profilePictureUrl ? (
