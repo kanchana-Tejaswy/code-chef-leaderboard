@@ -1,10 +1,10 @@
-import { requireAdminPageAccess } from "@/lib/auth";
+import { requireStaffReadPageAccess } from "@/lib/auth";
 
 export default async function DepartmentsLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  await requireAdminPageAccess();
+  await requireStaffReadPageAccess();
   return <>{children}</>;
 }

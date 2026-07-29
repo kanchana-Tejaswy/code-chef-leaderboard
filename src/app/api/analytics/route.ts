@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireDashboardAccess } from "@/lib/auth";
+import { requireStaffReadAccess } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireDashboardAccess();
+    await requireStaffReadAccess();
     const students = await prisma.studentProfile.findMany({
       include: {
         codechefProfile: true,

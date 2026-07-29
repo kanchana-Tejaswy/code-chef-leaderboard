@@ -158,6 +158,7 @@ export function getRoleHomePath(access: UserAccess | null): string {
     case UserRole.ADMIN:
       return "/dashboard";
     case UserRole.GK_SIR:
+      return "/leaderboard";
     case UserRole.HOD:
       return "/leaderboard";
     case UserRole.STUDENT:
@@ -168,7 +169,7 @@ export function getRoleHomePath(access: UserAccess | null): string {
 }
 
 export async function requireDashboardAccess(): Promise<UserAccess> {
-  return requireAdmin();
+  return requireRole(UserRole.ADMIN);
 }
 
 export async function requireLeaderboardAccess(): Promise<UserAccess> {
@@ -259,7 +260,7 @@ export async function requireStaffReadPageAccess(): Promise<UserAccess> {
 }
 
 export async function requireDashboardPageAccess(): Promise<UserAccess> {
-  return requireAdminPageAccess();
+  return requirePageRole(UserRole.ADMIN);
 }
 
 export async function requireLeaderboardPageAccess(): Promise<UserAccess> {

@@ -34,30 +34,55 @@ import {
 interface AdminControlCenterClientProps {
   currentAdminId: string;
   currentAdminEmail: string;
+  role?: string;
 }
 
 export default function AdminControlCenterClient({
   currentAdminId,
   currentAdminEmail,
+  role = "ADMIN",
 }: AdminControlCenterClientProps) {
-  const [activeTab, setActiveTab] = useState<"profile" | "create" | "directory" | "security" | "audit" | "sync" | "approvals">("sync");
+  const isGkSir = role === "GK_SIR";
+
+  // Read tab parameter from URL query string if present
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const tabParam = searchParams?.get("tab");
+
+  const [activeTab, setActiveTab] = useState<"profile" | "create" | "directory" | "security" | "audit" | "sync" | "approvals">(
+    isGkSir 
+      ? (tabParam === "directory" ? "approvals" : "profile")
+      : "sync"
+  );
+
+  // Sync state if query param changes
+  useEffect(() => {
+    if (isGkSir) {
+      if (tabParam === "directory") {
+        setActiveTab("approvals");
+      } else {
+        setActiveTab("profile");
+      }
+    }
+  }, [tabParam, isGkSir]);
 
   return (
     <div className="space-y-8">
       {/* Navigation Tabs Header */}
       <div className="border-b border-brand-border bg-brand-card/50 p-2 rounded-xl backdrop-blur-md">
         <nav className="flex flex-wrap gap-2 sm:gap-3" aria-label="Tabs">
-          <button
-            onClick={() => setActiveTab("sync")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-              activeTab === "sync"
-                ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
-                : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
-            }`}
-          >
-            <RefreshCw className="h-4 w-4" />
-            Platform Verification & Sync
-          </button>
+          {!isGkSir && (
+            <button
+              onClick={() => setActiveTab("sync")}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                activeTab === "sync"
+                  ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
+                  : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
+              }`}
+            >
+              <RefreshCw className="h-4 w-4" />
+              Platform Verification & Sync
+            </button>
+          )}
 
           <button
             onClick={() => setActiveTab("profile")}
@@ -71,76 +96,94 @@ export default function AdminControlCenterClient({
             My Profile
           </button>
 
-          <button
-            onClick={() => setActiveTab("create")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-              activeTab === "create"
-                ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
-                : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
-            }`}
-          >
-            <UserPlus className="h-4 w-4" />
-            Create Account
-          </button>
+          {isGkSir && (
+            <button
+              onClick={() => setActiveTab("approvals")}
+              className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                activeTab === "approvals"
+                  ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
+                  : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
+              }`}
+            >
+              <Users className="h-4 w-4" />
+              Student Directory
+            </button>
+          )}
 
-          <button
-            onClick={() => setActiveTab("directory")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-              activeTab === "directory"
-                ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
-                : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
-            }`}
-          >
-            <Users className="h-4 w-4" />
-            Account Directory
-          </button>
+          {!isGkSir && (
+            <>
+              <button
+                onClick={() => setActiveTab("create")}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === "create"
+                    ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
+                    : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
+                }`}
+              >
+                <UserPlus className="h-4 w-4" />
+                Create Account
+              </button>
 
-          <button
-            onClick={() => setActiveTab("security")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-              activeTab === "security"
-                ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
-                : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
-            }`}
-          >
-            <Shield className="h-4 w-4" />
-            Security
-          </button>
+              <button
+                onClick={() => setActiveTab("directory")}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === "directory"
+                    ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
+                    : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
+                }`}
+              >
+                <Users className="h-4 w-4" />
+                Account Directory
+              </button>
 
-          <button
-            onClick={() => setActiveTab("approvals")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-              activeTab === "approvals"
-                ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
-                : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
-            }`}
-          >
-            <Check className="h-4 w-4" />
-            Student Approvals
-          </button>
+              <button
+                onClick={() => setActiveTab("security")}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === "security"
+                    ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
+                    : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
+                }`}
+              >
+                <Shield className="h-4 w-4" />
+                Security
+              </button>
 
-          <button
-            onClick={() => setActiveTab("audit")}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
-              activeTab === "audit"
-                ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
-                : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
-            }`}
-          >
-            <History className="h-4 w-4" />
-            Audit Activity
-          </button>
+              <button
+                onClick={() => setActiveTab("approvals")}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === "approvals"
+                    ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
+                    : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
+                }`}
+              >
+                <Check className="h-4 w-4" />
+                Student Approvals
+              </button>
+
+              <button
+                onClick={() => setActiveTab("audit")}
+                className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer ${
+                  activeTab === "audit"
+                    ? "bg-[#EAB308] text-[#0A0A0A] shadow-md shadow-[#EAB308]/20"
+                    : "text-brand-muted hover:bg-brand-bg hover:text-brand-text"
+                }`}
+              >
+                <History className="h-4 w-4" />
+                Audit Activity
+              </button>
+            </>
+          )}
         </nav>
       </div>
 
       {/* Tab Panels */}
       {activeTab === "sync" && <PlatformSyncTab />}
-      {activeTab === "profile" && <MyProfileTab currentAdminEmail={currentAdminEmail} />}
+      {activeTab === "profile" && <MyProfileTab currentAdminEmail={currentAdminEmail} role={role} />}
       {activeTab === "create" && <CreateAccountTab onAccountCreated={() => setActiveTab("directory")} />}
       {activeTab === "directory" && <AccountDirectoryTab currentAdminId={currentAdminId} />}
       {activeTab === "security" && <SecurityTab currentAdminEmail={currentAdminEmail} />}
       {activeTab === "audit" && <AuditActivityTab />}
-      {activeTab === "approvals" && <StudentApprovalsTab />}
+      {activeTab === "approvals" && <StudentApprovalsTab role={role} />}
     </div>
   );
 }
@@ -148,13 +191,16 @@ export default function AdminControlCenterClient({
 // =============================================================================
 // TAB 1: MY PROFILE TAB
 // =============================================================================
-function MyProfileTab({ currentAdminEmail }: { currentAdminEmail: string }) {
+function MyProfileTab({ currentAdminEmail, role }: { currentAdminEmail: string; role?: string }) {
   const [profile, setProfile] = useState<any>(null);
   const [fullName, setFullName] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [resetSending, setResetSending] = useState(false);
+
+  const isGkSir = role === "GK_SIR";
 
   useEffect(() => {
     fetchProfile();
@@ -168,6 +214,7 @@ function MyProfileTab({ currentAdminEmail }: { currentAdminEmail: string }) {
       if (data.success) {
         setProfile(data.data);
         setFullName(data.data.fullName || "");
+        setAvatarUrl(data.data.avatarUrl || "");
       }
     } catch (err) {
       console.error(err);
@@ -183,7 +230,7 @@ function MyProfileTab({ currentAdminEmail }: { currentAdminEmail: string }) {
       const res = await fetch("/api/admin/profile", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fullName }),
+        body: JSON.stringify({ fullName, avatarUrl }),
       });
       const data = await res.json();
       if (data.success) {
@@ -232,8 +279,10 @@ function MyProfileTab({ currentAdminEmail }: { currentAdminEmail: string }) {
       <div className="md:col-span-2 rounded-xl border border-brand-border bg-brand-card p-6 space-y-6">
         <div className="flex items-center justify-between border-b border-brand-border pb-4">
           <div>
-            <h2 className="text-xl font-bold text-brand-text">Admin Profile</h2>
-            <p className="text-xs text-brand-muted">View and update your personal administrator information.</p>
+            <h2 className="text-xl font-bold text-brand-text">{isGkSir ? "GK Sir Profile" : "Admin Profile"}</h2>
+            <p className="text-xs text-brand-muted">
+              {isGkSir ? "View and update your personal display profile details." : "View and update your personal administrator information."}
+            </p>
           </div>
           <span className="rounded-full bg-[#EAB308]/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#EAB308] border border-[#EAB308]/20">
             {profile?.role || "ADMIN"}
@@ -260,6 +309,17 @@ function MyProfileTab({ currentAdminEmail }: { currentAdminEmail: string }) {
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               required
+              className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase text-brand-muted mb-1">Profile Photo URL</label>
+            <input
+              type="url"
+              value={avatarUrl}
+              onChange={(e) => setAvatarUrl(e.target.value)}
+              placeholder="https://example.com/photo.jpg"
               className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none"
             />
           </div>
@@ -559,27 +619,37 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
         {/* Temporary Password Section */}
         <div className="rounded-xl border border-brand-border bg-brand-bg/40 p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold uppercase text-brand-muted">Temporary Password Setup</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={generateStrongPassword}
-                className="text-xs font-bold text-[#EAB308] hover:underline cursor-pointer flex items-center gap-1"
-              >
-                <KeyRound className="h-3.5 w-3.5" />
-                Generate Strong
-              </button>
-            </div>
+            <label className="text-xs font-bold uppercase text-brand-muted">
+              {role === UserRole.GK_SIR ? "Temporary Password Setup (Optional)" : "Temporary Password Setup"}
+            </label>
+            {role !== UserRole.GK_SIR && (
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={generateStrongPassword}
+                  className="text-xs font-bold text-[#EAB308] hover:underline cursor-pointer flex items-center gap-1"
+                >
+                  <KeyRound className="h-3.5 w-3.5" />
+                  Generate Strong
+                </button>
+              </div>
+            )}
           </div>
+
+          {role === UserRole.GK_SIR && (
+            <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 p-3.5 text-xs text-amber-300">
+              Note: For GK_SIR accounts, password setup is handled via first-login activation. You may leave the password fields blank to automatically trigger a secure activation email.
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                required
+                required={role !== UserRole.GK_SIR}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Temporary Password (min 12 chars)"
+                placeholder={role === UserRole.GK_SIR ? "Temporary Password (Optional)" : "Temporary Password (min 12 chars)"}
                 className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 pr-10 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none"
               />
               <button
@@ -594,10 +664,10 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
             <div>
               <input
                 type={showPassword ? "text" : "password"}
-                required
+                required={role !== UserRole.GK_SIR}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm Temporary Password"
+                placeholder={role === UserRole.GK_SIR ? "Confirm Temporary Password (Optional)" : "Confirm Temporary Password"}
                 className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none"
               />
             </div>
@@ -1762,7 +1832,8 @@ function PlatformSyncTab() {
 // =============================================================================
 // TAB 7: STUDENT APPROVALS TAB
 // =============================================================================
-function StudentApprovalsTab() {
+function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
+  const isGkSir = role === "GK_SIR";
   const [students, setStudents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -1962,13 +2033,15 @@ function StudentApprovalsTab() {
           <h2 className="text-xl font-black text-brand-text">Student Approvals Board</h2>
           <p className="text-xs text-brand-muted">Approve, reject, or revoke leaderboard access and view verified student metrics.</p>
         </div>
-        <button
-          onClick={() => setShowBulkConfirm(true)}
-          disabled={!stats?.eligibleForApproval}
-          className="px-5 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-green-600/20"
-        >
-          Approve All Verified Students
-        </button>
+        {!isGkSir && (
+          <button
+            onClick={() => setShowBulkConfirm(true)}
+            disabled={!stats?.eligibleForApproval}
+            className="px-5 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-green-600/20"
+          >
+            Approve All Verified Students
+          </button>
+        )}
       </div>
 
       {stats && (
@@ -2198,53 +2271,57 @@ function StudentApprovalsTab() {
                             <Eye className="h-3.5 w-3.5" />
                           </button>
                           
-                          <button
-                            onClick={() => openEditModal(student)}
-                            className="px-2 py-1.5 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:text-[#EAB308] hover:bg-brand-bg transition-all cursor-pointer"
-                            title="Edit Details"
-                          >
-                            Edit
-                          </button>
-
-                          <button
-                            disabled={actionLoading === student.id + "-sync" || actionLoading === student.id}
-                            onClick={() => handleSyncStudent(student.id)}
-                            className="px-2 py-1.5 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:text-blue-400 hover:bg-brand-bg transition-all cursor-pointer disabled:opacity-50"
-                            title="Verify/Sync"
-                          >
-                            {actionLoading === student.id + "-sync" ? (
-                              <RefreshCw className="h-3 w-3 animate-spin" />
-                            ) : "Sync"}
-                          </button>
-
-                          {student.adminApprovalStatus === "APPROVED" ? (
-                            <button
-                              disabled={!!actionLoading}
-                              onClick={() => setNoteState({ id: student.id, action: "revoke", note: "" })}
-                              className="px-2 py-1.5 bg-amber-600 hover:bg-amber-700 text-black text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
-                              title="Revoke Approval"
-                            >
-                              Revoke
-                            </button>
-                          ) : (
+                          {!isGkSir && (
                             <>
                               <button
-                                disabled={!verified || !!actionLoading}
-                                onClick={() => setNoteState({ id: student.id, action: "approve", note: "" })}
-                                className="px-2 py-1.5 bg-[#22C55E] hover:bg-green-600 disabled:bg-zinc-800 disabled:text-zinc-600 border border-transparent disabled:border-zinc-700 text-black text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
-                                title={!verified ? "Both CodeChef and LeetCode profiles must be verified before approval." : "Approve student"}
+                                onClick={() => openEditModal(student)}
+                                className="px-2 py-1.5 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:text-[#EAB308] hover:bg-brand-bg transition-all cursor-pointer"
+                                title="Edit Details"
                               >
-                                Approve
+                                Edit
                               </button>
 
                               <button
-                                disabled={!!actionLoading}
-                                onClick={() => setNoteState({ id: student.id, action: "reject", note: "" })}
-                                className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
-                                title="Reject student"
+                                disabled={actionLoading === student.id + "-sync" || actionLoading === student.id}
+                                onClick={() => handleSyncStudent(student.id)}
+                                className="px-2 py-1.5 rounded-lg border border-brand-border text-xs font-bold text-brand-muted hover:text-blue-400 hover:bg-brand-bg transition-all cursor-pointer disabled:opacity-50"
+                                title="Verify/Sync"
                               >
-                                Reject
+                                {actionLoading === student.id + "-sync" ? (
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                ) : "Sync"}
                               </button>
+
+                              {student.adminApprovalStatus === "APPROVED" ? (
+                                <button
+                                  disabled={!!actionLoading}
+                                  onClick={() => setNoteState({ id: student.id, action: "revoke", note: "" })}
+                                  className="px-2 py-1.5 bg-amber-600 hover:bg-amber-700 text-black text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                                  title="Revoke Approval"
+                                >
+                                  Revoke
+                                </button>
+                              ) : (
+                                <>
+                                  <button
+                                    disabled={!verified || !!actionLoading}
+                                    onClick={() => setNoteState({ id: student.id, action: "approve", note: "" })}
+                                    className="px-2 py-1.5 bg-[#22C55E] hover:bg-green-600 disabled:bg-zinc-800 disabled:text-zinc-600 border border-transparent disabled:border-zinc-700 text-black text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                                    title={!verified ? "Both CodeChef and LeetCode profiles must be verified before approval." : "Approve student"}
+                                  >
+                                    Approve
+                                  </button>
+
+                                  <button
+                                    disabled={!!actionLoading}
+                                    onClick={() => setNoteState({ id: student.id, action: "reject", note: "" })}
+                                    className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                                    title="Reject student"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
                             </>
                           )}
                         </div>

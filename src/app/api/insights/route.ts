@@ -2,11 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { InsightsService } from "@/services/insights.service";
 
-import { requireDashboardAccess } from "@/lib/auth";
+import { requireStaffReadAccess } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireDashboardAccess();
+    await requireStaffReadAccess();
 
     const students = await prisma.studentProfile.findMany({
       include: {

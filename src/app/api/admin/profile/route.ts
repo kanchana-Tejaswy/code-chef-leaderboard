@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recordAuditEvent, AuditAction } from "@/services/audit.service";
+import { UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    const adminAccess = await requireAdmin();
+    const adminAccess = await requireRole(UserRole.ADMIN, UserRole.GK_SIR);
 
     let profile = null;
     if (adminAccess.authUserId) {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
         departmentId: adminAccess.departmentId,
         lastLoginAt: adminAccess.lastLoginAt,
         createdAt: adminAccess.createdAt,
-        fullName: profile?.name || "ACE System Admin",
+        fullName: profile?.name || (adminAccess.role === UserRole.GK_SIR ? "GK Sir" : "ACE System Admin"),
         avatarUrl: profile?.avatarUrl || null,
         contactNumber: null,
       }
@@ -47,7 +48,7 @@ export async function GET(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const adminAccess = await requireAdmin();
+    const adminAccess = await requireRole(UserRole.ADMIN, UserRole.GK_SIR);
 
     const body = await request.json();
     const { fullName, avatarUrl } = body;

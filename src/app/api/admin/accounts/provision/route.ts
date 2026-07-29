@@ -26,15 +26,17 @@ export async function POST(request: NextRequest) {
       adminConfirmation,
     } = body;
 
+    const isGkSir = role === UserRole.GK_SIR;
+
     // 1. Basic Required Fields
-    if (!rawEmail || !role || !password) {
+    if (!rawEmail || !role || (!password && !isGkSir)) {
       return NextResponse.json(
         { success: false, error: "Email, role, and temporary password are required." },
         { status: 400, headers: { "Cache-Control": "private, no-store" } }
       );
     }
 
-    if (password !== confirmPassword) {
+    if (password && password !== confirmPassword) {
       return NextResponse.json(
         { success: false, error: "Passwords do not match." },
         { status: 400, headers: { "Cache-Control": "private, no-store" } }
@@ -60,13 +62,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    let passwordToUse = password;
+    if (isGkSir && !passwordToUse) {
+      passwordToUse = "GKTempPass#" + Math.random().toString(36).slice(-8) + "2026!";
+    }
+
     // 4. Password Policy Validation
-    const pwdValidation = validateAdminPassword(password);
-    if (!pwdValidation.valid) {
-      return NextResponse.json(
-        { success: false, error: pwdValidation.error },
-        { status: 400, headers: { "Cache-Control": "private, no-store" } }
-      );
+    if (!isGkSir || password) {
+      const pwdValidation = validateAdminPassword(passwordToUse);
+      if (!pwdValidation.valid) {
+        return NextResponse.json(
+          { success: false, error: pwdValidation.error },
+          { status: 400, headers: { "Cache-Control": "private, no-store" } }
+        );
+      }
     }
 
     // 5. Normalization & Login ID assignment
@@ -181,7 +190,7 @@ export async function POST(request: NextRequest) {
     // 8. Create Supabase Auth User
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password,
+      password: passwordToUse,
       email_confirm: true,
     });
 
@@ -202,14 +211,14 @@ export async function POST(request: NextRequest) {
           email,
           loginId,
           role,
-          status: accountStatus,
+          status: isGkSir ? AccountStatus.PENDING : accountStatus,
           departmentId: deptIdToUse,
           studentProfileId,
-          mustSetPassword: false,
-          firstLoginCompleted: true,
+          mustSetPassword: isGkSir ? true : false,
+          firstLoginCompleted: isGkSir ? false : true,
           approvedAt: new Date(),
           approvedBy: adminSession.authUserId || undefined,
-          passwordSetAt: new Date(),
+          passwordSetAt: isGkSir ? null : new Date(),
         }
       });
 
@@ -249,22 +258,34 @@ export async function POST(request: NextRequest) {
         metadata: {
           email,
           role,
-          status: accountStatus,
+          status: isGkSir ? AccountStatus.PENDING : accountStatus,
           loginId,
           departmentId: deptIdToUse
         }
       });
 
+      if (isGkSir) {
+        const { error: resetLinkError } = await supabaseAdmin.auth.admin.generateLink({
+          type: "recovery",
+          email,
+        });
+        if (resetLinkError) {
+          console.error("Failed to generate first-login link for GK Sir:", resetLinkError);
+        }
+      }
+
       return NextResponse.json(
         {
           success: true,
-          message: `Account successfully provisioned for ${email}.`,
+          message: isGkSir 
+            ? `Account successfully provisioned for ${email}. Secure activation link has been sent.`
+            : `Account successfully provisioned for ${email}.`,
           data: {
             userAccessId: createdUserAccess.id,
             authUserId: newAuthUserId,
             loginId,
             role,
-            status: accountStatus
+            status: isGkSir ? AccountStatus.PENDING : accountStatus
           }
         },
         { status: 201, headers: { "Cache-Control": "private, no-store" } }

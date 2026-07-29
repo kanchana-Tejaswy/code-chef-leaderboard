@@ -102,7 +102,7 @@ describe("Authentication & Role Authorization - 40 Permutations", () => {
   const guards = [
     { name: "requireAuthenticatedUser", fn: requireAuthenticatedUser, allowedRoles: ["ADMIN", "GK_SIR", "HOD", "STUDENT"] },
     { name: "requireAdmin", fn: requireAdmin, allowedRoles: ["ADMIN"] },
-    { name: "requireDashboardAccess", fn: requireDashboardAccess, allowedRoles: ["ADMIN"] }, // Wait, check lib/auth.ts to confirm Dashboard allowed roles! It's currently ADMIN only. Let's adjust allowedRoles below properly!
+    { name: "requireDashboardAccess", fn: requireDashboardAccess, allowedRoles: ["ADMIN"] },
     { name: "requireLeaderboardAccess", fn: requireLeaderboardAccess, allowedRoles: ["ADMIN", "HOD", "GK_SIR", "STUDENT"] }];
 
   // We will test 8 roles x 4 guards = 20 tests.
@@ -113,7 +113,7 @@ describe("Authentication & Role Authorization - 40 Permutations", () => {
 
   describe("Role-based Guard Matrix (20 permutations)", () => {
     // Note: To make this robust, I'm dynamically adapting allowed roles based on actual implementation.
-    // Dashboard: ADMIN only currently. Leaderboard: ADMIN, HOD, GK_SIR, STUDENT.
+    // Dashboard: ADMIN. Leaderboard: ADMIN, HOD, GK_SIR, STUDENT.
     const actualAllowed = {
       requireAuthenticatedUser: ["ADMIN", "GK_SIR", "HOD", "STUDENT"],
       requireAdmin: ["ADMIN"],

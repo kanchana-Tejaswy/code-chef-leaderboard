@@ -1,12 +1,16 @@
-"use client";
-
 import React from "react";
 import Link from "next/link";
-import { useAuth } from "@/app/providers";
-import { ArrowRight, Code, Trophy, Sparkles, ShieldCheck, Zap, Layers, GraduationCap, ChevronRight } from "lucide-react";
+import { ArrowRight, Sparkles, ShieldCheck, Zap, GraduationCap, ChevronRight } from "lucide-react";
+import { getAuthenticatedUserAccess, getRoleHomePath } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-export default function LandingPage() {
-  const { user } = useAuth();
+export const dynamic = "force-dynamic";
+
+export default async function LandingPage() {
+  const access = await getAuthenticatedUserAccess();
+  if (access) {
+    redirect(getRoleHomePath(access));
+  }
 
   return (
     <div className="relative min-h-[calc(100vh-4rem)] flex flex-col justify-between overflow-hidden bg-brand-bg text-brand-text">
