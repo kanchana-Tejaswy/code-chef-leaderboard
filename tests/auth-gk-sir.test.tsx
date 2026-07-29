@@ -189,7 +189,7 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
     expect(mockUserAccessRecord.firstLoginCompleted).toBe(true);
   });
 
-  it("5. GK_SIR cannot access /dashboard (redirects to /leaderboard)", async () => {
+  it("5. GK_SIR can access /dashboard page layout", async () => {
     mockSupabaseUser = { id: "supa-gk", email: "gksir@aceec.ac.in" };
     mockUserAccessRecord = {
       id: "gk-1",
@@ -200,8 +200,9 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
       mustSetPassword: false
     };
 
-    await expect(requireDashboardPageAccess()).rejects.toThrow("NEXT_REDIRECT: /leaderboard");
-    expect(mockRedirectUrl).toBe("/leaderboard");
+    const access = await requireDashboardPageAccess();
+    expect(access.role).toBe(UserRole.GK_SIR);
+    expect(mockRedirectUrl).toBeNull();
   });
 
   it("6. GK_SIR can access /leaderboard page layout", async () => {
@@ -252,11 +253,11 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
     expect(mockRedirectUrl).toBeNull();
   });
 
-  it("9. GK_SIR does not see the Dashboard navigation link in navbar", () => {
+  it("9. GK_SIR does see the Dashboard navigation link in navbar", () => {
     const gkNavbar = renderToStaticMarkup(
       <Navbar userRole={UserRole.GK_SIR} studentProfileId={null} />
     );
-    expect(gkNavbar).not.toContain('href="/dashboard"');
+    expect(gkNavbar).toContain('href="/dashboard"');
     expect(gkNavbar).not.toContain('href="/admin/control-center"');
     
     // GK_SIR should see other permitted links

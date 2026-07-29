@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/auth";
+import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { recordAuditEvent, AuditAction } from "@/services/audit.service";
+import { UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -11,8 +12,15 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const adminSession = await requireAdmin();
+    const session = await requireRole(UserRole.ADMIN, UserRole.GK_SIR);
     const { id } = await params;
+
+    if (session.role === UserRole.GK_SIR && session.id !== id) {
+      return NextResponse.json(
+        { success: false, error: "Access denied." },
+        { status: 403, headers: { "Cache-Control": "private, no-store" } }
+      );
+    }
 
     const targetAccount = await prisma.userAccess.findUnique({
       where: { id }
@@ -43,7 +51,7 @@ export async function POST(
     }
 
     await recordAuditEvent({
-      actorUserId: adminSession.id,
+      actorUserId: session.id,
       action: AuditAction.PASSWORD_RESET_SENT,
       targetType: "UserAccess",
       targetId: id,

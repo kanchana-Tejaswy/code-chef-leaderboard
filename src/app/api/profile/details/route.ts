@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStudentProfileReadAccess } from "@/lib/auth";
+import { recordAuditEvent } from "@/services/audit.service";
+import { UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +15,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    await requireStudentProfileReadAccess(userId);
+    const access = await requireStudentProfileReadAccess(userId);
+
+    if (access.role === UserRole.GK_SIR) {
+      await recordAuditEvent({
+        actorUserId: access.id,
+        action: "GK_SIR_VIEWED_STUDENT",
+        targetType: "StudentProfile",
+        targetId: userId,
+      });
+    }
 
     const student = await prisma.studentProfile.findUnique({
       where: { id: userId },

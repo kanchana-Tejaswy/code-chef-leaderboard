@@ -106,6 +106,12 @@ export default function StudentProfileDashboard() {
   const [editingName, setEditingName] = useState("");
   const [isSavingName, setIsSavingName] = useState(false);
   const publicDemoWriteMode = profile?.role === "ADMIN";
+  const isStaffOrOwner =
+    (profile?.role as any) === "ADMIN" ||
+    (profile?.role as any) === "GK_SIR" ||
+    (profile?.role as any) === "HOD" ||
+    (profile?.role === "STUDENT" && (profile as any)?.studentProfileId === studentId) ||
+    (profile?.role === "STUDENT" && profile?.id === studentId);
 
   const handleSaveName = async () => {
     if (!editingName.trim()) return;
@@ -384,13 +390,15 @@ export default function StudentProfileDashboard() {
           Leaderboard standing
         </Link>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleOpenEditModal}
-            className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase bg-[#EAB308]/10 text-[#EAB308] border border-[#EAB308]/30 px-3 py-1 rounded-xl hover:bg-[#EAB308]/20 transition-all"
-          >
-            <Edit2 className="h-3 w-3" />
-            Edit Details
-          </button>
+          {publicDemoWriteMode && (
+            <button
+              onClick={handleOpenEditModal}
+              className="inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase bg-[#EAB308]/10 text-[#EAB308] border border-[#EAB308]/30 px-3 py-1 rounded-xl hover:bg-[#EAB308]/20 transition-all"
+            >
+              <Edit2 className="h-3 w-3" />
+              Edit Details
+            </button>
+          )}
           <span className="text-[10px] text-[#A3A3A3] font-bold tracking-widest uppercase bg-[#111111] px-3 py-1 border border-[#262626] rounded-xl">
             ID: {student.rollNumber}
           </span>
@@ -561,7 +569,9 @@ export default function StudentProfileDashboard() {
             </div>
             <div>
               <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">CGPA</span>
-              <span className="text-sm font-extrabold text-[#FAFAFA]">{student.cgpa !== undefined && student.cgpa !== null ? student.cgpa : "N/A"}</span>
+              <span className="text-sm font-extrabold text-[#FAFAFA]">
+                {isStaffOrOwner ? (student.cgpa !== undefined && student.cgpa !== null ? student.cgpa : "N/A") : "Restricted"}
+              </span>
             </div>
           </div>
         </div>

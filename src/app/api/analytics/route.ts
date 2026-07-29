@@ -1,13 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffReadAccess } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
+import { recordAuditEvent } from "@/services/audit.service";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireStaffReadAccess();
+    const access = await requireStaffReadAccess();
+    const isGkSir = access.role === UserRole.GK_SIR;
+    const isHod = access.role === UserRole.HOD;
+    const deptScope = isHod ? access.departmentId : null;
+
+    if (isGkSir) {
+      await recordAuditEvent({
+        actorUserId: access.id,
+        action: "GK_SIR_VIEWED_ANALYTICS",
+        targetType: "Analytics",
+      });
+    }
+
+    const studentWhere = deptScope ? { department: deptScope } : {};
     const students = await prisma.studentProfile.findMany({
+      where: studentWhere,
       include: {
         codechefProfile: true,
         leetcodeProfile: true,
@@ -17,7 +33,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const depts = ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
+    const depts = deptScope ? [deptScope] : ["CSE", "IT", "CSM", "CSD", "ECE", "EEE", "ME", "CE"];
 
     // ----------------------------------------------------
     // ORIGINAL ROOT DATA (for backwards compatibility)

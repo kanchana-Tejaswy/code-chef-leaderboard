@@ -104,7 +104,7 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
 
         {/* Center Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-4">
-          {userRole === "ADMIN" && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR") && (
             <Link href="/dashboard" prefetch={false} className={navItemClass("/dashboard")}>
               Dashboard
             </Link>
@@ -201,7 +201,7 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
       {/* Mobile Menu Panel */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-brand-border bg-brand-bg px-4 py-4 space-y-2">
-          {userRole === "ADMIN" && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR") && (
             <Link
               href="/dashboard"
               prefetch={false}

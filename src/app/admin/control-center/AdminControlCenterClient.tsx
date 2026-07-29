@@ -2054,6 +2054,27 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
     setBulkLoading(false);
   };
 
+  const handleExportReport = async () => {
+    try {
+      const params = new URLSearchParams({
+        export: "true",
+      });
+      if (search) params.append("search", search);
+      if (branch) params.append("branch", branch);
+      if (year) params.append("year", year);
+      if (profileStatus) params.append("profileStatus", profileStatus);
+      if (adminApprovalStatus) params.append("adminApprovalStatus", adminApprovalStatus);
+      if (codechefStatus) params.append("codechefStatus", codechefStatus);
+      if (leetcodeStatus) params.append("leetcodeStatus", leetcodeStatus);
+      if (leaderboardEligible) params.append("leaderboardEligible", leaderboardEligible);
+
+      window.open(`/api/admin/student-approvals?${params.toString()}`, "_blank");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to export report.");
+    }
+  };
+
   const openEditModal = (student: any) => {
     setEditingStudent(student);
     setEditError("");
@@ -2103,18 +2124,32 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
       {/* 1. Header & Quick Aggregates */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-black text-brand-text">Student Approvals Board</h2>
-          <p className="text-xs text-brand-muted">Approve, reject, or revoke leaderboard access and view verified student metrics.</p>
+          <h2 className="text-xl font-black text-brand-text">
+            {isGkSir ? "Student Directory" : "Student Approvals Board"}
+          </h2>
+          <p className="text-xs text-brand-muted">
+            {isGkSir
+              ? "View verified student profiles, search, filter, and export performance reports."
+              : "Approve, reject, or revoke leaderboard access and view verified student metrics."}
+          </p>
         </div>
-        {!isGkSir && (
+        <div className="flex flex-wrap gap-2.5">
           <button
-            onClick={() => setShowBulkConfirm(true)}
-            disabled={!stats?.eligibleForApproval}
-            className="px-5 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-green-600/20"
+            onClick={handleExportReport}
+            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-blue-600/20"
           >
-            Approve All Verified Students
+            Export Directory
           </button>
-        )}
+          {!isGkSir && (
+            <button
+              onClick={() => setShowBulkConfirm(true)}
+              disabled={!stats?.eligibleForApproval}
+              className="px-5 py-2.5 bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer shadow-lg shadow-green-600/20"
+            >
+              Approve All Verified Students
+            </button>
+          )}
+        </div>
       </div>
 
       {stats && (

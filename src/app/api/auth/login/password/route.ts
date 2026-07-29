@@ -101,13 +101,13 @@ export async function POST(req: Request) {
       },
     });
 
-    // 1. Missing access record or Non-Admin role check
-    if (!userAccess || userAccess.role !== UserRole.ADMIN) {
+    // 1. Missing access record or Non-Admin/Staff role check
+    if (!userAccess || (userAccess.role !== UserRole.ADMIN && userAccess.role !== UserRole.GK_SIR && userAccess.role !== UserRole.HOD)) {
       await supabase.auth.signOut();
       await recordAuditEvent({
         action: AuditAction.PASSWORD_LOGIN_FAILED,
         targetId: auditTargetId,
-        metadata: { reason: "Non-admin or missing UserAccess record", role: userAccess?.role },
+        metadata: { reason: "Non-admin/staff or missing UserAccess record", role: userAccess?.role },
       });
       return NextResponse.json(RESTRICTED_PORTAL_RESPONSE, { status: 403, headers: { "Cache-Control": "no-store" } });
     }
@@ -171,15 +171,25 @@ export async function POST(req: Request) {
       console.error("Failed to update lastLoginAt:", e);
     }
 
-    await recordAuditEvent({
-      action: AuditAction.PASSWORD_LOGIN_SUCCESS,
-      targetId: userAccess.id,
-    });
+    if (userAccess.role === UserRole.GK_SIR) {
+      await recordAuditEvent({
+        actorUserId: userAccess.id,
+        action: "GK_SIR_LOGIN",
+        targetId: userAccess.id,
+      });
+    } else {
+      await recordAuditEvent({
+        action: AuditAction.PASSWORD_LOGIN_SUCCESS,
+        targetId: userAccess.id,
+      });
+    }
+
+    const redirectTo = userAccess.role === UserRole.GK_SIR || userAccess.role === UserRole.HOD ? "/leaderboard" : "/dashboard";
 
     return NextResponse.json(
       {
         success: true,
-        redirectTo: "/dashboard",
+        redirectTo,
       },
       { headers: { "Cache-Control": "no-store" } }
     );

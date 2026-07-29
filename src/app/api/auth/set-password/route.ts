@@ -90,12 +90,21 @@ export async function POST(req: Request) {
       },
     });
 
-    await recordAuditEvent({
-      actorUserId: targetUserAccess.authUserId,
-      action: AuditAction.ACCOUNT_ACTIVATED,
-      targetType: "UserAccess",
-      targetId: targetUserAccess.id,
-    });
+    if (targetUserAccess.role === UserRole.GK_SIR) {
+      await recordAuditEvent({
+        actorUserId: targetUserAccess.id,
+        action: "GK_SIR_PASSWORD_CHANGED",
+        targetType: "UserAccess",
+        targetId: targetUserAccess.id,
+      });
+    } else {
+      await recordAuditEvent({
+        actorUserId: targetUserAccess.id,
+        action: AuditAction.ACCOUNT_ACTIVATED,
+        targetType: "UserAccess",
+        targetId: targetUserAccess.id,
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -3,12 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { InsightsService } from "@/services/insights.service";
 
 import { requireStaffReadAccess } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireStaffReadAccess();
+    const access = await requireStaffReadAccess();
+    const isHod = access.role === UserRole.HOD;
+    const deptScope = isHod ? access.departmentId : null;
 
+    const studentWhere = deptScope ? { department: deptScope } : {};
     const students = await prisma.studentProfile.findMany({
+      where: studentWhere,
       include: {
         codechefProfile: true,
         leetcodeProfile: true,

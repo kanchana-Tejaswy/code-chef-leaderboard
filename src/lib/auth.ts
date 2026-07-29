@@ -169,7 +169,7 @@ export function getRoleHomePath(access: UserAccess | null): string {
 }
 
 export async function requireDashboardAccess(): Promise<UserAccess> {
-  return requireRole(UserRole.ADMIN);
+  return requireRole(UserRole.ADMIN, UserRole.GK_SIR);
 }
 
 export async function requireLeaderboardAccess(): Promise<UserAccess> {
@@ -260,7 +260,7 @@ export async function requireStaffReadPageAccess(): Promise<UserAccess> {
 }
 
 export async function requireDashboardPageAccess(): Promise<UserAccess> {
-  return requirePageRole(UserRole.ADMIN);
+  return requirePageRole(UserRole.ADMIN, UserRole.GK_SIR);
 }
 
 export async function requireLeaderboardPageAccess(): Promise<UserAccess> {

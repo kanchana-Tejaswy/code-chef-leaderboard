@@ -2,16 +2,37 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 import { requireStaffReadAccess } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireStaffReadAccess();
+    const access = await requireStaffReadAccess();
+    const isHod = access.role === UserRole.HOD;
+    const deptScope = isHod ? access.departmentId : null;
+
     const { searchParams } = new URL(request.url);
     const platform = searchParams.get("platform") || "overall";
 
+    const reverseDeptMap: Record<string, string> = {
+      CSE: "CSE",
+      CSM: "CSM",
+      CSD: "CSD",
+      IT: "IT",
+      ECE: "ECE",
+      EEE: "EEE",
+      ME: "MECH",
+      CE: "CIVIL",
+    };
+
+    const targetDepts = deptScope 
+      ? [reverseDeptMap[deptScope] || deptScope] 
+      : ["CSE", "CSM", "CSD", "IT", "ECE", "EEE", "MECH", "CIVIL"];
+
+    const studentWhere = deptScope ? { department: deptScope } : {};
     const students = await prisma.studentProfile.findMany({
+      where: studentWhere,
       include: {
         codechefProfile: true,
         leetcodeProfile: true,
@@ -19,8 +40,6 @@ export async function GET(request: NextRequest) {
         leaderboardEntry: true,
       },
     });
-
-    const targetDepts = ["CSE", "CSM", "CSD", "IT", "ECE", "EEE", "MECH", "CIVIL"];
     
     const dbDeptMap: Record<string, string> = {
       CSE: "CSE",

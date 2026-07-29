@@ -4,6 +4,8 @@ import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { requireDashboardAccess } from "@/lib/auth";
+import { recordAuditEvent } from "@/services/audit.service";
+import { UserRole } from "@prisma/client";
 import * as XLSX from "xlsx";
 
 
@@ -204,7 +206,7 @@ export async function GET(request: NextRequest) {
   const doExport = searchParams.get("export") === "true";
 
   try {
-    await requireDashboardAccess();
+    const userAccess = await requireDashboardAccess();
     
     const departmentFilter = undefined;
 
@@ -212,6 +214,14 @@ export async function GET(request: NextRequest) {
     const orderBy = buildOrderBy(platform, searchParams);
 
     if (doExport) {
+      if (userAccess.role === UserRole.GK_SIR) {
+        await recordAuditEvent({
+          actorUserId: userAccess.id,
+          action: "GK_SIR_EXPORTED_REPORT",
+          targetType: "LeaderboardEntry",
+          metadata: { platform, query: searchParams.toString() },
+        });
+      }
       const entries = await prisma.leaderboardEntry.findMany({
         where: whereClause,
         include: {
