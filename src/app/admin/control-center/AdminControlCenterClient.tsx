@@ -402,7 +402,7 @@ function MyProfileTab({ currentAdminEmail, role }: { currentAdminEmail: string; 
 // =============================================================================
 // TAB 2: CREATE ACCOUNT TAB
 // =============================================================================
-function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }) {
+export function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }) {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>(UserRole.GK_SIR);
@@ -422,6 +422,36 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
   const [adminConfirmText, setAdminConfirmText] = useState("");
 
   const departments = ["CSE", "ECE", "EEE", "MECH", "CIVIL", "IT", "AIML", "DATA_SCIENCE"];
+
+  useEffect(() => {
+    // Clear all inputs on role change
+    setFullName("");
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setRollNumber("");
+    setError(null);
+    setSuccess(null);
+  }, [role]);
+
+  const handleResetForm = () => {
+    setFullName("");
+    setEmail("");
+    setPassword("");
+    setConfirmPassword("");
+    setRollNumber("");
+    setRole(UserRole.GK_SIR);
+    setDepartmentId("CSE");
+    setStatus(AccountStatus.ACTIVE);
+    setError(null);
+    setSuccess(null);
+  };
+
+  const handleFieldChange = (setter: (val: any) => void) => (e: any) => {
+    setter(e.target.value);
+    setError(null);
+    setSuccess(null);
+  };
 
   const generateStrongPassword = () => {
     const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=";
@@ -453,6 +483,12 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
     setError(null);
     setSuccess(null);
 
+    // Validate confirmation when password is supplied
+    if (password && password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     if (role === UserRole.ADMIN) {
       setShowAdminConfirmModal(true);
     } else {
@@ -470,13 +506,13 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          fullName,
-          email,
+          newAccountFullName: fullName,
+          newAccountEmail: email,
           role,
           departmentId: role === UserRole.HOD ? departmentId : undefined,
           rollNumber: role === UserRole.STUDENT ? rollNumber : undefined,
-          password,
-          confirmPassword,
+          newAccountPassword: password,
+          newAccountConfirmPassword: confirmPassword,
           status,
           adminConfirmation: adminConfirmationText,
         }),
@@ -485,12 +521,12 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
       const data = await res.json();
 
       if (data.success) {
-        setSuccess(`Account successfully created for ${email}.`);
-        // Immediate password cleanup
-        setPassword("");
-        setConfirmPassword("");
+        setSuccess(data.message || `Account successfully created for ${email}.`);
+        // Clear entire form on success
         setFullName("");
         setEmail("");
+        setPassword("");
+        setConfirmPassword("");
         setRollNumber("");
         setShowAdminConfirmModal(false);
         setAdminConfirmText("");
@@ -502,6 +538,8 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
     }
     setLoading(false);
   };
+
+  const isStaff = role === UserRole.ADMIN || role === UserRole.GK_SIR || role === UserRole.HOD;
 
   return (
     <div className="mx-auto max-w-3xl rounded-xl border border-brand-border bg-brand-card p-6 md:p-8 space-y-6">
@@ -530,15 +568,22 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
         </div>
       )}
 
-      <form onSubmit={handleFormSubmit} className="space-y-6">
+      <form onSubmit={handleFormSubmit} className="space-y-6" autoComplete="off">
+        {/* Dummy inputs to absorb browser autofill */}
+        <input type="text" name="dummy-username-field" style={{ display: "none" }} autoComplete="off" />
+        <input type="password" name="dummy-password-field" style={{ display: "none" }} autoComplete="new-password" />
+
         <div className="grid gap-6 sm:grid-cols-2">
           <div>
             <label className="block text-xs font-bold uppercase text-brand-muted mb-1">Full Name</label>
             <input
               type="text"
+              name="newAccountFullName"
+              id="newAccountFullName"
+              autoComplete="off"
               required
               value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
+              onChange={handleFieldChange(setFullName)}
               placeholder="e.g. Dr. Mohammed Younus"
               className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none"
             />
@@ -548,9 +593,12 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
             <label className="block text-xs font-bold uppercase text-brand-muted mb-1">Email Address</label>
             <input
               type="email"
+              name="newAccountEmail"
+              id="newAccountEmail"
+              autoComplete="new-account-email"
               required
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleFieldChange(setEmail)}
               placeholder="mohammedyounusshariff@aceec.ac.in"
               className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none"
             />
@@ -562,7 +610,11 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
             <label className="block text-xs font-bold uppercase text-brand-muted mb-1">Role</label>
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
+              onChange={(e) => {
+                setRole(e.target.value as UserRole);
+                setError(null);
+                setSuccess(null);
+              }}
               className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none cursor-pointer"
             >
               <option value="GK_SIR">GK_SIR (Institution Leader)</option>
@@ -577,7 +629,11 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
               <label className="block text-xs font-bold uppercase text-brand-muted mb-1">Department</label>
               <select
                 value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
+                onChange={(e) => {
+                  setDepartmentId(e.target.value);
+                  setError(null);
+                  setSuccess(null);
+                }}
                 className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none cursor-pointer"
               >
                 {departments.map((dept) => (
@@ -596,7 +652,7 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
                 type="text"
                 required
                 value={rollNumber}
-                onChange={(e) => setRollNumber(e.target.value)}
+                onChange={handleFieldChange(setRollNumber)}
                 placeholder="21241A0501"
                 className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 text-sm text-brand-text uppercase focus:border-[#EAB308] focus:outline-none"
               />
@@ -607,7 +663,11 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
             <label className="block text-xs font-bold uppercase text-brand-muted mb-1">Account Status</label>
             <select
               value={status}
-              onChange={(e) => setStatus(e.target.value as AccountStatus)}
+              onChange={(e) => {
+                setStatus(e.target.value as AccountStatus);
+                setError(null);
+                setSuccess(null);
+              }}
               className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none cursor-pointer"
             >
               <option value="ACTIVE">ACTIVE (Immediate Access)</option>
@@ -620,9 +680,9 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
         <div className="rounded-xl border border-brand-border bg-brand-bg/40 p-5 space-y-4">
           <div className="flex items-center justify-between">
             <label className="text-xs font-bold uppercase text-brand-muted">
-              {role === UserRole.GK_SIR ? "Temporary Password Setup (Optional)" : "Temporary Password Setup"}
+              {isStaff ? "Temporary Password Setup (Optional)" : "Temporary Password Setup"}
             </label>
-            {role !== UserRole.GK_SIR && (
+            {!isStaff && (
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -636,9 +696,9 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
             )}
           </div>
 
-          {role === UserRole.GK_SIR && (
+          {!password && !confirmPassword && isStaff && (
             <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 p-3.5 text-xs text-amber-300">
-              Note: For GK_SIR accounts, password setup is handled via first-login activation. You may leave the password fields blank to automatically trigger a secure activation email.
+              A secure activation email will be sent for first-time password setup.
             </div>
           )}
 
@@ -646,10 +706,13 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
-                required={role !== UserRole.GK_SIR}
+                name="newAccountPassword"
+                id="newAccountPassword"
+                autoComplete="new-password"
+                required={!isStaff}
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder={role === UserRole.GK_SIR ? "Temporary Password (Optional)" : "Temporary Password (min 12 chars)"}
+                onChange={handleFieldChange(setPassword)}
+                placeholder={isStaff ? "Temporary Password (Optional)" : "Temporary Password (min 12 chars)"}
                 className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 pr-10 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none"
               />
               <button
@@ -664,10 +727,13 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
             <div>
               <input
                 type={showPassword ? "text" : "password"}
-                required={role !== UserRole.GK_SIR}
+                name="newAccountConfirmPassword"
+                id="newAccountConfirmPassword"
+                autoComplete="new-password"
+                required={!isStaff || !!password}
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder={role === UserRole.GK_SIR ? "Confirm Temporary Password (Optional)" : "Confirm Temporary Password"}
+                onChange={handleFieldChange(setConfirmPassword)}
+                placeholder={isStaff ? "Confirm Temporary Password (Optional)" : "Confirm Temporary Password"}
                 className="w-full rounded-lg border border-brand-border bg-brand-bg px-4 py-2.5 text-sm text-brand-text focus:border-[#EAB308] focus:outline-none"
               />
             </div>
@@ -690,7 +756,14 @@ function CreateAccountTab({ onAccountCreated }: { onAccountCreated: () => void }
           )}
         </div>
 
-        <div className="pt-4 border-t border-brand-border flex justify-end">
+        <div className="pt-4 border-t border-brand-border flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleResetForm}
+            className="rounded-lg bg-zinc-800 border border-zinc-700 px-6 py-3 text-xs font-bold uppercase tracking-wider text-zinc-300 hover:bg-zinc-700 hover:text-white cursor-pointer transition-all"
+          >
+            Reset Form
+          </button>
           <button
             type="submit"
             disabled={loading}

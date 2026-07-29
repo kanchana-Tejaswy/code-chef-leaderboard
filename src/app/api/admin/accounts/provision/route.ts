@@ -15,21 +15,31 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const {
-      fullName: rawFullName,
-      email: rawEmail,
+      fullName: rawFullNameLegacy,
+      email: rawEmailLegacy,
       role,
       departmentId,
       rollNumber: rawRollNumber,
-      password,
-      confirmPassword,
+      password: passwordLegacy,
+      confirmPassword: confirmPasswordLegacy,
       status: requestedStatus,
       adminConfirmation,
+      newAccountFullName,
+      newAccountEmail,
+      newAccountPassword,
+      newAccountConfirmPassword,
     } = body;
 
-    const isGkSir = role === UserRole.GK_SIR;
+    const rawFullName = newAccountFullName !== undefined ? newAccountFullName : rawFullNameLegacy;
+    const rawEmail = newAccountEmail !== undefined ? newAccountEmail : rawEmailLegacy;
+    const password = newAccountPassword !== undefined ? newAccountPassword : passwordLegacy;
+    const confirmPassword = newAccountConfirmPassword !== undefined ? newAccountConfirmPassword : confirmPasswordLegacy;
+
+    const isStaff = role === UserRole.ADMIN || role === UserRole.GK_SIR || role === UserRole.HOD;
+    const useActivationFlow = isStaff && !password;
 
     // 1. Basic Required Fields
-    if (!rawEmail || !role || (!password && !isGkSir)) {
+    if (!rawEmail || !role || (!password && !isStaff)) {
       return NextResponse.json(
         { success: false, error: "Email, role, and temporary password are required." },
         { status: 400, headers: { "Cache-Control": "private, no-store" } }
@@ -63,12 +73,12 @@ export async function POST(request: NextRequest) {
     }
 
     let passwordToUse = password;
-    if (isGkSir && !passwordToUse) {
-      passwordToUse = "GKTempPass#" + Math.random().toString(36).slice(-8) + "2026!";
+    if (useActivationFlow) {
+      passwordToUse = "StaffTempPass#" + Math.random().toString(36).slice(-8) + "2026!";
     }
 
     // 4. Password Policy Validation
-    if (!isGkSir || password) {
+    if (!useActivationFlow) {
       const pwdValidation = validateAdminPassword(passwordToUse);
       if (!pwdValidation.valid) {
         return NextResponse.json(
@@ -162,26 +172,10 @@ export async function POST(request: NextRequest) {
     );
 
     if (existingUserAccess || existingAuthUser) {
-      if (existingAuthUser && !existingUserAccess) {
-        return NextResponse.json(
-          {
-            success: false,
-            errorCode: "AUTH_EXISTS_NO_ACCESS",
-            error: "Authentication account exists but application access is missing.",
-            data: { authUserId: existingAuthUser.id, email }
-          },
-          { status: 409, headers: { "Cache-Control": "private, no-store" } }
-        );
-      }
-
       return NextResponse.json(
         {
           success: false,
-          error: `An account with email or login ID "${email}" already exists.`,
-          data: {
-            userAccessId: existingUserAccess?.id,
-            authUserId: existingUserAccess?.authUserId || existingAuthUser?.id
-          }
+          error: "An account already exists with this email address."
         },
         { status: 409, headers: { "Cache-Control": "private, no-store" } }
       );
@@ -211,14 +205,14 @@ export async function POST(request: NextRequest) {
           email,
           loginId,
           role,
-          status: isGkSir ? AccountStatus.PENDING : accountStatus,
+          status: useActivationFlow ? AccountStatus.PENDING : accountStatus,
           departmentId: deptIdToUse,
           studentProfileId,
-          mustSetPassword: isGkSir ? true : false,
-          firstLoginCompleted: isGkSir ? false : true,
+          mustSetPassword: useActivationFlow ? true : false,
+          firstLoginCompleted: useActivationFlow ? false : true,
           approvedAt: new Date(),
           approvedBy: adminSession.authUserId || undefined,
-          passwordSetAt: isGkSir ? null : new Date(),
+          passwordSetAt: useActivationFlow ? null : new Date(),
         }
       });
 
@@ -258,26 +252,26 @@ export async function POST(request: NextRequest) {
         metadata: {
           email,
           role,
-          status: isGkSir ? AccountStatus.PENDING : accountStatus,
+          status: useActivationFlow ? AccountStatus.PENDING : accountStatus,
           loginId,
           departmentId: deptIdToUse
         }
       });
 
-      if (isGkSir) {
+      if (useActivationFlow) {
         const { error: resetLinkError } = await supabaseAdmin.auth.admin.generateLink({
           type: "recovery",
           email,
         });
         if (resetLinkError) {
-          console.error("Failed to generate first-login link for GK Sir:", resetLinkError);
+          console.error(`Failed to generate first-login link for ${email}:`, resetLinkError);
         }
       }
 
       return NextResponse.json(
         {
           success: true,
-          message: isGkSir 
+          message: useActivationFlow 
             ? `Account successfully provisioned for ${email}. Secure activation link has been sent.`
             : `Account successfully provisioned for ${email}.`,
           data: {
@@ -285,7 +279,7 @@ export async function POST(request: NextRequest) {
             authUserId: newAuthUserId,
             loginId,
             role,
-            status: isGkSir ? AccountStatus.PENDING : accountStatus
+            status: useActivationFlow ? AccountStatus.PENDING : accountStatus
           }
         },
         { status: 201, headers: { "Cache-Control": "private, no-store" } }
