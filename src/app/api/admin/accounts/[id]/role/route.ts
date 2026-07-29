@@ -51,7 +51,7 @@ export async function PATCH(
     });
 
     await recordAuditEvent({
-      actorUserId: adminSession.authUserId,
+      actorUserId: adminSession.id,
       action: AuditAction.ROLE_CHANGED,
       targetType: "UserAccess",
       targetId: id,

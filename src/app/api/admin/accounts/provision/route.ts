@@ -251,7 +251,7 @@ export async function POST(request: NextRequest) {
           : AuditAction.STAFF_ACCOUNT_PROVISIONED;
 
       await recordAuditEvent({
-        actorUserId: adminSession.authUserId,
+        actorUserId: adminSession.id,
         action: auditAction,
         targetType: "UserAccess",
         targetId: createdUserAccess.id,

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     }
 
     await recordAuditEvent({
-      actorUserId: adminSession.authUserId,
+      actorUserId: adminSession.id,
       action: AuditAction.STAFF_PROVISION_REQUESTED,
       metadata: { email: normalizedEmail, role, departmentId }
     });

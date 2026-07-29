@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     }
 
     await recordAuditEvent({
-      actorUserId: adminSession.authUserId,
+      actorUserId: adminSession.id,
       action: AuditAction.STUDENT_PROVISION_BATCH_STARTED,
       metadata: { targetCount: targetIds.length }
     });
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     }
 
     await recordAuditEvent({
-      actorUserId: adminSession.authUserId,
+      actorUserId: adminSession.id,
       action: AuditAction.STUDENT_PROVISION_BATCH_COMPLETED,
       metadata: { summary }
     });

@@ -1,13 +1,14 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireRole } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { BulkSyncService } from "@/services/bulkSync.service";
+import { UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: NextRequest) {
   try {
-    await requireAdmin();
+    await requireRole(UserRole.ADMIN, UserRole.GK_SIR);
 
     const { searchParams } = new URL(request.url);
     const search = searchParams.get("search") || "";

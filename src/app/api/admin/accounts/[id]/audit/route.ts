@@ -27,6 +27,7 @@ export async function GET(
       where: {
         OR: [
           { targetId: id },
+          { actorUserId: id },
           { actorUserId: account.authUserId },
           { metadata: { path: ["email"], equals: account.email } }
         ]

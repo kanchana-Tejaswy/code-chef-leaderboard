@@ -111,7 +111,7 @@ export async function GET(request: NextRequest) {
 
     if (search || role || status) {
       await recordAuditEvent({
-        actorUserId: adminSession.authUserId,
+        actorUserId: adminSession.id,
         action: AuditAction.ACCESS_ACCOUNT_VIEWED,
         metadata: { search, role, status, departmentId, page, limit }
       });

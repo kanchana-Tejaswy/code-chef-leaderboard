@@ -88,7 +88,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     await recordAuditEvent({
-      actorUserId: adminAccess.authUserId,
+      actorUserId: adminAccess.id,
       action: AuditAction.PROFILE_UPDATED,
       targetType: "UserAccess",
       targetId: adminAccess.id,

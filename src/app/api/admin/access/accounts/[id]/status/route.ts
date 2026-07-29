@@ -25,7 +25,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     if (targetAccount.authUserId === adminSession.authUserId || targetAccount.id === adminSession.id) {
       await recordAuditEvent({
-        actorUserId: adminSession.authUserId,
+        actorUserId: adminSession.id,
         action: AuditAction.ACCOUNT_STATUS_CHANGE_REJECTED,
         targetType: "UserAccess",
         targetId: id,
@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
       if (activeAdmins <= 1 && targetAccount.status !== AccountStatus.SUSPENDED && targetAccount.status !== AccountStatus.DISABLED) {
         await recordAuditEvent({
-          actorUserId: adminSession.authUserId,
+          actorUserId: adminSession.id,
           action: AuditAction.ACCOUNT_STATUS_CHANGE_REJECTED,
           targetType: "UserAccess",
           targetId: id,
@@ -93,7 +93,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (newStatus === "RESTORE") action = AuditAction.ACCOUNT_RESTORED;
 
     await recordAuditEvent({
-      actorUserId: adminSession.authUserId,
+      actorUserId: adminSession.id,
       action,
       targetType: "UserAccess",
       targetId: id,

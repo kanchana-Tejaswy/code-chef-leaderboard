@@ -43,7 +43,7 @@ export async function POST(
     }
 
     await recordAuditEvent({
-      actorUserId: adminSession.authUserId,
+      actorUserId: adminSession.id,
       action: AuditAction.PASSWORD_RESET_SENT,
       targetType: "UserAccess",
       targetId: id,

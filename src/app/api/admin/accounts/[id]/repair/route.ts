@@ -65,7 +65,7 @@ export async function POST(
     });
 
     await recordAuditEvent({
-      actorUserId: adminSession.authUserId,
+      actorUserId: adminSession.id,
       action: AuditAction.ACCOUNT_REPAIRED,
       targetType: "UserAccess",
       targetId: id,
