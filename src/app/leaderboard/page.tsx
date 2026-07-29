@@ -659,7 +659,7 @@ function LeaderboardContent() {
       {podiumEntries.length >= 3 && <Podium top3={podiumEntries} />}
 
       {/* Segmented Platform Filters */}
-      <div className="relative z-10 w-full max-w-md rounded-2xl border border-brand-border bg-[#111111]/45 p-1">
+      <div className="relative z-10 w-full max-w-md rounded-2xl border border-slate-200 bg-slate-100/80 p-1 dark:border-brand-border dark:bg-[#111111]/45">
         <div className="grid grid-cols-3 gap-1">
           {platformTabs.map((tab) => {
             const active = activeTab === tab.value;
@@ -671,8 +671,8 @@ function LeaderboardContent() {
                 }}
                 className={`min-h-[44px] rounded-xl px-2 py-2 text-center text-[10px] font-black uppercase tracking-wider transition-all sm:text-xs ${
                   active
-                    ? "border border-[#EAB308]/30 bg-[#EAB308]/20 text-[#EAB308]"
-                    : "border border-transparent text-brand-muted hover:text-brand-text"
+                    ? "border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
+                    : "border border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 dark:text-brand-muted dark:hover:text-brand-text dark:hover:bg-transparent"
                 }`}
               >
                 {tab.name}
@@ -714,8 +714,8 @@ function LeaderboardContent() {
                     onClick={() => toggleDept(dept)}
                     className={`min-h-[40px] rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all ${
                       active
-                        ? "border-[#EAB308]/30 bg-[#EAB308]/20 text-[#EAB308]"
-                        : "border-zinc-900 bg-zinc-950/40 text-zinc-455 hover:text-zinc-200"
+                        ? "border-amber-500/30 bg-amber-500/10 text-amber-900 dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:border-zinc-900 dark:bg-zinc-950/40 dark:text-zinc-455 dark:hover:text-zinc-200"
                     }`}
                   >
                     {dept}
@@ -739,8 +739,8 @@ function LeaderboardContent() {
                     onClick={() => toggleYear(year)}
                     className={`min-h-[40px] rounded-lg border py-1 text-center text-xs font-semibold transition-all ${
                       active
-                        ? "border-[#EAB308]/30 bg-[#EAB308]/20 text-[#EAB308]"
-                        : "border-zinc-900 bg-zinc-950/40 text-brand-muted hover:text-zinc-200"
+                        ? "border-amber-500/30 bg-amber-500/10 text-amber-900 dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:border-zinc-900 dark:bg-zinc-950/40 dark:text-brand-muted dark:hover:text-zinc-200"
                     }`}
                   >
                     {year}Y
@@ -1133,12 +1133,15 @@ function LeaderboardContent() {
                           <>
                             {/* Dept & Year */}
                             <td className="py-4 px-4">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-semibold text-zinc-300">
+                              <div className="flex items-center gap-3">
+                                <span className="text-xs font-semibold text-slate-800 dark:text-zinc-300">
                                   {entry.student.department}
                                 </span>
-                                <span className="text-[10px] font-bold text-brand-muted border border-brand-border bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase">
+                                <span className="text-[10px] font-bold text-brand-muted border border-brand-border bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase hidden dark:inline-block">
                                   {entry.student.year} Yr
+                                </span>
+                                <span className="text-[10px] font-bold text-slate-700 border border-slate-200 bg-slate-100 px-1.5 py-0.5 rounded-full uppercase inline-block dark:hidden">
+                                  {entry.student.year}YR
                                 </span>
                               </div>
                             </td>
