@@ -32,7 +32,7 @@ export default function ContestPlatformCard({
   return (
     <Link href={href} className="block w-full min-w-0 no-underline">
       <MotionDiv
-        className="relative flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-[#262626] bg-card/30 p-4 shadow-[0_4px_12px_rgba(0,0,0,0.4)] backdrop-blur-xl transition-all duration-200 overflow-hidden cursor-pointer sm:p-6"
+        className="relative flex w-full min-w-0 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-4 shadow-[0_4px_12px_rgba(15,23,42,0.05)] backdrop-blur-xl transition-all duration-200 overflow-hidden cursor-pointer dark:border-[#262626] dark:bg-card/30 dark:shadow-[0_4px_12px_rgba(0,0,0,0.4)] sm:p-6"
         whileHover={{ scale: 1.03 }}
         whileTap={{ scale: 0.98 }}
       >
@@ -41,9 +41,9 @@ export default function ContestPlatformCard({
         <div className="relative z-10 flex w-full min-w-0 flex-col items-center gap-2 text-center sm:gap-3">
           <MotionDiv className="flex min-w-0 items-center justify-center gap-2 text-2xl sm:text-3xl" whileHover={{ rotate: 5 }}>
             {icon}
-            <span className="text-base font-bold text-white sm:text-lg">{title}</span>
+            <span className="text-base font-bold text-slate-900 dark:text-white sm:text-lg">{title}</span>
           </MotionDiv>
-          <p className="text-sm text-[#A3A3A3] text-center break-words">{description}</p>
+          <p className="text-sm text-slate-500 dark:text-[#A3A3A3] text-center break-words">{description}</p>
         </div>
         {/* Hover glow effect */}
         <MotionSpan

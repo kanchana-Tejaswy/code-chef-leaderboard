@@ -174,10 +174,10 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
           </Link>
           <span className="mb-3 text-[9px] font-bold text-brand-muted">{second.student.rollNumber}</span>
           <div className="flex h-24 w-full max-w-[12rem] flex-col items-center justify-center rounded-t-2xl border border-zinc-800/40 bg-gradient-to-t from-zinc-950/80 to-zinc-900/30 shadow-[0_-4px_30px_rgba(0,0,0,0.4)] sm:h-28">
-            <span className="mb-1 text-3xl font-black text-zinc-650">2</span>
+            <span className="mb-1 text-3xl font-black text-zinc-500">2</span>
             <div className="flex flex-col items-center">
               <span className="text-xs font-extrabold text-zinc-300">{second.overallScore}</span>
-              <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-550">Score</span>
+              <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500">Score</span>
             </div>
           </div>
         </div>
@@ -191,7 +191,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
                 <span className="text-lg font-extrabold text-amber-600 sm:text-xl">{getInitials(third.student.name)}</span>
               )}
             </div>
-            <span className="absolute -bottom-2 rounded-full border border-amber-850/20 bg-amber-950/20 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-600">
+            <span className="absolute -bottom-2 rounded-full border border-amber-700/20 bg-amber-950/20 px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-amber-600">
               3rd Place
             </span>
           </div>
@@ -203,7 +203,7 @@ function Podium({ top3 }: { top3: LeaderboardEntry[] }) {
             <span className="mb-1 text-3xl font-black text-amber-700/60">3</span>
             <div className="flex flex-col items-center">
               <span className="text-xs font-extrabold text-zinc-300">{third.overallScore}</span>
-              <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-550">Score</span>
+              <span className="text-[8px] font-bold uppercase tracking-widest text-zinc-500">Score</span>
             </div>
           </div>
         </div>
@@ -591,8 +591,8 @@ function LeaderboardContent() {
               <Trophy className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl">ACE Leaderboard</h1>
-              <p className="mt-1 text-sm text-brand-muted">Real-time student placement readiness rankings across CodeChef and LeetCode</p>
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">ACE Leaderboard</h1>
+              <p className="mt-1 text-sm text-slate-600 dark:text-brand-muted">Real-time student placement readiness rankings across CodeChef and LeetCode</p>
             </div>
           </div>
 
@@ -648,7 +648,7 @@ function LeaderboardContent() {
         <a
           href={getExportUrl()}
           download
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-brand-border bg-zinc-900 px-4 py-2.5 text-sm font-bold text-zinc-100 shadow-[0_1px_10px_rgba(0,0,0,0.4)] transition-all hover:border-[#EAB308]/30 hover:text-white sm:w-auto"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 shadow-[0_1px_10px_rgba(0,0,0,0.05)] transition-all hover:border-amber-500/30 hover:text-amber-600 dark:border-brand-border dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_1px_10px_rgba(0,0,0,0.4)] dark:hover:text-white sm:w-auto"
         >
           <Download className="h-4 w-4" />
           Export Standings
@@ -671,8 +671,8 @@ function LeaderboardContent() {
                 }}
                 className={`min-h-[44px] rounded-xl px-2 py-2 text-center text-[10px] font-black uppercase tracking-wider transition-all sm:text-xs ${
                   active
-                    ? "border border-amber-500/30 bg-amber-500/10 text-amber-900 dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
-                    : "border border-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 dark:text-brand-muted dark:hover:text-brand-text dark:hover:bg-transparent"
+                    ? "bg-[#EAB308] text-slate-950 shadow-sm border border-[#EAB308] dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
+                    : "border border-transparent text-slate-700 hover:text-slate-900 hover:bg-slate-200/50 dark:text-brand-muted dark:hover:text-brand-text dark:hover:bg-transparent"
                 }`}
               >
                 {tab.name}
@@ -686,15 +686,15 @@ function LeaderboardContent() {
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-4 lg:gap-8">
         
         {/* Filters Sidebar */}
-        <div className="glass-card flex flex-col gap-4 rounded-2xl p-4 sm:p-6 lg:sticky lg:top-20">
+        <div className="bg-white border border-slate-200 shadow-sm dark:glass-card dark:border-none flex flex-col gap-4 rounded-2xl p-4 sm:p-6 lg:sticky lg:top-20">
           <div className="flex items-center justify-between gap-2">
-            <span className="flex items-center gap-2 text-sm font-bold text-white">
+            <span className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
               <Filter className="h-4 w-4 text-[#EAB308]" />
               Filters
             </span>
             <button
               onClick={clearFilters}
-              className="rounded-lg border border-brand-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-zinc-400 transition-colors hover:text-[#EAB308]"
+              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-600 transition-colors hover:text-amber-600 dark:border-brand-border dark:bg-transparent dark:text-zinc-400 dark:hover:text-[#EAB308]"
             >
               Clear All
             </button>
@@ -714,8 +714,8 @@ function LeaderboardContent() {
                     onClick={() => toggleDept(dept)}
                     className={`min-h-[40px] rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all ${
                       active
-                        ? "border-amber-500/30 bg-amber-500/10 text-amber-900 dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
-                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:border-zinc-900 dark:bg-zinc-950/40 dark:text-zinc-455 dark:hover:text-zinc-200"
+                        ? "bg-[#EAB308] text-slate-950 border-[#EAB308] font-bold dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
+                        : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:border-zinc-900 dark:bg-zinc-950/40 dark:text-zinc-400 dark:hover:text-zinc-200"
                     }`}
                   >
                     {dept}
@@ -739,7 +739,7 @@ function LeaderboardContent() {
                     onClick={() => toggleYear(year)}
                     className={`min-h-[40px] rounded-lg border py-1 text-center text-xs font-semibold transition-all ${
                       active
-                        ? "border-amber-500/30 bg-amber-500/10 text-amber-900 dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
+                        ? "bg-[#EAB308] text-slate-950 border-[#EAB308] font-bold dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:border-zinc-900 dark:bg-zinc-950/40 dark:text-brand-muted dark:hover:text-zinc-200"
                     }`}
                   >
@@ -767,8 +767,8 @@ function LeaderboardContent() {
                         onClick={() => toggleStars(star)}
                         className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1 transition-all ${
                           active
-                            ? "bg-[#EAB308]/20 text-[#EAB308] border-[#EAB308]/30"
-                            : "bg-zinc-950/40 border-zinc-900 text-brand-muted hover:text-zinc-200"
+                            ? "bg-[#EAB308] text-slate-950 border-[#EAB308] font-bold dark:bg-[#EAB308]/20 dark:text-[#EAB308] dark:border-[#EAB308]/30"
+                            : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:bg-zinc-950/40 dark:border-zinc-900 dark:text-brand-muted dark:hover:text-zinc-200"
                         }`}
                       >
                         <span>{star}</span>
@@ -790,7 +790,7 @@ function LeaderboardContent() {
                     value={ccRatingMin}
                     onChange={(e) => { setCcRatingMin(e.target.value); setPage(1); }}
                     placeholder="Min"
-                    className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500/50 dark:border-brand-border dark:bg-zinc-950/40 dark:text-white dark:placeholder-zinc-500 dark:focus:border-[#EAB308]/50"
                   />
                   <span className="text-zinc-600 text-xs">-</span>
                   <input
@@ -798,7 +798,7 @@ function LeaderboardContent() {
                     value={ccRatingMax}
                     onChange={(e) => { setCcRatingMax(e.target.value); setPage(1); }}
                     placeholder="Max"
-                    className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500/50 dark:border-brand-border dark:bg-zinc-950/40 dark:text-white dark:placeholder-zinc-500 dark:focus:border-[#EAB308]/50"
                   />
                 </div>
               </div>
@@ -813,7 +813,7 @@ function LeaderboardContent() {
                   value={ccContestsMin}
                   onChange={(e) => { setCcContestsMin(e.target.value); setPage(1); }}
                   placeholder="Min contests"
-                  className="w-full px-3 py-1.5 rounded-lg border border-brand-border bg-zinc-950/40 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500/50 dark:border-brand-border dark:bg-zinc-950/40 dark:text-white dark:placeholder-zinc-500 dark:focus:border-[#EAB308]/50"
                 />
               </div>
             </div>
@@ -833,15 +833,15 @@ function LeaderboardContent() {
                     value={lcRatingMin}
                     onChange={(e) => { setLcRatingMin(e.target.value); setPage(1); }}
                     placeholder="Min"
-                    className="w-full rounded-lg border border-brand-border bg-zinc-950/40 px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500/50 dark:border-brand-border dark:bg-zinc-950/40 dark:text-white dark:placeholder-zinc-500 dark:focus:border-[#EAB308]/50"
                   />
-                  <span className="hidden text-xs text-zinc-650 sm:block">-</span>
+                  <span className="hidden text-xs text-slate-400 dark:text-zinc-500 sm:block">-</span>
                   <input
                     type="number"
                     value={lcRatingMax}
                     onChange={(e) => { setLcRatingMax(e.target.value); setPage(1); }}
                     placeholder="Max"
-                    className="w-full rounded-lg border border-brand-border bg-zinc-950/40 px-3 py-2 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50"
+                    className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500/50 dark:border-brand-border dark:bg-zinc-950/40 dark:text-white dark:placeholder-zinc-500 dark:focus:border-[#EAB308]/50"
                   />
                 </div>
               </div>
@@ -853,33 +853,33 @@ function LeaderboardContent() {
                 </span>
                 <div className="flex flex-col gap-2.5">
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-extrabold uppercase text-emerald-400">Easy</span>
+                    <span className="text-[10px] font-extrabold uppercase text-emerald-600 dark:text-emerald-400">Easy</span>
                     <input
                       type="number"
                       value={lcEasyMin}
                       onChange={(e) => { setLcEasyMin(e.target.value); setPage(1); }}
                       placeholder="0"
-                      className="w-20 rounded-lg border border-brand-border bg-zinc-950/40 px-3 py-2 text-right text-xs text-white focus:outline-none focus:border-emerald-400/50"
+                      className="w-20 rounded-lg border border-slate-200 bg-white px-3 py-2 text-right text-xs text-slate-900 focus:outline-none focus:border-emerald-500/50 dark:border-brand-border dark:bg-zinc-950/40 dark:text-white dark:focus:border-emerald-400/50"
                     />
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-extrabold uppercase text-amber-500">Medium</span>
+                    <span className="text-[10px] font-extrabold uppercase text-amber-600 dark:text-amber-500">Medium</span>
                     <input
                       type="number"
                       value={lcMediumMin}
                       onChange={(e) => { setLcMediumMin(e.target.value); setPage(1); }}
                       placeholder="0"
-                      className="w-20 rounded-lg border border-brand-border bg-zinc-950/40 px-3 py-2 text-right text-xs text-white focus:outline-none focus:border-amber-500/50"
+                      className="w-20 rounded-lg border border-slate-200 bg-white px-3 py-2 text-right text-xs text-slate-900 focus:outline-none focus:border-amber-500/50 dark:border-brand-border dark:bg-zinc-950/40 dark:text-white dark:focus:border-amber-500/50"
                     />
                   </div>
                   <div className="flex items-center justify-between gap-3">
-                    <span className="text-[10px] font-extrabold uppercase text-red-500">Hard</span>
+                    <span className="text-[10px] font-extrabold uppercase text-red-600 dark:text-red-500">Hard</span>
                     <input
                       type="number"
                       value={lcHardMin}
                       onChange={(e) => { setLcHardMin(e.target.value); setPage(1); }}
                       placeholder="0"
-                      className="w-20 rounded-lg border border-brand-border bg-zinc-950/40 px-3 py-2 text-right text-xs text-white focus:outline-none focus:border-red-500/50"
+                      className="w-20 rounded-lg border border-slate-200 bg-white px-3 py-2 text-right text-xs text-slate-900 focus:outline-none focus:border-red-500/50 dark:border-brand-border dark:bg-zinc-950/40 dark:text-white dark:focus:border-red-500/50"
                     />
                   </div>
                 </div>
@@ -904,16 +904,16 @@ function LeaderboardContent() {
                 setPage(1);
               }}
               placeholder="Search by student name or roll number..."
-              className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-brand-border bg-brand-bg/50 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-[#EAB308]/50 focus:ring-1 focus:ring-[#EAB308]/20 transition-all duration-200"
+              className="w-full pl-11 pr-4 py-3.5 rounded-2xl border border-slate-200 bg-white text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/20 dark:border-brand-border dark:bg-brand-bg/50 dark:text-white dark:placeholder-zinc-500 dark:focus:border-[#EAB308]/50 dark:focus:ring-[#EAB308]/20 transition-all duration-200"
             />
           </div>
 
           {/* Standings Table Card */}
-          <div className="glass-card overflow-hidden rounded-3xl border border-brand-border shadow-xl">
+          <div className="bg-white border border-slate-200 shadow-xl dark:glass-card dark:border-brand-border overflow-hidden rounded-3xl">
             <div className="overflow-x-auto">
               <table className="min-w-[760px] w-full border-collapse text-left sm:min-w-0">
                 <thead>
-                  <tr className="border-b border-brand-border bg-zinc-950/40 text-[10px] font-bold text-zinc-500 uppercase tracking-widest">
+                  <tr className="border-b border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-widest dark:border-brand-border dark:bg-zinc-950/40 dark:text-zinc-500">
                     <th className="py-4.5 px-4 text-center w-20 select-none font-black">
                       {activeTab === "overall" ? "Overall Rank" : activeTab === "codechef" ? "CodeChef Rank" : "LeetCode Rank"}
                     </th>
@@ -921,36 +921,36 @@ function LeaderboardContent() {
                     {activeTab === "overall" && (
                       <>
                         <th className="py-4.5 px-4 select-none">Department & Year</th>
-                        <th onClick={() => handleSort("overallScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("overallScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Overall Score {renderSortIcon("overallScore")}
                         </th>
-                        <th onClick={() => handleSort("talentScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("talentScore")} className="py-4.5 px-4 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           AI Unified Score {renderSortIcon("talentScore")}
                         </th>
                       </>
                     )}
                     {activeTab === "codechef" && (
                       <>
-                        <th onClick={() => handleSort("ccRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("ccRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Current Rating {renderSortIcon("ccRating")}
                         </th>
-                        <th onClick={() => handleSort("ccHighestRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("ccHighestRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Highest Rating {renderSortIcon("ccHighestRating")}
                         </th>
-                        <th onClick={() => handleSort("stars")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("stars")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Stars {renderSortIcon("stars")}
                         </th>
-                        <th onClick={() => handleSort("ccGlobalRank")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("ccGlobalRank")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Global Rank {renderSortIcon("ccGlobalRank")}
                         </th>
                         <th className="py-4.5 px-3 text-center select-none">Country Rank</th>
-                        <th onClick={() => handleSort("ccContests")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("ccContests")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Contests {renderSortIcon("ccContests")}
                         </th>
-                        <th onClick={() => handleSort("ccRatingGrowth")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("ccRatingGrowth")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Growth {renderSortIcon("ccRatingGrowth")}
                         </th>
-                        <th onClick={() => handleSort("codechefScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("codechefScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Competitive Score {renderSortIcon("codechefScore")}
                         </th>
                         <th className="py-4.5 px-3 text-center select-none">Last Active</th>
@@ -958,19 +958,19 @@ function LeaderboardContent() {
                     )}
                     {activeTab === "leetcode" && (
                       <>
-                        <th onClick={() => handleSort("lcSolved")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("lcSolved")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Total Solved {renderSortIcon("lcSolved")}
                         </th>
                         <th className="py-4.5 px-3 text-center select-none">Easy</th>
                         <th className="py-4.5 px-3 text-center select-none">Medium</th>
                         <th className="py-4.5 px-3 text-center select-none">Hard</th>
-                        <th onClick={() => handleSort("lcRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("lcRating")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Contest Rating {renderSortIcon("lcRating")}
                         </th>
-                        <th onClick={() => handleSort("lcRank")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("lcRank")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           Contest Rank {renderSortIcon("lcRank")}
                         </th>
-                        <th onClick={() => handleSort("leetcodeScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-white transition-colors">
+                        <th onClick={() => handleSort("leetcodeScore")} className="py-4.5 px-3 text-center cursor-pointer select-none hover:text-slate-900 dark:hover:text-white transition-colors">
                           LeetCode Score {renderSortIcon("leetcodeScore")}
                         </th>
                         <th className="py-4.5 px-3 text-center select-none">Trend</th>
@@ -979,7 +979,7 @@ function LeaderboardContent() {
                     <th className="py-4.5 px-6 text-center w-24 select-none">{activeTab === "leetcode" ? "View Profile" : "Portfolio"}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#262626]/50">
+                <tbody className="divide-y divide-slate-200/60 dark:divide-[#262626]/50">
                   {isLoading ? (
                     <tr>
                       <td colSpan={getColSpan()} className="py-24 text-center">
@@ -1032,7 +1032,7 @@ function LeaderboardContent() {
                       return (
                         <tr
                           key={entry.id}
-                          className="hover:bg-white/[0.01] transition-all group"
+                          className="hover:bg-slate-50 dark:hover:bg-white/[0.01] transition-all group"
                         >
                           {/* Rank */}
                           <td className="py-4 px-6 text-center font-extrabold text-sm text-brand-muted">
@@ -1042,7 +1042,7 @@ function LeaderboardContent() {
                         {/* Student Info */}
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-brand-border bg-zinc-950">
+                            <div className="h-8 w-8 flex shrink-0 items-center justify-center overflow-hidden rounded-full border border-slate-200 bg-slate-50 dark:border-brand-border dark:bg-zinc-950">
                               {entry.student.profilePictureUrl ? (
                                 <img src={entry.student.profilePictureUrl} alt={entry.student.name} className="h-full w-full object-cover" />
                               ) : (
@@ -1058,7 +1058,7 @@ function LeaderboardContent() {
                                     type="text"
                                     value={editingName}
                                     onChange={(e) => setEditingName(e.target.value)}
-                                    className="px-2 py-0.5 rounded border border-brand-border bg-zinc-950 text-xs font-bold text-white focus:outline-none focus:border-[#EAB308]/50 w-36"
+                                    className="px-2 py-0.5 rounded border border-slate-200 bg-white text-xs font-bold text-slate-900 focus:outline-none focus:border-amber-500/50 dark:border-brand-border dark:bg-zinc-950 dark:text-white dark:focus:border-[#EAB308]/50 w-36"
                                     autoFocus
                                     disabled={isSavingName}
                                     onKeyDown={(e) => {
@@ -1069,7 +1069,7 @@ function LeaderboardContent() {
                                   <button
                                     onClick={() => handleSaveName(entry.student.id)}
                                     disabled={isSavingName}
-                                    className="p-1 text-emerald-400 hover:text-emerald-300 disabled:opacity-40"
+                                    className="p-1 text-emerald-450 hover:text-emerald-400 disabled:opacity-40"
                                     title="Save"
                                   >
                                     {isSavingName ? (
@@ -1089,7 +1089,7 @@ function LeaderboardContent() {
                                 </div>
                               ) : (
                                 <div className="flex items-center gap-1.5 group/name">
-                                  <span className="text-sm font-bold text-white group-hover:text-[#EAB308] transition-colors">
+                                  <span className="text-sm font-bold text-slate-900 group-hover:text-amber-600 dark:text-white dark:group-hover:text-[#EAB308] transition-colors">
                                     {entry.student.name}
                                   </span>
                                   <button
@@ -1097,7 +1097,7 @@ function LeaderboardContent() {
                                       setEditingStudentId(entry.student.id);
                                       setEditingName(entry.student.name);
                                     }}
-                                    className="opacity-0 group-hover/name:opacity-100 p-0.5 text-zinc-500 hover:text-[#EAB308] transition-all"
+                                    className="opacity-0 group-hover/name:opacity-100 p-0.5 text-zinc-550 hover:text-[#EAB308] transition-all"
                                     title="Edit student name"
                                   >
                                     <Edit2 className="h-3 w-3" />
@@ -1105,21 +1105,21 @@ function LeaderboardContent() {
                                 </div>
                               )}
                               <div className="flex items-center gap-1.5 mt-0.5">
-                                <span className="text-[10px] text-brand-muted font-semibold tracking-wider">
+                                <span className="text-[10px] text-slate-500 dark:text-brand-muted font-semibold tracking-wider">
                                   {entry.student.rollNumber}
                                 </span>
                                 {entry.student.verificationStatus === "PARTIAL" && (
-                                  <span className="text-[8px] bg-yellow-500/10 border border-yellow-500/20 text-yellow-400 font-bold px-1 rounded">
+                                  <span className="text-[8px] bg-yellow-500/10 border border-yellow-500/20 text-yellow-500 dark:text-yellow-400 font-bold px-1 rounded">
                                     Partial
                                   </span>
                                 )}
                                 {entry.student.verificationStatus === "UNABLE_TO_VERIFY" && (
-                                  <span className="text-[8px] bg-red-500/10 border border-red-500/20 text-red-400 font-bold px-1 rounded animate-pulse">
+                                  <span className="text-[8px] bg-red-500/10 border border-red-500/20 text-red-500 dark:text-red-400 font-bold px-1 rounded animate-pulse">
                                     Profile Pending
                                   </span>
                                 )}
                                 {entry.student.verificationStatus !== "UNABLE_TO_VERIFY" && entry.rank === 0 && (
-                                  <span className="text-[8px] bg-zinc-500/10 border border-zinc-500/20 text-zinc-400 font-bold px-1 rounded">
+                                  <span className="text-[8px] bg-zinc-500/10 border border-zinc-500/20 text-zinc-500 dark:text-zinc-400 font-bold px-1 rounded">
                                     Sync Pending
                                   </span>
                                 )}
@@ -1150,7 +1150,7 @@ function LeaderboardContent() {
                               {entry.overallScore}
                             </td>
 
-                            <td className="py-4 px-4 text-center font-extrabold text-sm text-zinc-300">
+                            <td className="py-4 px-4 text-center font-extrabold text-sm text-slate-700 dark:text-zinc-300">
                               {entry.talentScore}
                             </td>
                           </>
@@ -1163,31 +1163,31 @@ function LeaderboardContent() {
                             : null;
                           return (
                             <>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                              <td className="py-4 px-3 text-center text-xs font-bold text-slate-800 dark:text-white">
                                 {cc ? displayMetric(cc.currentRating) : notLinkedLabel}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                              <td className="py-4 px-3 text-center text-xs font-bold text-slate-800 dark:text-white">
                                 {cc ? displayMetric(cc.highestRating) : notLinkedLabel}
                               </td>
                               <td className="py-4 px-3 text-center text-xs font-bold text-[#EAB308]">
                                 {cc && cc.stars != null ? `${cc.stars}★` : notLinkedLabel}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                              <td className="py-4 px-3 text-center text-xs font-bold text-slate-800 dark:text-white">
                                 {cc && cc.globalRank != null ? `#${cc.globalRank}` : notLinkedLabel}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                              <td className="py-4 px-3 text-center text-xs font-bold text-slate-800 dark:text-white">
                                 {cc && cc.countryRank != null ? `#${cc.countryRank}` : notLinkedLabel}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                              <td className="py-4 px-3 text-center text-xs font-bold text-slate-800 dark:text-white">
                                 {cc ? displayMetric(cc.contestCount) : notLinkedLabel}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                              <td className="py-4 px-3 text-center text-xs font-bold text-slate-800 dark:text-white">
                                 {ratingGrowth != null ? `+${ratingGrowth}` : notLinkedLabel}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
+                              <td className="py-4 px-3 text-center text-xs font-black text-purple-650 dark:text-purple-400">
                                 {cc ? displayMetric(entry.codechefScore) : notLinkedLabel}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                              <td className="py-4 px-3 text-center text-xs font-bold text-slate-800 dark:text-white">
                                 {cc ? displayDate(cc.lastActive) : notLinkedLabel}
                               </td>
                             </>
@@ -1199,25 +1199,25 @@ function LeaderboardContent() {
                           const contestCount = getJsonArrayLength(lc?.contestHistory);
                           return (
                             <>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                              <td className="py-4 px-3 text-center text-xs font-bold text-slate-800 dark:text-white">
                                 {lc ? displayMetric(lc.problemsSolved) : "—"}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                              <td className="py-4 px-3 text-center text-xs font-semibold text-slate-500 dark:text-zinc-400">
                                 {lc ? displayMetric(lc.easySolvedCount) : "—"}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                              <td className="py-4 px-3 text-center text-xs font-semibold text-slate-500 dark:text-zinc-400">
                                 {lc ? displayMetric(lc.mediumSolvedCount) : "—"}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-semibold text-zinc-400">
+                              <td className="py-4 px-3 text-center text-xs font-semibold text-slate-500 dark:text-zinc-400">
                                 {lc ? displayMetric(lc.hardSolvedCount) : "—"}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                              <td className="py-4 px-3 text-center text-xs font-bold text-slate-800 dark:text-white">
                                 {lc && lc.contestRating != null ? Math.round(lc.contestRating) : "—"}
                               </td>
-                               <td className="py-4 px-3 text-center text-xs font-bold text-white">
+                               <td className="py-4 px-3 text-center text-xs font-bold text-slate-800 dark:text-white">
                                 {lc && lc.contestRank != null ? `#${lc.contestRank}` : "—"}
                               </td>
-                              <td className="py-4 px-3 text-center text-xs font-black text-purple-400">
+                              <td className="py-4 px-3 text-center text-xs font-black text-purple-650 dark:text-purple-400">
                                 {lc ? displayMetric(entry.leetcodeScore) : "—"}
                               </td>
                               <td className="py-4 px-3 text-center">
@@ -1239,7 +1239,7 @@ function LeaderboardContent() {
                                 onClick={() => handleRefreshStudent(entry.student.id)}
                                 disabled={refreshingIds.has(entry.student.id)}
                                 title="Refresh metrics"
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted transition-all hover:border-[#22C55E]/30 hover:bg-zinc-900 hover:text-[#22C55E] disabled:cursor-not-allowed disabled:opacity-50"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:border-green-500/30 hover:bg-slate-50 hover:text-green-600 disabled:cursor-not-allowed disabled:opacity-50 dark:border-brand-border dark:bg-brand-bg dark:text-brand-muted dark:hover:border-[#22C55E]/30 dark:hover:bg-zinc-900 dark:hover:text-[#22C55E]"
                               >
                                 {refreshingIds.has(entry.student.id) ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -1250,7 +1250,7 @@ function LeaderboardContent() {
                             )}
                             <Link
                               href={`/student/${entry.student.id}`}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-brand-border bg-brand-bg text-brand-muted transition-all hover:border-[#EAB308]/30 hover:bg-zinc-900 hover:text-[#EAB308]"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition-all hover:border-amber-500/30 hover:bg-slate-50 hover:text-amber-600 dark:border-brand-border dark:bg-brand-bg dark:text-brand-muted dark:hover:border-[#EAB308]/30 dark:hover:bg-zinc-900 dark:hover:text-[#EAB308]"
                               title="View Student Portfolio"
                             >
                               <Eye className="h-3.5 w-3.5" />
@@ -1267,13 +1267,13 @@ function LeaderboardContent() {
 
             {/* Pagination Controls */}
             {!isLoading && totalPages > 1 && (
-              <div className="flex items-center justify-between border-t border-brand-border bg-zinc-950/20 px-6 py-4.5">
+              <div className="flex items-center justify-between border-t border-slate-200 bg-slate-50 px-6 py-4.5 dark:border-brand-border dark:bg-zinc-950/20">
                 <div className="flex-1 flex items-center justify-between">
                   <div>
                     <p className="text-xs text-zinc-500 font-semibold">
-                      Showing <span className="text-zinc-300 font-bold">{Math.min(total, (page - 1) * limit + 1)}</span> to{" "}
-                      <span className="text-zinc-300 font-bold">{Math.min(total, page * limit)}</span> of{" "}
-                      <span className="text-zinc-300 font-bold">{total}</span> entries
+                      Showing <span className="text-slate-800 dark:text-zinc-300 font-bold">{Math.min(total, (page - 1) * limit + 1)}</span> to{" "}
+                      <span className="text-slate-800 dark:text-zinc-300 font-bold">{Math.min(total, page * limit)}</span> of{" "}
+                      <span className="text-slate-800 dark:text-zinc-300 font-bold">{total}</span> entries
                     </p>
                   </div>
                   <div>
@@ -1281,7 +1281,7 @@ function LeaderboardContent() {
                       <button
                         onClick={() => setPage((p) => Math.max(1, p - 1))}
                         disabled={page === 1}
-                        className="relative inline-flex items-center px-3 py-2 rounded-l-xl border border-brand-border bg-brand-bg text-xs font-semibold text-brand-muted hover:text-white hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        className="relative inline-flex items-center px-3 py-2 rounded-l-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:border-brand-border dark:bg-brand-bg dark:text-brand-muted dark:hover:text-white dark:hover:bg-zinc-900"
                       >
                         <ChevronLeft className="h-4 w-4" />
                       </button>
@@ -1296,7 +1296,7 @@ function LeaderboardContent() {
                             className={`relative inline-flex items-center px-4.5 py-2 border text-xs font-bold transition-all ${
                               active
                                 ? "z-10 bg-[#EAB308] border-[#EAB308] text-[#0A0A0A] shadow-[0_1px_10px_rgba(234,179,8,0.25)]"
-                                : "border-brand-border bg-brand-bg text-brand-muted hover:text-white hover:bg-zinc-900"
+                                : "border-slate-200 bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-50 dark:border-brand-border dark:bg-brand-bg dark:text-brand-muted dark:hover:text-white dark:hover:bg-zinc-900"
                             }`}
                           >
                             {pNum}
@@ -1307,7 +1307,7 @@ function LeaderboardContent() {
                       <button
                         onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
                         disabled={page === totalPages}
-                        className="relative inline-flex items-center px-3 py-2 rounded-r-xl border border-brand-border bg-brand-bg text-xs font-semibold text-brand-muted hover:text-white hover:bg-zinc-900 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                        className="relative inline-flex items-center px-3 py-2 rounded-r-xl border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-all dark:border-brand-border dark:bg-brand-bg dark:text-brand-muted dark:hover:text-white dark:hover:bg-zinc-900"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </button>
