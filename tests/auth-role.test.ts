@@ -102,7 +102,7 @@ describe("Authentication & Role Authorization - 40 Permutations", () => {
   const guards = [
     { name: "requireAuthenticatedUser", fn: requireAuthenticatedUser, allowedRoles: ["ADMIN", "GK_SIR", "HOD", "STUDENT"] },
     { name: "requireAdmin", fn: requireAdmin, allowedRoles: ["ADMIN"] },
-    { name: "requireDashboardAccess", fn: requireDashboardAccess, allowedRoles: ["ADMIN", "GK_SIR", "HOD"] },
+    { name: "requireDashboardAccess", fn: requireDashboardAccess, allowedRoles: ["ADMIN"] },
     { name: "requireLeaderboardAccess", fn: requireLeaderboardAccess, allowedRoles: ["ADMIN", "HOD", "GK_SIR", "STUDENT"] }];
 
   // We will test 8 roles x 4 guards = 20 tests.
@@ -117,7 +117,7 @@ describe("Authentication & Role Authorization - 40 Permutations", () => {
     const actualAllowed = {
       requireAuthenticatedUser: ["ADMIN", "GK_SIR", "HOD", "STUDENT"],
       requireAdmin: ["ADMIN"],
-      requireDashboardAccess: ["ADMIN", "GK_SIR", "HOD"],
+      requireDashboardAccess: ["ADMIN"],
       requireLeaderboardAccess: ["ADMIN", "HOD", "GK_SIR", "STUDENT"],
     };
 

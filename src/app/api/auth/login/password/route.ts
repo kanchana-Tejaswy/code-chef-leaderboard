@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { UserRole, AccountStatus } from "@prisma/client";
 import { normalizeEmail } from "@/utils/normalization";
+import { getRoleHomePath } from "@/lib/auth";
 import { recordAuditEvent, AuditAction } from "@/services/audit.service";
 import { checkPasswordLoginRateLimit, hashIdentifier } from "@/services/auth-rate-limit.service";
 import { createClient } from "@/utils/supabase/server";
@@ -186,11 +187,7 @@ export async function POST(req: Request) {
       targetId: userAccess.id,
     });
 
-    const redirectTo = userAccess.role === UserRole.ADMIN
-      ? "/admin/control-center"
-      : (userAccess.role === UserRole.GK_SIR || userAccess.role === UserRole.HOD)
-      ? "/dashboard"
-      : "/login";
+    const redirectTo = getRoleHomePath(userAccess);
 
     return NextResponse.json(
       {
