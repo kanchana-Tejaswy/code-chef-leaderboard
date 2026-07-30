@@ -91,7 +91,7 @@ describe("Admin Authentication Rebuild Suite", () => {
     expect(res.status).toBe(200);
     const data = await res.json();
     expect(data.success).toBe(true);
-    expect(data.redirectTo).toBe("/dashboard");
+    expect(data.redirectTo).toBe("/admin/control-center");
   });
 
   // 4. Invalid password
@@ -176,7 +176,7 @@ describe("Admin Authentication Rebuild Suite", () => {
     expect(res.status).toBe(403);
     const data = await res.json();
     expect(data.success).toBe(false);
-    expect(data.message).toBe("This portal is restricted to authorised administrators.");
+    expect(data.message).toBe("This portal is available to authorised administrators and institutional staff.");
     expect(mockSignOut).toHaveBeenCalled();
   });
 
@@ -314,7 +314,7 @@ describe("Admin Authentication Rebuild Suite", () => {
     expect(res.status).toBe(403);
     const data = await res.json();
     expect(data.success).toBe(false);
-    expect(data.message).toBe("This portal is restricted to authorised administrators.");
+    expect(data.message).toBe("This portal is available to authorised administrators and institutional staff.");
     expect(mockSignOut).toHaveBeenCalled();
   });
 

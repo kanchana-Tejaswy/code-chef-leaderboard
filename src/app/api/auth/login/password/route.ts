@@ -13,7 +13,7 @@ const GENERIC_FAILURE_RESPONSE = {
 
 const RESTRICTED_PORTAL_RESPONSE = {
   success: false,
-  message: "This portal is restricted to authorised administrators.",
+  message: "This portal is available to authorised administrators and institutional staff.",
 };
 
 export async function POST(req: Request) {
@@ -171,20 +171,26 @@ export async function POST(req: Request) {
       console.error("Failed to update lastLoginAt:", e);
     }
 
-    if (userAccess.role === UserRole.GK_SIR) {
-      await recordAuditEvent({
-        actorUserId: userAccess.id,
-        action: "GK_SIR_LOGIN",
-        targetId: userAccess.id,
-      });
-    } else {
-      await recordAuditEvent({
-        action: AuditAction.PASSWORD_LOGIN_SUCCESS,
-        targetId: userAccess.id,
-      });
+    let auditAction = "STAFF_LOGIN";
+    if (userAccess.role === UserRole.ADMIN) {
+      auditAction = "ADMIN_LOGIN";
+    } else if (userAccess.role === UserRole.GK_SIR) {
+      auditAction = "GK_SIR_LOGIN";
+    } else if (userAccess.role === UserRole.HOD) {
+      auditAction = "HOD_LOGIN";
     }
 
-    const redirectTo = userAccess.role === UserRole.GK_SIR || userAccess.role === UserRole.HOD ? "/leaderboard" : "/dashboard";
+    await recordAuditEvent({
+      actorUserId: userAccess.id,
+      action: auditAction,
+      targetId: userAccess.id,
+    });
+
+    const redirectTo = userAccess.role === UserRole.ADMIN
+      ? "/admin/control-center"
+      : (userAccess.role === UserRole.GK_SIR || userAccess.role === UserRole.HOD)
+      ? "/dashboard"
+      : "/login";
 
     return NextResponse.json(
       {

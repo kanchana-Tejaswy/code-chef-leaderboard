@@ -75,7 +75,7 @@ export default function LoginForm() {
             </span>
             <div className="mt-1.5 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-[#EAB308]/30 bg-[#EAB308]/10 text-[#EAB308] text-[10px] font-black uppercase tracking-widest">
               <ShieldCheck className="w-3 h-3 text-[#EAB308]" />
-              <span>ADMIN PORTAL</span>
+              <span>Staff Portal</span>
             </div>
           </div>
 
@@ -118,7 +118,7 @@ export default function LoginForm() {
                 autoComplete="email"
                 required
                 disabled={loading}
-                placeholder="admin@example.com"
+                placeholder="staff@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-[rgba(15,23,42,0.10)] dark:border-[#262626] bg-[#FFFFFF] dark:bg-[#1A1A1A]/50 text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] dark:placeholder-[#A3A3A3] text-sm focus:outline-none focus:ring-2 focus:ring-[#EAB308]/40 focus:border-[#EAB308] transition-all disabled:opacity-60"
@@ -175,7 +175,7 @@ export default function LoginForm() {
                 <span>Signing in...</span>
               </>
             ) : (
-              <span>Sign In to Dashboard</span>
+              <span>Sign In to Staff Portal</span>
             )}
           </button>
         </form>
@@ -183,7 +183,7 @@ export default function LoginForm() {
         {/* Footer info */}
         <div className="pt-4 border-t border-[rgba(15,23,42,0.10)] dark:border-[#262626] text-center">
           <p className="text-[11px] font-medium text-[#64748B] dark:text-[#A3A3A3] tracking-wide">
-            Authorised administrators only
+            This portal is available to authorised administrators and institutional staff.
           </p>
         </div>
 

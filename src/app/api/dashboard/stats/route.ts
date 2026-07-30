@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { unstable_cache } from "next/cache";
 import { requireDashboardAccess } from "@/lib/auth";
 import { BulkSyncService } from "@/services/bulkSync.service";
+import { UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -212,8 +213,9 @@ const getCachedStats = async (departmentFilter?: string) => {
 
 export async function GET(request: NextRequest) {
   try {
-    await requireDashboardAccess();
-    const data = await getCachedStats(undefined);
+    const userAccess = await requireDashboardAccess();
+    const departmentFilter = userAccess.role === UserRole.HOD ? userAccess.departmentId || undefined : undefined;
+    const data = await getCachedStats(departmentFilter);
     return NextResponse.json(data, {
       headers: {
         "Cache-Control": "private, no-store",

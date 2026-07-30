@@ -156,11 +156,11 @@ export function getRoleHomePath(access: UserAccess | null): string {
   }
   switch (access.role) {
     case UserRole.ADMIN:
-      return "/dashboard";
+      return "/admin/control-center";
     case UserRole.GK_SIR:
-      return "/leaderboard";
+      return "/dashboard";
     case UserRole.HOD:
-      return "/leaderboard";
+      return "/dashboard";
     case UserRole.STUDENT:
       return access.studentProfileId ? `/student/${access.studentProfileId}` : "/login";
     default:
@@ -169,7 +169,7 @@ export function getRoleHomePath(access: UserAccess | null): string {
 }
 
 export async function requireDashboardAccess(): Promise<UserAccess> {
-  return requireRole(UserRole.ADMIN, UserRole.GK_SIR);
+  return requireRole(UserRole.ADMIN, UserRole.GK_SIR, UserRole.HOD);
 }
 
 export async function requireLeaderboardAccess(): Promise<UserAccess> {
@@ -260,7 +260,7 @@ export async function requireStaffReadPageAccess(): Promise<UserAccess> {
 }
 
 export async function requireDashboardPageAccess(): Promise<UserAccess> {
-  return requirePageRole(UserRole.ADMIN, UserRole.GK_SIR);
+  return requirePageRole(UserRole.ADMIN, UserRole.GK_SIR, UserRole.HOD);
 }
 
 export async function requireLeaderboardPageAccess(): Promise<UserAccess> {
@@ -295,4 +295,25 @@ export async function requireStudentProfileReadPageAccess(studentProfileId: stri
   }
 
   redirect("/login");
+}
+
+/**
+ * Ensures the authenticated user is a staff member (ADMIN, GK_SIR, HOD).
+ */
+export async function requireStaff(): Promise<UserAccess> {
+  return requireRole(UserRole.ADMIN, UserRole.GK_SIR, UserRole.HOD);
+}
+
+/**
+ * Ensures the user has institution-wide read-only or read-write access.
+ */
+export async function requireInstitutionReadAccess(): Promise<UserAccess> {
+  return requireRole(UserRole.ADMIN, UserRole.GK_SIR);
+}
+
+/**
+ * Ensures the user has department-level read access (HOD, GK_SIR, ADMIN).
+ */
+export async function requireDepartmentReadAccess(): Promise<UserAccess> {
+  return requireRole(UserRole.ADMIN, UserRole.GK_SIR, UserRole.HOD);
 }

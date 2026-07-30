@@ -48,7 +48,7 @@ async function handleSetPassword(body: any, authUser: any) {
   }
 
   if (targetUserAccess.status === AccountStatus.ACTIVE && !targetUserAccess.mustSetPassword && targetUserAccess.firstLoginCompleted) {
-    return { status: 200, data: { success: true, redirectTo: targetUserAccess.role === UserRole.ADMIN ? "/dashboard" : targetUserAccess.role === UserRole.STUDENT ? `/student/${targetUserAccess.studentProfileId}` : "/leaderboard" } };
+    return { status: 200, data: { success: true, redirectTo: targetUserAccess.role === UserRole.ADMIN ? "/admin/control-center" : (targetUserAccess.role === UserRole.GK_SIR || targetUserAccess.role === UserRole.HOD) ? "/dashboard" : targetUserAccess.role === UserRole.STUDENT ? `/student/${targetUserAccess.studentProfileId}` : "/login" } };
   }
 
   if (targetUserAccess.status !== AccountStatus.PENDING || targetUserAccess.mustSetPassword !== true || targetUserAccess.firstLoginCompleted !== false || authUser.email?.toLowerCase() !== targetUserAccess.email.toLowerCase()) {
@@ -79,7 +79,7 @@ async function handleSetPassword(body: any, authUser: any) {
   await mockRecordAuditEvent({ action: "FIRST_PASSWORD_SET", targetId: targetUserAccess.id });
   await mockRecordAuditEvent({ action: "ACCOUNT_ACTIVATED", targetId: targetUserAccess.id });
 
-  return { status: 200, data: { success: true, redirectTo: targetUserAccess.role === UserRole.ADMIN ? "/dashboard" : targetUserAccess.role === UserRole.STUDENT ? `/student/${targetUserAccess.studentProfileId}` : "/leaderboard" } };
+  return { status: 200, data: { success: true, redirectTo: targetUserAccess.role === UserRole.ADMIN ? "/admin/control-center" : (targetUserAccess.role === UserRole.GK_SIR || targetUserAccess.role === UserRole.HOD) ? "/dashboard" : targetUserAccess.role === UserRole.STUDENT ? `/student/${targetUserAccess.studentProfileId}` : "/login" } };
 }
 
 async function handleLoginPassword(body: any) {
@@ -138,7 +138,7 @@ async function handleLoginPassword(body: any) {
 
   targetUserAccess.lastLoginAt = new Date();
   await mockRecordAuditEvent({ action: "PASSWORD_LOGIN_SUCCESS" });
-  return { status: 200, data: { success: true, redirectTo: targetUserAccess.role === UserRole.ADMIN ? "/dashboard" : targetUserAccess.role === UserRole.STUDENT ? `/student/${targetUserAccess.studentProfileId}` : "/leaderboard" } };
+  return { status: 200, data: { success: true, redirectTo: targetUserAccess.role === UserRole.ADMIN ? "/admin/control-center" : (targetUserAccess.role === UserRole.GK_SIR || targetUserAccess.role === UserRole.HOD) ? "/dashboard" : targetUserAccess.role === UserRole.STUDENT ? `/student/${targetUserAccess.studentProfileId}` : "/login" } };
 }
 
 async function handleLogout() {
@@ -216,7 +216,7 @@ describe("Auth Password Tests", () => {
   runTest("14. ACTIVE user redirected", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
-    assert.equal(res.data.redirectTo, "/dashboard");
+    assert.equal(res.data.redirectTo, "/admin/control-center");
   });
   runTest("15. SUSPENDED user denied", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.SUSPENDED, mustSetPassword: true, firstLoginCompleted: false });
@@ -288,7 +288,7 @@ describe("Auth Password Tests", () => {
   runTest("29. Correct role redirect returned", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.GK_SIR, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
     const res = await handleSetPassword({ password: "validpass123", confirmPassword: "validpass123" }, { id: "u1", email: "test@ex.com" });
-    assert.equal(res.data.redirectTo, "/leaderboard");
+    assert.equal(res.data.redirectTo, "/dashboard");
   });
   runTest("30. Supabase success plus Prisma failure returns safe partial failure", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.PENDING, mustSetPassword: true, firstLoginCompleted: false });
@@ -381,19 +381,19 @@ describe("Auth Password Tests", () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.ADMIN, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STAFF", identifier: "test@ex.com", password: "validpass123" });
-    assert.equal(res.data.redirectTo, "/dashboard");
+    assert.equal(res.data.redirectTo, "/admin/control-center");
   });
   runTest("47. Correct redirect for GK_SIR", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.GK_SIR, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STAFF", identifier: "test@ex.com", password: "validpass123" });
-    assert.equal(res.data.redirectTo, "/leaderboard");
+    assert.equal(res.data.redirectTo, "/dashboard");
   });
   runTest("48. Correct redirect for HOD", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", role: UserRole.HOD, departmentId: "d1", status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true });
     mockSupabaseUser = { id: "u1", email: "test@ex.com", password: "validpass123" };
     const res = await handleLoginPassword({ accountType: "STAFF", identifier: "test@ex.com", password: "validpass123" });
-    assert.equal(res.data.redirectTo, "/leaderboard");
+    assert.equal(res.data.redirectTo, "/dashboard");
   });
   runTest("49. Correct redirect for STUDENT", async () => {
     mockUserAccess.push({ id: "a1", authUserId: "u1", email: "test@ex.com", loginId: "24AG1A05F7", role: UserRole.STUDENT, status: AccountStatus.ACTIVE, mustSetPassword: false, firstLoginCompleted: true, studentProfileId: "p1" });

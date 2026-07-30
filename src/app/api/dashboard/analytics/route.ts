@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { unstable_cache } from "next/cache";
 import { requireDashboardAccess } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -309,9 +310,9 @@ const getCachedAnalytics = async (departmentFilter?: string) => {
 
 export async function GET(request: NextRequest) {
   try {
-    await requireDashboardAccess();
+    const userAccess = await requireDashboardAccess();
     
-    const departmentFilter = undefined;
+    const departmentFilter = userAccess.role === UserRole.HOD ? userAccess.departmentId || undefined : undefined;
     
     const data = await getCachedAnalytics(departmentFilter);
     return NextResponse.json(data, {

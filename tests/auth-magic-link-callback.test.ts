@@ -139,7 +139,7 @@ describe("Auth Magic Link Callback Route", () => {
     expect(mockSignOutCalled).toBe(true);
   });
 
-  it("7. ACTIVE account callback redirects to role home path /dashboard", async () => {
+  it("7. ACTIVE account callback redirects to role home path /admin/control-center", async () => {
     mockUserAccess.push({
       id: "a1",
       authUserId: "supa-1",
@@ -154,7 +154,7 @@ describe("Auth Magic Link Callback Route", () => {
     const res = await handleCallback(req);
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard");
+    expect(res.headers.get("location")).toBe("http://localhost:3000/admin/control-center");
   });
 
   it("8. SUSPENDED account callback signs out and redirects to /login?error=account_disabled", async () => {

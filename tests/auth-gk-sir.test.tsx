@@ -105,7 +105,7 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
     vi.clearAllMocks();
   });
 
-  it("1. getRoleHomePath returns /leaderboard for GK_SIR", () => {
+  it("1. getRoleHomePath returns /dashboard for GK_SIR", () => {
     const access = {
       id: "gk-1",
       authUserId: "supa-gk",
@@ -121,7 +121,7 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
       passwordSetAt: new Date(),
       loginId: "gksir"
     };
-    expect(getRoleHomePath(access)).toBe("/leaderboard");
+    expect(getRoleHomePath(access)).toBe("/dashboard");
   });
 
   it("2. Returns 410 for unauthenticated set-password POST requests", async () => {
@@ -159,7 +159,7 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
     expect(res.status).toBe(410);
   });
 
-  it("4. Allows GK_SIR to set password and activates the account (redirects to /leaderboard)", async () => {
+  it("4. Allows GK_SIR to set password and activates the account (redirects to /dashboard)", async () => {
     mockSupabaseUser = { id: "supa-gk", email: "gksir@aceec.ac.in" };
     mockUserAccessRecord = {
       id: "gk-1",
@@ -181,7 +181,7 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
 
     const data = await res.json();
     expect(data.success).toBe(true);
-    expect(data.redirectTo).toBe("/leaderboard");
+    expect(data.redirectTo).toBe("/dashboard");
 
     // Verify UserAccess status was transitioned to ACTIVE
     expect(mockUserAccessRecord.status).toBe(AccountStatus.ACTIVE);
@@ -275,7 +275,7 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
     expect(adminNavbar).toContain('href="/admin/control-center"');
   });
 
-  it("11. getRoleHomePath returns /dashboard for ADMIN (Existing Admin account remains unchanged)", () => {
+  it("11. getRoleHomePath returns /admin/control-center for ADMIN (Existing Admin account remains unchanged)", () => {
     const access = {
       id: "admin-1",
       authUserId: "supa-admin",
@@ -291,10 +291,10 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
       passwordSetAt: new Date(),
       loginId: "admin"
     };
-    expect(getRoleHomePath(access)).toBe("/dashboard");
+    expect(getRoleHomePath(access)).toBe("/admin/control-center");
   });
 
-  it("12. Valid active GK_SIR login via callback redirects to /leaderboard", async () => {
+  it("12. Valid active GK_SIR login via callback redirects to /dashboard", async () => {
     mockSupabaseUser = { id: "supa-gk", email: "gksir@aceec.ac.in" };
     mockUserAccessRecord = {
       id: "gk-1",
@@ -310,6 +310,6 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
     const res = await handleCallback(req);
 
     expect(res.status).toBe(307);
-    expect(res.headers.get("location")).toBe("http://localhost:3000/leaderboard");
+    expect(res.headers.get("location")).toBe("http://localhost:3000/dashboard");
   });
 });

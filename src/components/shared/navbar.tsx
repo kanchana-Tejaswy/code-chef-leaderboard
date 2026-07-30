@@ -104,7 +104,7 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
 
         {/* Center Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-4">
-          {(userRole === "ADMIN" || userRole === "GK_SIR") && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
             <Link href="/dashboard" prefetch={false} className={navItemClass("/dashboard")}>
               Dashboard
             </Link>
@@ -114,17 +114,17 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
               Leaderboard
             </Link>
           )}
-          {(userRole === "ADMIN" || userRole === "GK_SIR") && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
             <Link href="/analytics" prefetch={false} className={navItemClass("/analytics")}>
               Analytics
             </Link>
           )}
-          {(userRole === "ADMIN" || userRole === "GK_SIR") && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
             <Link href="/departments" prefetch={false} className={navItemClass("/departments")}>
               Departments
             </Link>
           )}
-          {(userRole === "ADMIN" || userRole === "GK_SIR") && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
             <Link href="/insights" prefetch={false} className={navItemClass("/insights")}>
               Insights
             </Link>
@@ -201,7 +201,7 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
       {/* Mobile Menu Panel */}
       {isMobileMenuOpen && (
         <div className="md:hidden border-t border-brand-border bg-brand-bg px-4 py-4 space-y-2">
-          {(userRole === "ADMIN" || userRole === "GK_SIR") && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
             <Link
               href="/dashboard"
               prefetch={false}
@@ -221,7 +221,7 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
               Leaderboard
             </Link>
           )}
-          {(userRole === "ADMIN" || userRole === "GK_SIR") && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
             <Link
               href="/analytics"
               prefetch={false}
@@ -231,7 +231,7 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
               Analytics
             </Link>
           )}
-          {(userRole === "ADMIN" || userRole === "GK_SIR") && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
             <Link
               href="/departments"
               prefetch={false}
@@ -241,7 +241,7 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
               Departments
             </Link>
           )}
-          {(userRole === "ADMIN" || userRole === "GK_SIR") && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
             <Link
               href="/insights"
               prefetch={false}

@@ -208,7 +208,7 @@ export async function GET(request: NextRequest) {
   try {
     const userAccess = await requireDashboardAccess();
     
-    const departmentFilter = undefined;
+    const departmentFilter = userAccess.role === UserRole.HOD ? userAccess.departmentId || undefined : undefined;
 
     const whereClause = buildWhereClause(platform, searchParams, departmentFilter);
     const orderBy = buildOrderBy(platform, searchParams);

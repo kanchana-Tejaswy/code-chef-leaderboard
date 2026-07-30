@@ -35,8 +35,8 @@ export async function POST(req: Request) {
       where: { authUserId: user.id },
     });
 
-    // If not GK_SIR or not in pending/mustSetPassword state, return 410 Gone
-    if (!targetUserAccess || targetUserAccess.role !== UserRole.GK_SIR || !targetUserAccess.mustSetPassword) {
+    // If not GK_SIR/HOD/ADMIN or not in pending/mustSetPassword state, return 410 Gone
+    if (!targetUserAccess || !targetUserAccess.mustSetPassword || (targetUserAccess.role !== UserRole.GK_SIR && targetUserAccess.role !== UserRole.HOD && targetUserAccess.role !== UserRole.ADMIN)) {
       return NextResponse.json(
         { success: false, message: "Set password wizard is disabled." },
         { status: 410, headers: { "Cache-Control": "no-store" } }
