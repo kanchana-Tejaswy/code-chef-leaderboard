@@ -26,11 +26,29 @@ export function hasValidCronSecret(request: NextRequest): boolean {
   return suppliedToken === cronSecret;
 }
 
-export function canPerformWrite(request?: NextRequest): boolean {
+import { getAuthenticatedUserAccess } from "./auth";
+
+export async function canPerformWrite(request?: NextRequest): Promise<boolean> {
+  try {
+    const access = await getAuthenticatedUserAccess();
+    if (access && access.role === "ADMIN" && access.status === "ACTIVE") {
+      return true;
+    }
+  } catch (err) {
+    // Auth checks error
+  }
   return isPublicDemoWriteEnabled();
 }
 
-export function canPerformDelete(request?: NextRequest): boolean {
+export async function canPerformDelete(request?: NextRequest): Promise<boolean> {
+  try {
+    const access = await getAuthenticatedUserAccess();
+    if (access && access.role === "ADMIN" && access.status === "ACTIVE") {
+      return true;
+    }
+  } catch (err) {
+    // Auth checks error
+  }
   return isPublicDemoDeleteEnabled();
 }
 

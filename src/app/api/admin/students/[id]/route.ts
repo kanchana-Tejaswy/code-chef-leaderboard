@@ -2,13 +2,13 @@ import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canPerformWrite } from "@/lib/write-access";
-import { SyncService } from "@/services/sync.service";
 import { revalidatePath } from "next/cache";
 import { normalizeAndValidateUrl } from "@/utils/urlValidation";
+import { recordAuditEvent } from "@/services/audit.service";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await requireAdmin();
+    const admin = await requireAdmin();
     if (!(await canPerformWrite(request))) {
       return NextResponse.json(
         { error: "Insufficient permissions. Admin role required or write access disabled." },
@@ -139,22 +139,33 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       oldStudent.githubUsername !== newGithub ||
       oldStudent.linkedinUrl !== newLinkedin;
 
+    const updates: any = {
+      name: cleanedName,
+      contactNumber: contactNumber !== undefined ? (contactNumber ? String(contactNumber).trim() : null) : oldStudent.contactNumber,
+      year: parsedYear !== null ? parsedYear : oldStudent.year,
+      branch: branch ? String(branch).trim() : oldStudent.branch,
+      department: branch ? String(branch).trim() : oldStudent.department,
+      cgpa: parsedCgpa !== null ? parsedCgpa : oldStudent.cgpa,
+      codechefUsername: newCodechef,
+      leetcodeUsername: newLeetcode,
+      codeforcesUsername: newCodeforces,
+      githubUsername: newGithub,
+      linkedinUrl: newLinkedin,
+    };
+
+    if (isPlatformChanged) {
+      const ccComplete = Boolean(newCodechef && newCodechef.trim() !== "");
+      const lcComplete = Boolean(newLeetcode && newLeetcode.trim() !== "");
+      updates.verificationStatus = "UNABLE_TO_VERIFY";
+      updates.profileStatus = (ccComplete && lcComplete) ? "PENDING_VERIFICATION" : "INCOMPLETE";
+      updates.leaderboardEligible = false;
+      updates.dashboardEligible = false;
+    }
+
     // Update database record (preserving permanent email & rollNumber)
     const updatedStudent = await prisma.studentProfile.update({
       where: { id: studentId },
-      data: { 
-        name: cleanedName,
-        contactNumber: contactNumber !== undefined ? (contactNumber ? String(contactNumber).trim() : null) : oldStudent.contactNumber,
-        year: parsedYear !== null ? parsedYear : oldStudent.year,
-        branch: branch ? String(branch).trim() : oldStudent.branch,
-        department: branch ? String(branch).trim() : oldStudent.department,
-        cgpa: parsedCgpa !== null ? parsedCgpa : oldStudent.cgpa,
-        codechefUsername: newCodechef,
-        leetcodeUsername: newLeetcode,
-        codeforcesUsername: newCodeforces,
-        githubUsername: newGithub,
-        linkedinUrl: newLinkedin,
-      },
+      data: updates,
     });
 
     // Sync updates to UserAccess
@@ -168,16 +179,59 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     });
 
     if (isPlatformChanged) {
-      // Changed platform URLs trigger profile resync
-      const syncResult = await SyncService.syncStudent(studentId, "ADMIN_FORCE");
-      if (!syncResult.success) {
-        console.error("Sync failed after admin update:", syncResult.error);
-      }
+      // Create exactly one SyncJob queue record in database
+      await prisma.syncJob.deleteMany({
+        where: { studentId, status: "QUEUED" }
+      });
+      await prisma.syncJob.create({
+        data: {
+          studentId,
+          status: "QUEUED",
+          attemptCount: 0
+        }
+      });
+
+      // Record audit event
+      const changedUrls: string[] = [];
+      if (oldStudent.codechefUsername !== newCodechef) changedUrls.push("codechefUsername");
+      if (oldStudent.leetcodeUsername !== newLeetcode) changedUrls.push("leetcodeUsername");
+      if (oldStudent.codeforcesUsername !== newCodeforces) changedUrls.push("codeforcesUsername");
+      if (oldStudent.githubUsername !== newGithub) changedUrls.push("githubUsername");
+      if (oldStudent.linkedinUrl !== newLinkedin) changedUrls.push("linkedinUrl");
+
+      await recordAuditEvent({
+        actorUserId: admin.id,
+        action: "STUDENT_PLATFORM_URL_CHANGED",
+        targetType: "StudentProfile",
+        targetId: studentId,
+        metadata: { changedFields: changedUrls }
+      });
     } else {
-      // If no platform URLs were changed, we invalidate caches directly since sync is skipped
+      const changedFields: string[] = [];
+      if (oldStudent.name !== cleanedName) changedFields.push("name");
+      if (oldStudent.contactNumber !== contactNumber) changedFields.push("contactNumber");
+      if (oldStudent.year !== parsedYear && parsedYear !== null) changedFields.push("year");
+      if (oldStudent.branch !== branch && branch) changedFields.push("branch");
+      if (oldStudent.cgpa !== parsedCgpa && parsedCgpa !== null) changedFields.push("cgpa");
+
+      if (changedFields.length > 0) {
+        await recordAuditEvent({
+          actorUserId: admin.id,
+          action: "STUDENT_UPDATED",
+          targetType: "StudentProfile",
+          targetId: studentId,
+          metadata: { changedFields }
+        });
+      }
+    }
+
+    // Invalidate caches
+    try {
       revalidatePath("/dashboard");
       revalidatePath("/leaderboard");
       revalidatePath(`/student/${studentId}`);
+    } catch (e) {
+      // ignore
     }
 
     // Fetch the updated student profile with included data to return to the frontend

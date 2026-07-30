@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const codechefStatus = searchParams.get("codechefStatus") || "";
     const leetcodeStatus = searchParams.get("leetcodeStatus") || "";
     const leaderboardEligibleStr = searchParams.get("leaderboardEligible") || "";
+    const archiveStatus = searchParams.get("archiveStatus") || "active";
     const doExport = searchParams.get("export") === "true";
     
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
@@ -64,6 +65,12 @@ export async function GET(request: NextRequest) {
 
     if (leaderboardEligibleStr) {
       where.leaderboardEligible = leaderboardEligibleStr === "true";
+    }
+
+    if (archiveStatus === "active") {
+      where.archivedAt = null;
+    } else if (archiveStatus === "archived") {
+      where.archivedAt = { not: null };
     }
 
     // CodeChef Status Database Filters
@@ -209,16 +216,17 @@ export async function GET(request: NextRequest) {
           adminApprovalStatus: { not: "APPROVED" },
           codechefProfile: { isNot: null },
           leetcodeProfile: { isNot: null },
+          archivedAt: null,
         }
       }),
       prisma.studentProfile.count({
-        where: { adminApprovalStatus: "APPROVED" }
+        where: { adminApprovalStatus: "APPROVED", archivedAt: null }
       }),
       prisma.studentProfile.count({
-        where: { profileStatus: "INCOMPLETE" }
+        where: { profileStatus: "INCOMPLETE", archivedAt: null }
       }),
       prisma.studentProfile.count({
-        where: { profileStatus: "PENDING_VERIFICATION" }
+        where: { profileStatus: "PENDING_VERIFICATION", archivedAt: null }
       })
     ]);
 
@@ -262,6 +270,8 @@ export async function GET(request: NextRequest) {
         adminApprovalStatus: s.adminApprovalStatus,
         leaderboardEligible: s.leaderboardEligible,
         dashboardEligible: s.dashboardEligible,
+        archivedAt: s.archivedAt?.toISOString() || null,
+        archivedById: s.archivedById || null,
         currentStage: stage,
         reason: s.profileStatus === "INCOMPLETE" ? "Missing handles" : s.profileStatus === "INVALID" ? "Verification failed" : s.adminApprovalStatus === "APPROVED" ? "Approved" : "Pending review",
         lastAttempt: s.updatedAt?.toISOString() || null,

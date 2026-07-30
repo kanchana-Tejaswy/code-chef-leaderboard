@@ -532,12 +532,12 @@ html:not(.dark) {
     color: #64748B !important;
   }
 
-  .text-white {
-    color: #0F172A !important;
-  }
-
   .text-zinc-400 {
     color: #475569 !important;
+  }
+
+  .bg-\[\#181818\] {
+    background-color: #F1F5F9 !important;
   }
 
   .text-zinc-500 {

@@ -1146,10 +1146,10 @@ function LeaderboardContent() {
                                   {entry.student.department}
                                 </span>
                                 <span className="text-[10px] font-bold text-brand-muted border border-brand-border bg-zinc-900/60 px-1.5 py-0.5 rounded-full uppercase hidden dark:inline-block">
-                                  {entry.student.year} Yr
+                                  {entry.student.year ? `${entry.student.year}Y` : "N/A"}
                                 </span>
                                 <span className="text-[10px] font-bold text-slate-700 border border-slate-200 bg-slate-100 px-1.5 py-0.5 rounded-full uppercase inline-block dark:hidden">
-                                  {entry.student.year}YR
+                                  {entry.student.year ? `${entry.student.year}Y` : "N/A"}
                                 </span>
                               </div>
                             </td>

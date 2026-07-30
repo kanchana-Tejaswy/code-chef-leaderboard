@@ -3,14 +3,14 @@ import { isPublicDemoWriteEnabled, isPublicDemoDeleteEnabled, canPerformWrite, c
 import { NextRequest } from "next/server";
 
 describe("Phase B Security - Write Access Hardening", () => {
-  it("1. Public demo write is disabled by default in production", () => {
+  it("1. Public demo write is disabled by default in production", async () => {
     const originalEnv = process.env.ALLOW_PUBLIC_DEMO_WRITES;
     delete process.env.ALLOW_PUBLIC_DEMO_WRITES;
 
     expect(isPublicDemoWriteEnabled()).toBe(false);
     expect(isPublicDemoDeleteEnabled()).toBe(false);
-    expect(canPerformWrite()).toBe(false);
-    expect(canPerformDelete()).toBe(false);
+    expect(await canPerformWrite()).toBe(false);
+    expect(await canPerformDelete()).toBe(false);
 
     const status = getPublicDemoModeStatus();
     expect(status.publicDemoWriteMode).toBe(false);

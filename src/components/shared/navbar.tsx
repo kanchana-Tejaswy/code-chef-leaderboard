@@ -55,14 +55,14 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
     `relative py-1.5 px-3 text-xs font-bold tracking-wide uppercase rounded-lg transition-all duration-200 ${
       isLinkActive(path)
         ? "bg-[#EAB308] text-[#0A0A0A]"
-        : "bg-transparent text-white hover:text-[#EAB308] hover:bg-white/5"
+        : "bg-transparent text-brand-muted hover:text-brand-text hover:bg-brand-muted/10"
     }`;
 
   const mobileNavItemClass = (path: string) =>
     `block text-xs font-bold uppercase tracking-wider rounded-lg py-2 px-4 transition-all duration-200 ${
       isLinkActive(path)
         ? "bg-[#EAB308] text-[#0A0A0A]"
-        : "bg-transparent text-white hover:text-[#EAB308] hover:bg-white/5"
+        : "bg-transparent text-brand-muted hover:text-brand-text hover:bg-brand-muted/10"
     }`;
 
 

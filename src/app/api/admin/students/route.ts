@@ -2,6 +2,8 @@ import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canPerformWrite } from "@/lib/write-access";
+import { StudentProfileService } from "@/services/student-profile.service";
+import { recordAuditEvent } from "@/services/audit.service";
 
 export async function GET(request: NextRequest) {
   try {
@@ -64,6 +66,58 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
     }
     console.error("Error updating student via admin endpoint:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const admin = await requireAdmin();
+    const body = await request.json().catch(() => ({}));
+
+    const evaluated = await StudentProfileService.evaluateRows([body]);
+    const row = evaluated[0];
+
+    if (row.classification !== "READY" && row.classification !== "INCOMPLETE") {
+      const errorMsg = row.reasons.join(" ") || "Invalid student profile payload.";
+      return NextResponse.json({ error: errorMsg }, { status: 400 });
+    }
+
+    const res = await StudentProfileService.createProfile(row.normalized);
+    if (!res.success || !res.profile) {
+      return NextResponse.json({ error: res.error || "Failed to create student profile." }, { status: 400 });
+    }
+
+    const profile = res.profile;
+
+    // Queue verification SyncJob if usernames are present
+    if (row.normalized.codechefUsername && row.normalized.leetcodeUsername) {
+      await prisma.syncJob.create({
+        data: {
+          studentId: profile.id,
+          status: "QUEUED",
+          attemptCount: 0
+        }
+      });
+    }
+
+    // Record audit event STUDENT_CREATED
+    await recordAuditEvent({
+      actorUserId: admin.id,
+      action: "STUDENT_CREATED",
+      targetType: "StudentProfile",
+      targetId: profile.id,
+      metadata: { name: profile.name, rollNumber: profile.rollNumber, email: profile.email }
+    });
+
+    return NextResponse.json({ success: true, student: profile });
+  } catch (err: any) {
+    if (err.name === "AuthError") {
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
+    }
+    console.error("Error creating student profile manually:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

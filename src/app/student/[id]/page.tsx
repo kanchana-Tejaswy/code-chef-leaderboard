@@ -477,7 +477,7 @@ export default function StudentProfileDashboard() {
             )}
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[10px] font-bold text-[#A3A3A3] uppercase tracking-wider">
-                {student.branch || student.department} • {student.year ? `${student.year} Year` : "Year N/A"}
+                {student.branch || student.department} • {student.year ? `${student.year}Y` : "N/A"}
               </span>
               <span className={`inline-flex px-2 py-0.5 border rounded-lg text-[8px] font-bold tracking-wider uppercase leading-none ${readinessColor}`}>
                 {readinessLabel}
@@ -561,7 +561,7 @@ export default function StudentProfileDashboard() {
           <div className="flex flex-col gap-3">
             <div>
               <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">Year of Study</span>
-              <span className="text-sm font-extrabold text-[#FAFAFA]">{student.year ? `${student.year} Year` : "N/A"}</span>
+              <span className="text-sm font-extrabold text-[#FAFAFA]">{student.year ? `${student.year}Y` : "N/A"}</span>
             </div>
             <div>
               <span className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider block">Branch</span>
@@ -1379,6 +1379,42 @@ export default function StudentProfileDashboard() {
                       value={student?.rollNumber || "N/A"}
                       className="bg-[#181818] border border-[#262626] rounded-xl px-3 py-2 text-sm text-zinc-400 cursor-not-allowed select-none focus:outline-none"
                     />
+                    {publicDemoWriteMode && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const newRoll = prompt("Enter new Roll Number (High Risk):", student?.rollNumber || "");
+                          if (newRoll && newRoll.trim() && newRoll.trim().toUpperCase() !== student?.rollNumber) {
+                            if (window.confirm(`Are you absolutely sure you want to change this student's Roll Number from '${student?.rollNumber}' to '${newRoll.trim().toUpperCase()}'?`)) {
+                              setIsSavingDetails(true);
+                              try {
+                                const res = await fetch(`/api/admin/students/${studentId}/identity`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ newRollNumber: newRoll.trim().toUpperCase() })
+                                });
+                                const data = await res.json();
+                                if (res.ok && data.success) {
+                                  alert("Roll number updated successfully.");
+                                  setStudent(data.student);
+                                  router.refresh();
+                                } else {
+                                  alert(data.error || "Failed to update roll number.");
+                                }
+                              } catch (err) {
+                                console.error(err);
+                                alert("Error updating roll number.");
+                              } finally {
+                                setIsSavingDetails(false);
+                              }
+                            }
+                          }
+                        }}
+                        className="mt-1 text-left text-[10px] text-[#EAB308] hover:underline focus:outline-none"
+                      >
+                        Change Roll Number (High Risk)
+                      </button>
+                    )}
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[9px] font-bold text-[#A3A3A3] uppercase tracking-wider">Contact Number</label>
@@ -1406,6 +1442,42 @@ export default function StudentProfileDashboard() {
                       value={student?.email || "N/A"}
                       className="bg-[#181818] border border-[#262626] rounded-xl px-3 py-2 text-sm text-zinc-400 cursor-not-allowed select-none focus:outline-none"
                     />
+                    {publicDemoWriteMode && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const newEmail = prompt("Enter new Email ID (High Risk):", student?.email || "");
+                          if (newEmail && newEmail.trim() && newEmail.trim().toLowerCase() !== student?.email) {
+                            if (window.confirm(`Are you absolutely sure you want to change this student's Email from '${student?.email}' to '${newEmail.trim().toLowerCase()}'?`)) {
+                              setIsSavingDetails(true);
+                              try {
+                                const res = await fetch(`/api/admin/students/${studentId}/identity`, {
+                                  method: "PATCH",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ newEmail: newEmail.trim().toLowerCase() })
+                                });
+                                const data = await res.json();
+                                if (res.ok && data.success) {
+                                  alert("Email updated successfully.");
+                                  setStudent(data.student);
+                                  router.refresh();
+                                } else {
+                                  alert(data.error || "Failed to update email.");
+                                }
+                              } catch (err) {
+                                console.error(err);
+                                alert("Error updating email.");
+                              } finally {
+                                setIsSavingDetails(false);
+                              }
+                            }
+                          }
+                        }}
+                        className="mt-1 text-left text-[10px] text-[#EAB308] hover:underline focus:outline-none"
+                      >
+                        Change Email ID (High Risk)
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

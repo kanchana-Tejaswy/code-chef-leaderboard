@@ -1920,6 +1920,7 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
   const [codechefStatus, setCodechefStatus] = useState("");
   const [leetcodeStatus, setLeetcodeStatus] = useState("");
   const [leaderboardEligible, setLeaderboardEligible] = useState("");
+  const [archiveStatus, setArchiveStatus] = useState("active");
 
   // Pagination
   const [page, setPage] = useState(1);
@@ -1957,7 +1958,7 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
 
   useEffect(() => {
     fetchData();
-  }, [page, search, branch, year, profileStatus, adminApprovalStatus, codechefStatus, leetcodeStatus, leaderboardEligible]);
+  }, [page, search, branch, year, profileStatus, adminApprovalStatus, codechefStatus, leetcodeStatus, leaderboardEligible, archiveStatus]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -1974,6 +1975,7 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
       if (codechefStatus) params.append("codechefStatus", codechefStatus);
       if (leetcodeStatus) params.append("leetcodeStatus", leetcodeStatus);
       if (leaderboardEligible) params.append("leaderboardEligible", leaderboardEligible);
+      if (archiveStatus) params.append("archiveStatus", archiveStatus);
 
       const res = await fetch(`/api/admin/student-approvals?${params.toString()}`);
       const data = await res.json();
@@ -2025,6 +2027,48 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
         fetchData();
       } else {
         alert(data.error || "Sync execution failed.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred.");
+    }
+    setActionLoading(null);
+  };
+
+  const handleArchiveStudent = async (id: string) => {
+    if (!window.confirm("Are you sure you want to archive this student profile?")) return;
+    setActionLoading(id + "-archive");
+    try {
+      const res = await fetch(`/api/admin/students/${id}/archive`, {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Student archived successfully.");
+        fetchData();
+      } else {
+        alert(data.error || "Archiving failed.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred.");
+    }
+    setActionLoading(null);
+  };
+
+  const handleRestoreStudent = async (id: string) => {
+    if (!window.confirm("Are you sure you want to restore this archived student profile?")) return;
+    setActionLoading(id + "-restore");
+    try {
+      const res = await fetch(`/api/admin/students/${id}/restore`, {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("Student restored successfully.");
+        fetchData();
+      } else {
+        alert(data.error || "Restoring failed.");
       }
     } catch (err) {
       console.error(err);
@@ -2140,7 +2184,7 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
           >
             Export Directory
           </button>
-          {!isGkSir && (
+          {role === "ADMIN" && (
             <button
               onClick={() => setShowBulkConfirm(true)}
               disabled={!stats?.eligibleForApproval}
@@ -2230,7 +2274,18 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
           </select>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+          {/* Archive Status filter */}
+          <select
+            value={archiveStatus}
+            onChange={(e) => setArchiveStatus(e.target.value)}
+            className="w-full px-3 py-2 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none focus:border-[#EAB308]"
+          >
+            <option value="active">Active Students</option>
+            <option value="archived">Archived Students</option>
+            <option value="all">All Students</option>
+          </select>
+
           {/* Approval Status filter */}
           <select
             value={adminApprovalStatus}
@@ -2379,7 +2434,7 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
                             <Eye className="h-3.5 w-3.5" />
                           </button>
                           
-                          {!isGkSir && (
+                          {role === "ADMIN" && (
                             <>
                               <button
                                 onClick={() => openEditModal(student)}
@@ -2399,6 +2454,26 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
                                   <RefreshCw className="h-3 w-3 animate-spin" />
                                 ) : "Sync"}
                               </button>
+
+                              {student.archivedAt ? (
+                                <button
+                                  disabled={!!actionLoading}
+                                  onClick={() => handleRestoreStudent(student.id)}
+                                  className="px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                                  title="Restore Student"
+                                >
+                                  Restore
+                                </button>
+                              ) : (
+                                <button
+                                  disabled={!!actionLoading}
+                                  onClick={() => handleArchiveStudent(student.id)}
+                                  className="px-2 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                                  title="Archive Student"
+                                >
+                                  Archive
+                                </button>
+                              )}
 
                               {student.adminApprovalStatus === "APPROVED" ? (
                                 <button
@@ -2563,6 +2638,107 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
                     onChange={(e) => setEditForm(prev => ({ ...prev, cgpa: e.target.value }))}
                     className="w-full px-3 py-2.5 bg-brand-bg border border-brand-border rounded-lg text-brand-text focus:outline-none"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[9px] uppercase font-bold text-brand-muted">Roll Number</label>
+                    <span className="text-[9px] text-zinc-500 font-semibold flex items-center gap-1">
+                      <Lock className="h-2.5 w-2.5" /> Locked
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    readOnly
+                    disabled
+                    value={editingStudent?.rollNumber || "N/A"}
+                    className="w-full px-3 py-2.5 bg-[#181818] border border-brand-border rounded-lg text-zinc-400 cursor-not-allowed select-none focus:outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const newRoll = prompt("Enter new Roll Number (High Risk):", editingStudent?.rollNumber || "");
+                      if (newRoll && newRoll.trim() && newRoll.trim().toUpperCase() !== editingStudent?.rollNumber) {
+                        if (window.confirm(`Are you absolutely sure you want to change this student's Roll Number from '${editingStudent?.rollNumber}' to '${newRoll.trim().toUpperCase()}'?`)) {
+                          setEditSaving(true);
+                          try {
+                            const res = await fetch(`/api/admin/students/${editingStudent.id}/identity`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ newRollNumber: newRoll.trim().toUpperCase() })
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                              alert("Roll number updated successfully.");
+                              setEditingStudent(null);
+                              fetchData();
+                            } else {
+                              alert(data.error || "Failed to update roll number.");
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            alert("Error updating roll number.");
+                          } finally {
+                            setEditSaving(false);
+                          }
+                        }
+                      }
+                    }}
+                    className="mt-1 text-left text-[10px] text-[#EAB308] hover:underline focus:outline-none"
+                  >
+                    Change Roll Number (High Risk)
+                  </button>
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className="block text-[9px] uppercase font-bold text-brand-muted">Email ID</label>
+                    <span className="text-[9px] text-zinc-500 font-semibold flex items-center gap-1">
+                      <Lock className="h-2.5 w-2.5" /> Locked
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    readOnly
+                    disabled
+                    value={editingStudent?.email || "N/A"}
+                    className="w-full px-3 py-2.5 bg-[#181818] border border-brand-border rounded-lg text-zinc-400 cursor-not-allowed select-none focus:outline-none font-mono"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const newEmail = prompt("Enter new Email ID (High Risk):", editingStudent?.email || "");
+                      if (newEmail && newEmail.trim() && newEmail.trim().toLowerCase() !== editingStudent?.email) {
+                        if (window.confirm(`Are you absolutely sure you want to change this student's Email from '${editingStudent?.email}' to '${newEmail.trim().toLowerCase()}'?`)) {
+                          setEditSaving(true);
+                          try {
+                            const res = await fetch(`/api/admin/students/${editingStudent.id}/identity`, {
+                              method: "PATCH",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ newEmail: newEmail.trim().toLowerCase() })
+                            });
+                            const data = await res.json();
+                            if (res.ok && data.success) {
+                              alert("Email updated successfully.");
+                              setEditingStudent(null);
+                              fetchData();
+                            } else {
+                              alert(data.error || "Failed to update email.");
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            alert("Error updating email.");
+                          } finally {
+                            setEditSaving(false);
+                          }
+                        }
+                      }
+                    }}
+                    className="mt-1 text-left text-[10px] text-[#EAB308] hover:underline focus:outline-none"
+                  >
+                    Change Email (High Risk)
+                  </button>
                 </div>
               </div>
 

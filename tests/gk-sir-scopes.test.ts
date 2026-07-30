@@ -182,7 +182,7 @@ describe("GK_SIR Scopes, Write Locks, and Audit Rules", () => {
     // Verify findMany was called with no department restriction in where clause
     expect(prisma.studentProfile.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {}
+        where: { archivedAt: null }
       })
     );
   });
