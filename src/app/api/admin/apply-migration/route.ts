@@ -1,15 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { canPerformWrite } from "@/lib/write-access";
 
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get("x-admin-secret") || request.headers.get("authorization");
     const adminSecret = process.env.ADMIN_SYNC_SECRET || process.env.CRON_SECRET;
-    if (!adminSecret) {
-      console.error("Migration security config error: ADMIN_SYNC_SECRET and CRON_SECRET are not configured on the server.");
-      return NextResponse.json({ success: false, error: "Configuration error" }, { status: 500 });
+    
+    let isAuthorized = false;
+    if (adminSecret && authHeader && (authHeader === adminSecret || authHeader === `Bearer ${adminSecret}`)) {
+      isAuthorized = true;
+    } else if (await canPerformWrite(request)) {
+      isAuthorized = true;
     }
-    if (!authHeader || (authHeader !== adminSecret && authHeader !== `Bearer ${adminSecret}`)) {
+
+    if (!isAuthorized) {
       return NextResponse.json({ success: false, error: "Unauthorized migration request" }, { status: 401 });
     }
 
@@ -73,6 +78,23 @@ export async function POST(request: NextRequest) {
          now(),
          1
        )
+       ON CONFLICT DO NOTHING;`,
+      `ALTER TABLE "student_profiles" ADD COLUMN IF NOT EXISTS "archived_at" TIMESTAMP(3);`,
+      `ALTER TABLE "student_profiles" ADD COLUMN IF NOT EXISTS "archived_by_id" TEXT;`,
+      `CREATE INDEX IF NOT EXISTS "student_profiles_archived_at_idx" ON "student_profiles"("archived_at");`,
+      `CREATE INDEX IF NOT EXISTS "student_profiles_archived_by_id_idx" ON "student_profiles"("archived_by_id");`,
+      `ALTER TABLE "student_profiles" DROP CONSTRAINT IF EXISTS "student_profiles_archived_by_id_fkey";`,
+      `ALTER TABLE "student_profiles" ADD CONSTRAINT "student_profiles_archived_by_id_fkey" FOREIGN KEY ("archived_by_id") REFERENCES "user_access"("id") ON DELETE SET NULL ON UPDATE CASCADE;`,
+      `INSERT INTO "_prisma_migrations" ("id", "checksum", "finished_at", "migration_name", "logs", "started_at", "applied_steps_count")
+       VALUES (
+         gen_random_uuid()::text,
+         '20260730174800_add_student_archiving',
+         now(),
+         '20260730174800_add_student_archiving',
+         NULL,
+         now(),
+         1
+       )
        ON CONFLICT DO NOTHING;`
     ];
 
@@ -91,7 +113,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "Migration 20260723210000_add_student_csv_bulk_import_fields applied successfully.",
+      message: "Migrations applied successfully, including 20260730174800_add_student_archiving.",
       results,
       columns,
     }, { headers: { "Cache-Control": "private, no-store" } });
