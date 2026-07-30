@@ -438,11 +438,17 @@ function LeaderboardContent() {
         setTotal(data.pagination?.total || 0);
         setTotalPages(data.pagination?.totalPages || 1);
       } else {
-        setError("Unable to load student data. Please try again.");
+        if (response.status === 401) {
+          setError("Your session has expired. Please sign in again.");
+        } else if (response.status === 403) {
+          setError("You do not have permission to view this leaderboard.");
+        } else {
+          setError("Unable to load leaderboard data. Please try again.");
+        }
       }
     } catch (e) {
       console.error("Failed to load standings:", e);
-      setError("Unable to load student data. Please try again.");
+      setError("Unable to load leaderboard data. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -995,7 +1001,9 @@ function LeaderboardContent() {
                         <div className="flex flex-col items-center gap-3">
                           <X className="h-8 w-8 text-red-500/80" />
                           <span className="text-sm text-red-400 font-bold">{error}</span>
-                          <span className="text-xs text-zinc-650">Please verify your database connection or try again later.</span>
+                          {error !== "Your session has expired. Please sign in again." && error !== "You do not have permission to view this leaderboard." && (
+                            <span className="text-xs text-zinc-650">Please verify your database connection or try again later.</span>
+                          )}
                         </div>
                       </td>
                     </tr>

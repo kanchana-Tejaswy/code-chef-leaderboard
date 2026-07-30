@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { OverallScoreService } from "@/services/overallScore.service";
 import { prisma } from "@/lib/prisma";
 import { requireLeaderboardAccess } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -18,7 +19,8 @@ export async function GET(request: NextRequest) {
   const skip = (page - 1) * limit;
 
   try {
-    await requireLeaderboardAccess();
+    const userAccess = await requireLeaderboardAccess();
+    const departmentFilter = userAccess.role === UserRole.HOD ? userAccess.departmentId || undefined : undefined;
 
     if (mode === "all") {
       // Query ALL StudentProfile records
@@ -31,7 +33,9 @@ export async function GET(request: NextRequest) {
         ];
       }
 
-      if (departments.length > 0) {
+      if (departmentFilter) {
+        studentWhere.department = departmentFilter;
+      } else if (departments.length > 0) {
         studentWhere.department = { in: departments };
       }
 
@@ -173,7 +177,9 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    if (departments.length > 0) {
+    if (departmentFilter) {
+      whereClause.student.department = departmentFilter;
+    } else if (departments.length > 0) {
       whereClause.student.department = { in: departments };
     }
 

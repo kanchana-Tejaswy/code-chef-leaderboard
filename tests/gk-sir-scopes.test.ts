@@ -6,14 +6,20 @@ import { UserRole } from "@prisma/client";
 let mockSessionUser: any = null;
 let mockSupabaseUser: any = null;
 
+vi.mock("next/cache", () => ({
+  unstable_cache: (cb: any) => cb,
+}));
+
 // Mock database
 vi.mock("@/lib/prisma", () => {
+  const mockFindManyLeaderboard = vi.fn().mockResolvedValue([]);
   const mockPrisma = {
     studentProfile: {
       count: vi.fn().mockResolvedValue(100),
       findMany: vi.fn().mockResolvedValue([]),
       findUnique: vi.fn().mockResolvedValue({ id: "student-123", name: "Alice", department: "CSE" }),
       update: vi.fn().mockResolvedValue({ id: "student-123" }),
+      groupBy: vi.fn().mockResolvedValue([]),
     },
     userAccess: {
       findUnique: vi.fn().mockImplementation(() => {
@@ -30,6 +36,30 @@ vi.mock("@/lib/prisma", () => {
     },
     auditLog: {
       create: vi.fn().mockResolvedValue({ id: "audit-123" }),
+    },
+    leaderboardEntry: {
+      count: vi.fn().mockResolvedValue(100),
+      findMany: mockFindManyLeaderboard,
+      aggregate: vi.fn().mockResolvedValue({ _avg: { overallScore: 80 }, _max: { overallScore: 100 } }),
+    },
+    codechefProfile: {
+      count: vi.fn().mockResolvedValue(50),
+      aggregate: vi.fn().mockResolvedValue({ _avg: { currentRating: 80, stars: 3, contestCount: 5 } }),
+    },
+    leetcodeProfile: {
+      count: vi.fn().mockResolvedValue(50),
+      aggregate: vi.fn().mockResolvedValue({ _avg: { contestRating: 80, problemsSolved: 80, acceptanceRate: 80 } }),
+    },
+    githubProfile: {
+      count: vi.fn().mockResolvedValue(50),
+      aggregate: vi.fn().mockResolvedValue({ _avg: { totalRepositories: 10, totalStars: 10, openSourceScore: 10 } }),
+    },
+    syncHistory: {
+      count: vi.fn().mockResolvedValue(10),
+    },
+    syncJob: {
+      count: vi.fn().mockResolvedValue(0),
+      findFirst: vi.fn().mockResolvedValue(null),
     },
   };
   return { prisma: mockPrisma };
@@ -65,6 +95,26 @@ vi.mock("@/lib/auth", () => {
     }),
     requireStaffReadAccess: vi.fn(async () => {
       if (!mockSessionUser || (mockSessionUser.role !== "ADMIN" && mockSessionUser.role !== "GK_SIR" && mockSessionUser.role !== "HOD")) {
+        throw new AuthError("Forbidden", "FORBIDDEN_ROLE");
+      }
+      return mockSessionUser;
+    }),
+    requireLeaderboardAccess: vi.fn(async () => {
+      if (!mockSessionUser) {
+        throw new AuthError("Unauthorized", "UNAUTHORIZED");
+      }
+      const allowed = ["ADMIN", "GK_SIR", "HOD", "STUDENT"];
+      if (!allowed.includes(mockSessionUser.role)) {
+        throw new AuthError("Forbidden", "FORBIDDEN_ROLE");
+      }
+      return mockSessionUser;
+    }),
+    requireDashboardAccess: vi.fn(async () => {
+      if (!mockSessionUser) {
+        throw new AuthError("Unauthorized", "UNAUTHORIZED");
+      }
+      const allowed = ["ADMIN"];
+      if (!allowed.includes(mockSessionUser.role)) {
         throw new AuthError("Forbidden", "FORBIDDEN_ROLE");
       }
       return mockSessionUser;
@@ -106,6 +156,10 @@ import { GET as handleStudentApprovals } from "../src/app/api/admin/student-appr
 import { GET as handleProfileDetails } from "../src/app/api/profile/details/route";
 import { GET as handleAnalytics } from "../src/app/api/analytics/route";
 import { POST as handleSetPassword } from "../src/app/api/auth/set-password/route";
+import { GET as handleLeaderboard } from "../src/app/api/leaderboard/route";
+import { GET as handleLeaderboardCache } from "../src/app/api/dashboard/leaderboard-cache/route";
+import { GET as handleDashboardStats } from "../src/app/api/dashboard/stats/route";
+import { POST as handleBulkApprove } from "../src/app/api/admin/student-approvals/bulk-approve/route";
 
 describe("GK_SIR Scopes, Write Locks, and Audit Rules", () => {
   beforeEach(() => {
@@ -237,5 +291,138 @@ describe("GK_SIR Scopes, Write Locks, and Audit Rules", () => {
         action: "GK_SIR_PASSWORD_CHANGED"
       })
     );
+  });
+
+  it("7. ADMIN can load all institution leaderboard data", async () => {
+    mockSessionUser = {
+      id: "admin-1",
+      role: "ADMIN",
+      email: "admin@aceec.ac.in",
+      status: "ACTIVE"
+    };
+
+    const req = new NextRequest("http://localhost/api/leaderboard?mode=ranked");
+    const res = await handleLeaderboard(req);
+    expect(res.status).toBe(200);
+
+    // Verify no department filter was applied
+    const mockPrisma = (await import("@/lib/prisma")).prisma;
+    expect(mockPrisma.leaderboardEntry.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.not.objectContaining({
+          student: expect.objectContaining({
+            department: expect.anything()
+          })
+        })
+      })
+    );
+  });
+
+  it("8. GK_SIR can load all institution-wide leaderboard data", async () => {
+    mockSessionUser = {
+      id: "gk-1",
+      role: "GK_SIR",
+      email: "gksir@aceec.ac.in",
+      status: "ACTIVE"
+    };
+
+    const req = new NextRequest("http://localhost/api/leaderboard?mode=ranked");
+    const res = await handleLeaderboard(req);
+    expect(res.status).toBe(200);
+
+    // Verify no department filter was applied
+    const mockPrisma = (await import("@/lib/prisma")).prisma;
+    expect(mockPrisma.leaderboardEntry.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.not.objectContaining({
+          student: expect.objectContaining({
+            department: expect.anything()
+          })
+        })
+      })
+    );
+  });
+
+  it("9. HOD can load only department-scoped leaderboard data", async () => {
+    mockSessionUser = {
+      id: "hod-1",
+      role: "HOD",
+      departmentId: "CSE",
+      email: "hod@aceec.ac.in",
+      status: "ACTIVE"
+    };
+
+    const req = new NextRequest("http://localhost/api/leaderboard?mode=ranked");
+    const res = await handleLeaderboard(req);
+    expect(res.status).toBe(200);
+
+    // Verify department filter was applied to CSE
+    const mockPrisma = (await import("@/lib/prisma")).prisma;
+    expect(mockPrisma.leaderboardEntry.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          student: expect.objectContaining({
+            department: "CSE"
+          })
+        })
+      })
+    );
+  });
+
+  it("10. GK_SIR cannot access /api/dashboard/stats API", async () => {
+    mockSessionUser = {
+      id: "gk-1",
+      role: "GK_SIR",
+      email: "gksir@aceec.ac.in",
+      status: "ACTIVE"
+    };
+
+    const req = new NextRequest("http://localhost/api/dashboard/stats");
+    const res = await handleDashboardStats(req);
+    expect(res.status).toBe(403);
+  });
+
+  it("11. GK_SIR cannot call Admin write APIs", async () => {
+    mockSessionUser = {
+      id: "gk-1",
+      role: "GK_SIR",
+      email: "gksir@aceec.ac.in",
+      status: "ACTIVE"
+    };
+
+    const req = new NextRequest("http://localhost/api/admin/student-approvals/bulk-approve", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studentIds: ["student-1"] })
+    });
+    const res = await handleBulkApprove(req);
+    expect(res.status).toBe(403);
+  });
+
+  it("12. Dashboard stats API remains ADMIN-only", async () => {
+    mockSessionUser = {
+      id: "admin-1",
+      role: "ADMIN",
+      email: "admin@aceec.ac.in",
+      status: "ACTIVE"
+    };
+
+    const req = new NextRequest("http://localhost/api/dashboard/stats");
+    const res = await handleDashboardStats(req);
+    expect(res.status).toBe(200);
+  });
+
+  it("13. Leaderboard API does not depend on Dashboard access", async () => {
+    // Leaderboard access allows GK_SIR
+    mockSessionUser = {
+      id: "gk-1",
+      role: "GK_SIR",
+      email: "gksir@aceec.ac.in",
+      status: "ACTIVE"
+    };
+
+    const req = new NextRequest("http://localhost/api/leaderboard?mode=ranked");
+    const res = await handleLeaderboard(req);
+    expect(res.status).toBe(200);
   });
 });
