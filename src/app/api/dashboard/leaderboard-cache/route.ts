@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { unstable_cache } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
-import { requireDashboardAccess } from "@/lib/auth";
+import { requireLeaderboardAccess } from "@/lib/auth";
 import { recordAuditEvent } from "@/services/audit.service";
 import { UserRole } from "@prisma/client";
 import * as XLSX from "xlsx";
@@ -206,7 +206,7 @@ export async function GET(request: NextRequest) {
   const doExport = searchParams.get("export") === "true";
 
   try {
-    const userAccess = await requireDashboardAccess();
+    const userAccess = await requireLeaderboardAccess();
     
     const departmentFilter = userAccess.role === UserRole.HOD ? userAccess.departmentId || undefined : undefined;
 

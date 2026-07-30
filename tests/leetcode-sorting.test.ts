@@ -29,7 +29,7 @@ vi.mock("@/lib/prisma", () => {
 });
 
 vi.mock("@/lib/auth", () => ({
-  requireDashboardAccess: vi.fn().mockResolvedValue(true),
+  requireLeaderboardAccess: vi.fn().mockResolvedValue({ id: "user-1", role: "ADMIN" }),
 }));
 
 describe("LeetCode Sorting Configuration", () => {
