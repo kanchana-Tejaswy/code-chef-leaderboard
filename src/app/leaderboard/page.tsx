@@ -677,7 +677,7 @@ function LeaderboardContent() {
                 }}
                 className={`min-h-[44px] rounded-xl px-2 py-2 text-center text-[10px] font-black uppercase tracking-wider transition-all sm:text-xs ${
                   active
-                    ? "bg-[#EAB308] text-slate-950 shadow-sm border border-[#EAB308] dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
+                    ? "bg-[#EAB308] text-slate-950 shadow-sm border border-[#EAB308]"
                     : "border border-transparent text-slate-700 hover:text-slate-900 hover:bg-slate-200/50 dark:text-brand-muted dark:hover:text-brand-text dark:hover:bg-transparent"
                 }`}
               >
@@ -692,7 +692,7 @@ function LeaderboardContent() {
       <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-4 lg:gap-8">
         
         {/* Filters Sidebar */}
-        <div className="bg-white border border-slate-200 shadow-sm dark:glass-card dark:border-none flex flex-col gap-4 rounded-2xl p-4 sm:p-6 lg:sticky lg:top-20">
+        <div className="bg-brand-card border border-slate-200 shadow-sm dark:border-brand-border flex flex-col gap-4 rounded-2xl p-4 sm:p-6 lg:sticky lg:top-20">
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 text-sm font-bold text-slate-900 dark:text-white">
               <Filter className="h-4 w-4 text-[#EAB308]" />
@@ -720,7 +720,7 @@ function LeaderboardContent() {
                     onClick={() => toggleDept(dept)}
                     className={`min-h-[40px] rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all ${
                       active
-                        ? "bg-[#EAB308] text-slate-950 border-[#EAB308] font-bold dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
+                        ? "bg-[#EAB308] text-slate-950 border-[#EAB308] font-bold"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:border-zinc-900 dark:bg-zinc-950/40 dark:text-zinc-400 dark:hover:text-zinc-200"
                     }`}
                   >
@@ -745,7 +745,7 @@ function LeaderboardContent() {
                     onClick={() => toggleYear(year)}
                     className={`min-h-[40px] rounded-lg border py-1 text-center text-xs font-semibold transition-all ${
                       active
-                        ? "bg-[#EAB308] text-slate-950 border-[#EAB308] font-bold dark:border-[#EAB308]/30 dark:bg-[#EAB308]/20 dark:text-[#EAB308]"
+                        ? "bg-[#EAB308] text-slate-950 border-[#EAB308] font-bold"
                         : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:border-zinc-900 dark:bg-zinc-950/40 dark:text-brand-muted dark:hover:text-zinc-200"
                     }`}
                   >
@@ -773,7 +773,7 @@ function LeaderboardContent() {
                         onClick={() => toggleStars(star)}
                         className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center gap-1 transition-all ${
                           active
-                            ? "bg-[#EAB308] text-slate-950 border-[#EAB308] font-bold dark:bg-[#EAB308]/20 dark:text-[#EAB308] dark:border-[#EAB308]/30"
+                            ? "bg-[#EAB308] text-slate-950 border-[#EAB308] font-bold"
                             : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900 dark:bg-zinc-950/40 dark:border-zinc-900 dark:text-brand-muted dark:hover:text-zinc-200"
                         }`}
                       >
@@ -915,7 +915,7 @@ function LeaderboardContent() {
           </div>
 
           {/* Standings Table Card */}
-          <div className="bg-white border border-slate-200 shadow-xl dark:glass-card dark:border-brand-border overflow-hidden rounded-3xl">
+          <div className="bg-brand-card border border-slate-200 shadow-xl dark:border-brand-border overflow-hidden rounded-3xl">
             <div className="overflow-x-auto">
               <table className="min-w-[760px] w-full border-collapse text-left sm:min-w-0">
                 <thead>
