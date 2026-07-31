@@ -1954,7 +1954,35 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
   const [editError, setEditError] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
+  // Student Delete & Bulk Delete State
+  const [canDelete, setCanDelete] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [deletingStudent, setDeletingStudent] = useState<any | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleteNotes, setDeleteNotes] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkDeleteConfirmText, setBulkDeleteConfirmText] = useState("");
+  const [bulkDeleteConfirmCheckbox, setBulkDeleteConfirmCheckbox] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState<{ total: number; processed: number; deleted: number; failed: number; status: 'idle' | 'running' | 'completed' | 'failed' } | null>(null);
+  const [bulkFailures, setBulkFailures] = useState<any[]>([]);
+
   const branches = ["CSE", "ECE", "EEE", "MECH", "CIVIL", "IT", "AIML", "DATA_SCIENCE"];
+
+  useEffect(() => {
+    if (role === "ADMIN") {
+      fetch("/api/admin/profile")
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.data) {
+            setCanDelete(!!data.data.canDeleteStudents);
+          }
+        })
+        .catch(err => console.error("Error checking delete permission:", err));
+    }
+  }, [role]);
 
   useEffect(() => {
     fetchData();
@@ -2163,6 +2191,225 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
     setEditSaving(false);
   };
 
+  // ----------------------------------------------------
+  // DELETION & SELECTION HELPERS
+  // ----------------------------------------------------
+  const handleDeleteStudent = async (id: string) => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/students/${id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          confirm: deleteConfirmText,
+          reason: deleteReason,
+          notes: deleteNotes
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDeletingStudent(null);
+        setDeleteConfirmText("");
+        setDeleteReason("");
+        setDeleteNotes("");
+        setSelectedIds(prev => prev.filter(item => item !== id));
+        fetchData();
+      } else {
+        alert(data.error || "Deletion failed.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Network error occurred.");
+    }
+    setIsDeleting(false);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      const pageIds = students.map(s => s.id);
+      setSelectedIds(prev => Array.from(new Set([...prev, ...pageIds])));
+    } else {
+      const pageIds = students.map(s => s.id);
+      setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(item => item !== id));
+    }
+  };
+
+  const handleSelectAllFiltered = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        page: "1",
+        limit: "5000",
+      });
+      if (search) params.append("search", search);
+      if (branch) params.append("branch", branch);
+      if (year) params.append("year", year);
+      if (profileStatus) params.append("profileStatus", profileStatus);
+      if (adminApprovalStatus) params.append("adminApprovalStatus", adminApprovalStatus);
+      if (codechefStatus) params.append("codechefStatus", codechefStatus);
+      if (leetcodeStatus) params.append("leetcodeStatus", leetcodeStatus);
+      if (leaderboardEligible) params.append("leaderboardEligible", leaderboardEligible);
+      if (archiveStatus) params.append("archiveStatus", archiveStatus);
+
+      const res = await fetch(`/api/admin/student-approvals?${params.toString()}`);
+      const data = await res.json();
+      if (data.success && data.students) {
+        setSelectedIds(data.students.map((s: any) => s.id));
+      }
+    } catch (err) {
+      console.error("Failed to select all filtered:", err);
+    }
+    setLoading(false);
+  };
+
+  const handleExportSelected = () => {
+    if (selectedIds.length === 0) return;
+    const selectedStudents = students.filter(s => selectedIds.includes(s.id));
+    if (selectedStudents.length === 0) {
+      alert("No matching selected students are currently loaded on this page. Change page or filter to export.");
+      return;
+    }
+
+    const headers = ["Student ID", "Name", "Roll Number", "Email", "Department", "Year", "Branch", "CGPA", "CodeChef", "LeetCode", "Profile Status", "Approval Status", "Leaderboard Eligible"];
+    const rows = selectedStudents.map(s => [
+      s.id,
+      s.name || "",
+      s.rollNumber || "",
+      s.email || "",
+      s.department || "",
+      s.year || "",
+      s.branch || "",
+      s.cgpa || "",
+      s.codechefUsername || "",
+      s.leetcodeUsername || "",
+      s.profileStatus || "",
+      s.adminApprovalStatus || "",
+      s.leaderboardEligible ? "YES" : "NO"
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `student_delete_backup_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const executeBulkDelete = async () => {
+    setIsDeleting(true);
+    setBulkFailures([]);
+    
+    const total = selectedIds.length;
+    setBulkProgress({ total, processed: 0, deleted: 0, failed: 0, status: 'running' });
+
+    try {
+      const res = await fetch("/api/admin/students/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentIds: selectedIds,
+          reason: deleteReason,
+          notes: deleteNotes,
+          confirmString: bulkDeleteConfirmText,
+          confirmCheckbox: bulkDeleteConfirmCheckbox
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setBulkProgress({
+          total,
+          processed: total,
+          deleted: data.deleted,
+          failed: data.failed,
+          status: data.failed > 0 ? 'failed' : 'completed'
+        });
+        if (data.failed > 0) {
+          setBulkFailures(data.failedDetails || []);
+        }
+        setSelectedIds([]);
+        setBulkDeleteConfirmText("");
+        setBulkDeleteConfirmCheckbox(false);
+        setDeleteReason("");
+        setDeleteNotes("");
+        fetchData();
+      } else {
+        alert(data.error || "Bulk deletion failed.");
+        setBulkProgress(null);
+      }
+    } catch (err) {
+      console.error("Bulk delete execution failed:", err);
+      alert("Network error during bulk deletion.");
+      setBulkProgress(null);
+    }
+    setIsDeleting(false);
+    setShowBulkDeleteModal(false);
+  };
+
+  const handleBulkArchive = async () => {
+    if (selectedIds.length === 0) return;
+    if (!window.confirm(`Are you sure you want to archive all ${selectedIds.length} selected students?`)) return;
+    
+    setBulkLoading(true);
+    try {
+      let succeededCount = 0;
+      for (const id of selectedIds) {
+        const res = await fetch(`/api/admin/students/${id}/archive`, {
+          method: "POST"
+        });
+        const data = await res.json();
+        if (data.success) succeededCount++;
+      }
+      alert(`Successfully archived ${succeededCount} of ${selectedIds.length} students.`);
+      setSelectedIds([]);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred during bulk archiving.");
+    }
+    setBulkLoading(false);
+  };
+
+  const downloadFailureReport = () => {
+    if (bulkFailures.length === 0) return;
+    const headers = ["Student ID", "Name", "Masked Roll", "Error Reason"];
+    const rows = bulkFailures.map(f => [
+      f.id,
+      f.name || "Unknown",
+      f.rollNumber || "Unknown",
+      f.error || "Unknown error"
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map(row => row.map(val => `"${String(val).replace(/"/g, '""')}"`).join(","))
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `bulk_delete_failures_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-6">
       {/* 1. Header & Quick Aggregates */}
@@ -2327,12 +2574,137 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
         </div>
       </div>
 
+      {/* Bulk Delete Progress Banner */}
+      {bulkProgress && (
+        <div className="p-4 border border-brand-border bg-brand-card rounded-2xl space-y-3">
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-bold text-brand-text uppercase tracking-wider flex items-center gap-2">
+              <RefreshCw className={`h-3.5 w-3.5 text-[#EAB308] ${bulkProgress.status === 'running' ? 'animate-spin' : ''}`} />
+              Bulk Deletion Status: {bulkProgress.status.toUpperCase()}
+            </span>
+            <span className="font-mono text-brand-muted">
+              {bulkProgress.processed} / {bulkProgress.total} Processed
+            </span>
+          </div>
+          
+          <div className="w-full bg-brand-bg rounded-full h-2 overflow-hidden border border-brand-border">
+            <div
+              className="bg-red-600 h-full transition-all duration-300"
+              style={{ width: `${(bulkProgress.processed / bulkProgress.total) * 100}%` }}
+            />
+          </div>
+
+          <div className="grid grid-cols-4 gap-2 text-center text-[10px] uppercase font-bold tracking-wider text-brand-muted">
+            <div className="p-2 border border-brand-border rounded-xl">
+              <span>Selected:</span>
+              <span className="block text-sm text-brand-text mt-0.5">{bulkProgress.total}</span>
+            </div>
+            <div className="p-2 border border-brand-border rounded-xl bg-green-950/20 border-green-900/30">
+              <span className="text-green-400">Deleted:</span>
+              <span className="block text-sm text-green-400 mt-0.5">{bulkProgress.deleted}</span>
+            </div>
+            <div className="p-2 border border-brand-border rounded-xl bg-rose-950/20 border-rose-900/30">
+              <span className="text-red-400">Failed:</span>
+              <span className="block text-sm text-red-400 mt-0.5">{bulkProgress.failed}</span>
+            </div>
+            <div className="p-2 border border-brand-border rounded-xl">
+              <span>Remaining:</span>
+              <span className="block text-sm text-brand-text mt-0.5">{bulkProgress.total - bulkProgress.processed}</span>
+            </div>
+          </div>
+
+          {bulkProgress.status === 'failed' && bulkFailures.length > 0 && (
+            <div className="flex items-center justify-between p-2.5 bg-rose-950/30 border border-rose-900/30 rounded-xl">
+              <span className="text-[10px] text-red-400 font-bold uppercase">
+                Some student deletions failed. Download failure report for details.
+              </span>
+              <button
+                onClick={downloadFailureReport}
+                className="px-2.5 py-1 bg-red-950/50 hover:bg-red-900 text-red-200 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer border border-red-900/40"
+              >
+                Download Report
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Selection Quick Actions & Selected Status Banner */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 border border-brand-border bg-brand-card/50 rounded-2xl">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => handleSelectAll(true)}
+            className="px-3 py-1.5 bg-brand-bg hover:bg-brand-card border border-brand-border text-brand-muted hover:text-brand-text rounded-lg text-xs font-bold transition-all cursor-pointer"
+          >
+            Select Current Page
+          </button>
+          <button
+            onClick={handleSelectAllFiltered}
+            className="px-3 py-1.5 bg-brand-bg hover:bg-brand-card border border-brand-border text-brand-muted hover:text-brand-text rounded-lg text-xs font-bold transition-all cursor-pointer"
+          >
+            Select All Filtered
+          </button>
+          {selectedIds.length > 0 && (
+            <button
+              onClick={() => setSelectedIds([])}
+              className="px-3 py-1.5 bg-brand-bg hover:bg-brand-card border border-brand-border text-red-400 hover:text-red-300 rounded-lg text-xs font-bold transition-all cursor-pointer"
+            >
+              Clear Selection
+            </button>
+          )}
+        </div>
+        {selectedIds.length > 0 && (
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-[#EAB308]">
+              {selectedIds.length} students selected
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExportSelected}
+                className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+              >
+                Export Selected
+              </button>
+              <button
+                onClick={handleBulkArchive}
+                disabled={bulkLoading}
+                className="px-3 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white rounded-lg text-xs font-bold transition-all cursor-pointer disabled:opacity-50"
+              >
+                Bulk Archive
+              </button>
+              {canDelete && (
+                <button
+                  onClick={() => {
+                    setDeleteReason("");
+                    setDeleteNotes("");
+                    setBulkDeleteConfirmText("");
+                    setBulkDeleteConfirmCheckbox(false);
+                    setShowBulkDeleteModal(true);
+                  }}
+                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
+                >
+                  Bulk Delete
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* 3. Students Approvals Table */}
       <div className="border border-brand-border bg-brand-card rounded-2xl overflow-hidden shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-brand-border bg-brand-bg/50">
+                <th className="p-4 w-12 text-center">
+                  <input
+                    type="checkbox"
+                    checked={students.length > 0 && students.every(s => selectedIds.includes(s.id))}
+                    onChange={(e) => handleSelectAll(e.target.checked)}
+                    className="rounded border-brand-border bg-brand-bg text-[#EAB308] focus:ring-0 cursor-pointer"
+                  />
+                </th>
                 <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Student Name</th>
                 <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Masked Roll</th>
                 <th className="p-4 text-[10px] font-black text-brand-muted uppercase tracking-wider">Branch</th>
@@ -2351,7 +2723,7 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="p-12 text-center">
+                  <td colSpan={14} className="p-12 text-center">
                     <div className="flex flex-col items-center gap-3">
                       <RefreshCw className="h-7 w-7 text-[#EAB308] animate-spin" />
                       <span className="text-xs text-brand-muted uppercase font-bold tracking-widest">Loading student approvals...</span>
@@ -2360,7 +2732,7 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
                 </tr>
               ) : students.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="p-12 text-center text-xs text-brand-muted font-bold uppercase tracking-wider">
+                  <td colSpan={14} className="p-12 text-center text-xs text-brand-muted font-bold uppercase tracking-wider">
                     No student profiles matched the filter criteria.
                   </td>
                 </tr>
@@ -2369,6 +2741,14 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
                   const verified = student.codechefStatus === "Verified" && student.leetcodeStatus === "Verified";
                   return (
                     <tr key={student.id} className="border-b border-brand-border/60 hover:bg-brand-bg/25 transition-all">
+                      <td className="p-4 w-12 text-center">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(student.id)}
+                          onChange={(e) => handleSelectOne(student.id, e.target.checked)}
+                          className="rounded border-brand-border bg-brand-bg text-[#EAB308] focus:ring-0 cursor-pointer"
+                        />
+                      </td>
                       <td className="p-4">
                         <div className="font-bold text-sm text-brand-text leading-tight">{student.name}</div>
                         <div className="text-[10px] text-brand-muted mt-0.5">{student.email}</div>
@@ -2472,6 +2852,22 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
                                   title="Archive Student"
                                 >
                                   Archive
+                                </button>
+                              )}
+
+                              {canDelete && (
+                                <button
+                                  disabled={!!actionLoading || isDeleting}
+                                  onClick={() => {
+                                    setDeleteReason("");
+                                    setDeleteNotes("");
+                                    setDeleteConfirmText("");
+                                    setDeletingStudent(student);
+                                  }}
+                                  className="px-2 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase rounded-lg transition-all cursor-pointer disabled:opacity-50"
+                                  title="Delete Student"
+                                >
+                                  Delete
                                 </button>
                               )}
 

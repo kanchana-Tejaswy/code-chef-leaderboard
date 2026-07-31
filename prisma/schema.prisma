@@ -333,6 +333,7 @@ model UserAccess {
   studentProfileId      String?       @unique @map("student_profile_id")
   firstLoginCompleted   Boolean       @default(false) @map("first_login_completed")
   mustSetPassword       Boolean       @default(true) @map("must_set_password")
+  canDeleteStudents     Boolean       @default(false) @map("can_delete_students")
   approvedBy            String?       @map("approved_by")
   approvedAt            DateTime?     @map("approved_at")
   passwordSetAt         DateTime?     @map("password_set_at")

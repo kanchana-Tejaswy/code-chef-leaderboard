@@ -203,6 +203,7 @@ export async function GET(request: NextRequest) {
           codechefProfile: true,
           leetcodeProfile: true,
           leaderboardEntry: true,
+          userAccess: true,
         },
         orderBy: { rollNumber: "asc" },
         skip,
@@ -276,6 +277,7 @@ export async function GET(request: NextRequest) {
         reason: s.profileStatus === "INCOMPLETE" ? "Missing handles" : s.profileStatus === "INVALID" ? "Verification failed" : s.adminApprovalStatus === "APPROVED" ? "Approved" : "Pending review",
         lastAttempt: s.updatedAt?.toISOString() || null,
         updatedAt: s.updatedAt,
+        hasLogin: !!s.userAccess,
       };
     });
 

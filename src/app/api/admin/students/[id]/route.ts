@@ -5,6 +5,8 @@ import { canPerformWrite } from "@/lib/write-access";
 import { revalidatePath } from "next/cache";
 import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 import { recordAuditEvent } from "@/services/audit.service";
+import { SyncService } from "@/services/sync.service";
+import { createAdminClient } from "@/utils/supabase/admin";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -254,6 +256,126 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
     }
     console.error("Error updating student details:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    const admin = await requireAdmin();
+    
+    // Check delete permission in DB UserAccess record
+    if (!admin.canDeleteStudents) {
+      return NextResponse.json(
+        { error: "Insufficient permissions. Student deletion access is disabled." },
+        { status: 403 }
+      );
+    }
+
+    const { id: studentId } = await params;
+    if (!studentId || typeof studentId !== "string") {
+      return NextResponse.json({ error: "Missing student id." }, { status: 400 });
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const { reason, notes, confirm } = body;
+
+    if (confirm !== "DELETE") {
+      return NextResponse.json({ error: "Typed confirmation 'DELETE' is required." }, { status: 400 });
+    }
+
+    if (!reason || typeof reason !== "string" || !reason.trim()) {
+      return NextResponse.json({ error: "Deletion reason is required." }, { status: 400 });
+    }
+
+    if (reason === "Other" && (!notes || typeof notes !== "string" || !notes.trim())) {
+      return NextResponse.json({ error: "A note is required when selecting 'Other' reason." }, { status: 400 });
+    }
+
+    const student = await prisma.studentProfile.findUnique({
+      where: { id: studentId },
+      include: { userAccess: true }
+    });
+
+    if (!student) {
+      return NextResponse.json({ error: "Student profile not found." }, { status: 404 });
+    }
+
+    // Handle Supabase Auth account and UserAccess relation
+    const authUserId = student.userAccess?.authUserId;
+    if (authUserId) {
+      const supabaseAdmin = createAdminClient();
+      
+      // Disable first
+      const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+        ban_duration: "876000h"
+      });
+      if (banError) {
+        console.error(`Failed to ban/disable Supabase user ${authUserId}:`, banError);
+      }
+
+      // Delete Auth account
+      const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
+      if (deleteAuthError) {
+        console.error(`Failed to delete Supabase user ${authUserId}:`, deleteAuthError);
+      }
+    }
+
+    // Execute relational database deletion inside transaction
+    await prisma.$transaction(async (tx) => {
+      await tx.syncJob.deleteMany({ where: { studentId } });
+      await tx.leaderboardEntry.deleteMany({ where: { studentId } });
+      await tx.codechefProfile.deleteMany({ where: { studentId } });
+      await tx.leetcodeProfile.deleteMany({ where: { studentId } });
+      await tx.githubProfile.deleteMany({ where: { studentId } });
+      await tx.aiAnalysis.deleteMany({ where: { studentId } });
+      await tx.syncLog.deleteMany({ where: { studentId } });
+      await tx.activityLog.deleteMany({ where: { studentId } });
+      await tx.normalizedProfile.deleteMany({ where: { studentId } });
+      await tx.userAccess.deleteMany({ where: { studentProfileId: studentId } });
+      await tx.studentProfile.delete({ where: { id: studentId } });
+    });
+
+    // Record audit event
+    const rollSnapshot = student.rollNumber ? student.rollNumber.trim() : "N/A";
+    const maskedRoll = rollSnapshot !== "N/A"
+      ? rollSnapshot.substring(0, 2) + "****" + rollSnapshot.substring(rollSnapshot.length - 2)
+      : "N/A";
+
+    await recordAuditEvent({
+      actorUserId: admin.id,
+      action: "STUDENT_DELETED",
+      targetType: "StudentProfile",
+      targetId: studentId,
+      metadata: {
+        email: student.email,
+        name: student.name,
+        rollNumber: maskedRoll,
+        reason,
+        notes
+      }
+    });
+
+    // Recalculate leaderboard ranks
+    await SyncService.recalculateLeaderboardRanks();
+
+    // Invalidate caches
+    try {
+      revalidatePath("/dashboard");
+      revalidatePath("/leaderboard");
+      revalidatePath(`/student/${studentId}`);
+    } catch (e) {
+      // ignore
+    }
+
+    return NextResponse.json({ success: true, message: "Student deleted successfully." });
+  } catch (err: any) {
+    if (err.name === "AuthError") {
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
+    }
+    console.error("Error deleting student profile:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

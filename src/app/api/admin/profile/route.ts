@@ -32,6 +32,7 @@ export async function GET(request: NextRequest) {
         fullName: profile?.name || (adminAccess.role === UserRole.GK_SIR ? "GK Sir" : "ACE System Admin"),
         avatarUrl: profile?.avatarUrl || null,
         contactNumber: null,
+        canDeleteStudents: adminAccess.canDeleteStudents,
       }
     }, {
       headers: { "Cache-Control": "private, no-store" }
