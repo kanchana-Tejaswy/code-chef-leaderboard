@@ -1,0 +1,107 @@
+name: Phase 3 Database Validation
+
+on:
+  push:
+    branches:
+      - phase3-academic-foundation
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Database Migration and Constraint Validation
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ace_phase3_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: phase3_temp_validation_pwd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:phase3_temp_validation_pwd@localhost:5432/ace_phase3_test
+      DIRECT_URL: postgres://postgres:phase3_temp_validation_pwd@localhost:5432/ace_phase3_test
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Project Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Validate Prisma Schema
+        run: npx prisma validate
+
+      - name: Bootstrap Legacy Database Baseline
+        run: node scripts/ci/bootstrap-ci-db.js
+
+      - name: Check Migration Deploy Status (Pre-deploy)
+        run: npx prisma migrate status || true
+
+      - name: Deploy Database Migrations
+        run: npx prisma migrate deploy
+
+      - name: Check Migration Deploy Status (Post-deploy)
+        run: npx prisma migrate status
+
+      - name: Run Database Constraint Verification
+        run: |
+          node scripts/phase3-database-validation.js > validation-output.txt 2>&1
+          EXIT_CODE=$?
+          cat validation-output.txt
+          echo "### Database Constraint Verification Output" >> $GITHUB_STEP_SUMMARY
+          echo '```text' >> $GITHUB_STEP_SUMMARY
+          cat validation-output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          if [ $EXIT_CODE -ne 0 ]; then
+            exit $EXIT_CODE
+          fi
+          if grep -q "FAIL" validation-output.txt; then
+            echo "FAIL string detected in validation output"
+            exit 1
+          fi
+
+      - name: Run Focused Vitest Test Suite
+        run: npx vitest run tests/phase3-academic-foundation.test.ts
+
+      - name: Compile and Build Next.js
+        run: npm run build
+
+      - name: Check Git Whitespace and Diff Warnings
+        run: git diff --check
+
+      - name: Commit and Push Logs
+        if: always()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin
+          git checkout -b ci-validation-logs || git checkout ci-validation-logs
+          if [ -f validation-output.txt ]; then
+            cp validation-output.txt log.txt
+            git add log.txt
+            git commit -m "chore(ci): update validation logs" && git push origin ci-validation-logs --force || true
+          fi
