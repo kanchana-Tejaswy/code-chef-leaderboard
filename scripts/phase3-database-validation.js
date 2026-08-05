@@ -23,12 +23,26 @@ async function runTests() {
     process.exit(1);
   }
 
-  let testCohortId = "PHASE3_TEST_COH_1";
-  let testCohortId2 = "PHASE3_TEST_COH_2";
-  let testDeptId = "PHASE3_TEST_DEP_1";
-  let testDeptId2 = "PHASE3_TEST_DEP_2";
-  let testSectionId = "PHASE3_TEST_SEC_1";
-  let testStudentId = "PHASE3_TEST_STU_1";
+  // PostgreSQL UUID columns require valid UUID strings. We map test IDs to predictable test UUIDs.
+  const testCohortId = "a0000000-0000-0000-0000-000000000001";
+  const testCohortId2 = "a0000000-0000-0000-0000-000000000002";
+  const testDeptId = "b0000000-0000-0000-0000-000000000001";
+  const testDeptId2 = "b0000000-0000-0000-0000-000000000002";
+  const testSectionId = "c0000000-0000-0000-0000-000000000001";
+  const testStudentId = "PHASE3_TEST_STU_1"; // TEXT column, can be string
+
+  // Enrollment UUIDs
+  const enrollId1 = "d0000000-0000-0000-0000-000000000001";
+  const enrollId2 = "d0000000-0000-0000-0000-000000000002";
+  const enrollIdErr1 = "d0000000-0000-0000-0000-000000000003";
+  const enrollIdErr2 = "d0000000-0000-0000-0000-000000000004";
+  const enrollIdErr3 = "d0000000-0000-0000-0000-000000000005";
+  const enrollIdErr4 = "d0000000-0000-0000-0000-000000000006";
+  const enrollIdErr5 = "d0000000-0000-0000-0000-000000000007";
+  const enrollIdErr6 = "d0000000-0000-0000-0000-000000000008";
+  const enrollIdErr7 = "d0000000-0000-0000-0000-000000000009";
+  const enrollIdHist1 = "d0000000-0000-0000-0000-000000000010";
+  const enrollIdHist2 = "d0000000-0000-0000-0000-000000000011";
 
   try {
     // 2. STRUCTURE VERIFICATION
@@ -154,10 +168,9 @@ async function runTests() {
 
     // Test 5: Create valid current StudentEnrollment
     try {
-      const enrollId = "PHASE3_TEST_ENR_1";
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
-        VALUES ('${enrollId}', '${testStudentId}', '${testCohortId}', '${testDeptId}', '${testSectionId}', 1, 1, true, 'ACTIVE', NOW())
+        VALUES ('${enrollId1}', '${testStudentId}', '${testCohortId}', '${testDeptId}', '${testSectionId}', 1, 1, true, 'ACTIVE', NOW())
       `);
       console.log("PASS: 5. Create valid current StudentEnrollment");
     } catch (e) {
@@ -166,10 +179,9 @@ async function runTests() {
 
     // Test 6: Allow enrollment with classSectionId = null
     try {
-      const enrollId = "PHASE3_TEST_ENR_2";
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
-        VALUES ('${enrollId}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 1, 2, false, 'ACTIVE', NOW())
+        VALUES ('${enrollId2}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 1, 2, false, 'ACTIVE', NOW())
       `);
       console.log("PASS: 6. Allow enrollment where classSectionId is null");
     } catch (e) {
@@ -178,10 +190,9 @@ async function runTests() {
 
     // Test 7: Reject academicYear = 0
     try {
-      const enrollId = "PHASE3_TEST_ENR_ERR_1";
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
-        VALUES ('${enrollId}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 0, 1, false, 'ACTIVE', NOW())
+        VALUES ('${enrollIdErr1}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 0, 1, false, 'ACTIVE', NOW())
       `);
       console.error("FAIL: 7. Reject academicYear = 0 (Insert succeeded but should have failed)");
     } catch (e) {
@@ -194,10 +205,9 @@ async function runTests() {
 
     // Test 8: Reject academicYear = 5
     try {
-      const enrollId = "PHASE3_TEST_ENR_ERR_2";
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
-        VALUES ('${enrollId}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 5, 1, false, 'ACTIVE', NOW())
+        VALUES ('${enrollIdErr2}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 5, 1, false, 'ACTIVE', NOW())
       `);
       console.error("FAIL: 8. Reject academicYear = 5 (Insert succeeded but should have failed)");
     } catch (e) {
@@ -210,10 +220,9 @@ async function runTests() {
 
     // Test 9: Reject semester = 0
     try {
-      const enrollId = "PHASE3_TEST_ENR_ERR_3";
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
-        VALUES ('${enrollId}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 1, 0, false, 'ACTIVE', NOW())
+        VALUES ('${enrollIdErr3}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 1, 0, false, 'ACTIVE', NOW())
       `);
       console.error("FAIL: 9. Reject semester = 0 (Insert succeeded but should have failed)");
     } catch (e) {
@@ -226,10 +235,9 @@ async function runTests() {
 
     // Test 10: Reject semester = 9
     try {
-      const enrollId = "PHASE3_TEST_ENR_ERR_4";
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
-        VALUES ('${enrollId}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 1, 9, false, 'ACTIVE', NOW())
+        VALUES ('${enrollIdErr4}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 1, 9, false, 'ACTIVE', NOW())
       `);
       console.error("FAIL: 10. Reject semester = 9 (Insert succeeded but should have failed)");
     } catch (e) {
@@ -242,10 +250,9 @@ async function runTests() {
 
     // Test 11: Reject two current enrollments for one student
     try {
-      const enrollId = "PHASE3_TEST_ENR_ERR_5";
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
-        VALUES ('${enrollId}', '${testStudentId}', '${testCohortId}', '${testDeptId}', '${testSectionId}', 1, 3, true, 'ACTIVE', NOW())
+        VALUES ('${enrollIdErr5}', '${testStudentId}', '${testCohortId}', '${testDeptId}', '${testSectionId}', 1, 3, true, 'ACTIVE', NOW())
       `);
       console.error("FAIL: 11. Reject two current enrollments for one student (Insert succeeded but should have failed)");
     } catch (e) {
@@ -258,15 +265,13 @@ async function runTests() {
 
     // Test 12: Allow multiple historical enrollments where isCurrent = false
     try {
-      const enrollId1 = "PHASE3_TEST_ENR_HIST_1";
-      const enrollId2 = "PHASE3_TEST_ENR_HIST_2";
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
-        VALUES ('${enrollId1}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 1, 3, false, 'ACTIVE', NOW())
+        VALUES ('${enrollIdHist1}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 1, 3, false, 'ACTIVE', NOW())
       `);
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
-        VALUES ('${enrollId2}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 1, 4, false, 'ACTIVE', NOW())
+        VALUES ('${enrollIdHist2}', '${testStudentId}', '${testCohortId}', '${testDeptId}', NULL, 1, 4, false, 'ACTIVE', NOW())
       `);
       console.log("PASS: 12. Allow multiple historical enrollments where isCurrent = false");
     } catch (e) {
@@ -274,13 +279,14 @@ async function runTests() {
     }
 
     // Test 13: Reject using ClassSection with wrong Cohort
-    // Create second cohort
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO cohorts (id, code, start_year, end_year, status, updated_at)
-      VALUES ('${testCohortId2}', 'PHASE3_TEST_2025_2029', 2025, 2029, 'ACTIVE', NOW())
-    `);
     try {
-      const enrollId = "PHASE3_TEST_ENR_ERR_6";
+      // Create second cohort
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO cohorts (id, code, start_year, end_year, status, updated_at)
+        VALUES ('${testCohortId2}', 'PHASE3_TEST_2025_2029', 2025, 2029, 'ACTIVE', NOW())
+      `);
+
+      const enrollId = "d0000000-0000-0000-0000-000000000008";
       // Sec A is linked to Cohort 1, but we pass Cohort 2 in fields. This must trigger composite key mismatch.
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
@@ -296,13 +302,14 @@ async function runTests() {
     }
 
     // Test 14: Reject using ClassSection with wrong Department
-    // Create second department
-    await prisma.$executeRawUnsafe(`
-      INSERT INTO departments (id, code, name, is_active, updated_at)
-      VALUES ('${testDeptId2}', 'PHASE3_TEST_ECE', 'Electronics', true, NOW())
-    `);
     try {
-      const enrollId = "PHASE3_TEST_ENR_ERR_7";
+      // Create second department
+      await prisma.$executeRawUnsafe(`
+        INSERT INTO departments (id, code, name, is_active, updated_at)
+        VALUES ('${testDeptId2}', 'PHASE3_TEST_ECE', 'Electronics', true, NOW())
+      `);
+
+      const enrollId = "d0000000-0000-0000-0000-000000000009";
       // Sec A is linked to Dept 1, but we pass Dept 2 in fields
       await prisma.$executeRawUnsafe(`
         INSERT INTO student_enrollments (id, student_id, cohort_id, department_id, class_section_id, academic_year, semester, is_current, enrollment_status, updated_at)
@@ -364,9 +371,9 @@ async function runTests() {
 
     // Test 18: Confirm Cohort, Department, and ClassSection remain after student deletion
     try {
-      const cohortExists = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM cohorts WHERE id = ${testCohortId}`;
-      const deptExists = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM departments WHERE id = ${testDeptId}`;
-      const secExists = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM class_sections WHERE id = ${testSectionId}`;
+      const cohortExists = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM cohorts WHERE id = ${testCohortId}::uuid`;
+      const deptExists = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM departments WHERE id = ${testDeptId}::uuid`;
+      const secExists = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM class_sections WHERE id = ${testSectionId}::uuid`;
 
       if (cohortExists[0].count === 1 && deptExists[0].count === 1 && secExists[0].count === 1) {
         console.log("PASS: 18. Confirm Cohort, Department and ClassSection remain after student deletion");
@@ -379,7 +386,6 @@ async function runTests() {
 
     // Test 19: Confirm an unrelated existing Prisma model can still be created or queried
     try {
-      // Test auditLog creation or query
       const auditLog = await prisma.auditLog.create({
         data: {
           action: "PHASE3_TEST_AUDIT_ACTION",
@@ -391,7 +397,6 @@ async function runTests() {
       const queried = await prisma.auditLog.findUnique({ where: { id: auditLog.id } });
       if (queried && queried.action === "PHASE3_TEST_AUDIT_ACTION") {
         console.log("PASS: 19. Confirm unrelated model (AuditLog) works");
-        // clean up temporary auditLog
         await prisma.auditLog.delete({ where: { id: auditLog.id } });
       } else {
         console.error("FAIL: 19. Unrelated model check query failed.");
@@ -418,19 +423,30 @@ async function runTests() {
     // 8. CLEANUP BLOCK
     console.log("\n=== Executing Data Cleanup ===");
     try {
-      // Deletions in correct order of dependency
-      await prisma.$executeRawUnsafe(`DELETE FROM student_enrollments WHERE id LIKE 'PHASE3_TEST_%'`);
-      await prisma.$executeRawUnsafe(`DELETE FROM class_sections WHERE id LIKE 'PHASE3_TEST_%'`);
-      await prisma.$executeRawUnsafe(`DELETE FROM departments WHERE id LIKE 'PHASE3_TEST_%'`);
-      await prisma.$executeRawUnsafe(`DELETE FROM cohorts WHERE id LIKE 'PHASE3_TEST_%'`);
-      await prisma.$executeRawUnsafe(`DELETE FROM student_profiles WHERE id LIKE 'PHASE3_TEST_%'`);
+      // Deletions in correct order of dependency using explicit UUID keys
+      await prisma.$executeRawUnsafe(`DELETE FROM student_enrollments WHERE id IN (
+        '${enrollId1}', '${enrollId2}', '${enrollIdErr1}', '${enrollIdErr2}', '${enrollIdErr3}',
+        '${enrollIdErr4}', '${enrollIdErr5}', '${enrollIdHist1}', '${enrollIdHist2}',
+        'd0000000-0000-0000-0000-000000000008', 'd0000000-0000-0000-0000-000000000009'
+      )`);
+      await prisma.$executeRawUnsafe(`DELETE FROM class_sections WHERE id = '${testSectionId}'::uuid`);
+      await prisma.$executeRawUnsafe(`DELETE FROM departments WHERE id IN ('${testDeptId}'::uuid, '${testDeptId2}'::uuid)`);
+      await prisma.$executeRawUnsafe(`DELETE FROM cohorts WHERE id IN ('${testCohortId}'::uuid, '${testCohortId2}'::uuid)`);
+      await prisma.$executeRawUnsafe(`DELETE FROM student_profiles WHERE id = '${testStudentId}'`);
 
-      // Verify zero remains
-      const enrollRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer FROM student_enrollments WHERE id LIKE 'PHASE3_TEST_%'`;
-      const classRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer FROM class_sections WHERE id LIKE 'PHASE3_TEST_%'`;
-      const deptRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer FROM departments WHERE id LIKE 'PHASE3_TEST_%'`;
-      const cohRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer FROM cohorts WHERE id LIKE 'PHASE3_TEST_%'`;
-      const stuRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer FROM student_profiles WHERE id LIKE 'PHASE3_TEST_%'`;
+      // Verify zero remains using type-cast queries
+      const enrollRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer FROM student_enrollments WHERE id IN (
+        'd0000000-0000-0000-0000-000000000001'::uuid, 'd0000000-0000-0000-0000-000000000002'::uuid,
+        'd0000000-0000-0000-0000-000000000003'::uuid, 'd0000000-0000-0000-0000-000000000004'::uuid,
+        'd0000000-0000-0000-0000-000000000005'::uuid, 'd0000000-0000-0000-0000-000000000006'::uuid,
+        'd0000000-0000-0000-0000-000000000007'::uuid, 'd0000000-0000-0000-0000-000000000008'::uuid,
+        'd0000000-0000-0000-0000-000000000009'::uuid, 'd0000000-0000-0000-0000-000000000010'::uuid,
+        'd0000000-0000-0000-0000-000000000011'::uuid
+      )`;
+      const classRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer FROM class_sections WHERE id = ${testSectionId}::uuid`;
+      const deptRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer FROM departments WHERE id IN (${testDeptId}::uuid, ${testDeptId2}::uuid)`;
+      const cohRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer FROM cohorts WHERE id IN (${testCohortId}::uuid, ${testCohortId2}::uuid)`;
+      const stuRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer FROM student_profiles WHERE id = ${testStudentId}`;
 
       const totalRemains = enrollRemains[0].count + classRemains[0].count + deptRemains[0].count + cohRemains[0].count + stuRemains[0].count;
 
