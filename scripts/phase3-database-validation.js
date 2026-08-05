@@ -357,9 +357,9 @@ async function runTests() {
       await prisma.$executeRawUnsafe(`
         DELETE FROM student_profiles WHERE id = '${testStudentId}'
       `);
-      const remainingEnrollments = await prisma.$queryRaw`
-        SELECT COUNT(*)::integer as count FROM student_enrollments WHERE student_id = ${testStudentId}
-      `;
+      const remainingEnrollments = await prisma.$queryRawUnsafe(`
+        SELECT COUNT(*)::integer as count FROM student_enrollments WHERE student_id = '${testStudentId}'
+      `);
       if (remainingEnrollments[0].count === 0) {
         console.log("PASS: 17. Delete StudentProfile and cascade enrollments");
       } else {
@@ -371,9 +371,9 @@ async function runTests() {
 
     // Test 18: Confirm Cohort, Department, and ClassSection remain after student deletion
     try {
-      const cohortExists = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM cohorts WHERE id = ${testCohortId}`;
-      const deptExists = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM departments WHERE id = ${testDeptId}`;
-      const secExists = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM class_sections WHERE id = ${testSectionId}`;
+      const cohortExists = await prisma.$queryRawUnsafe(`SELECT COUNT(*)::integer as count FROM cohorts WHERE id = '${testCohortId}'`);
+      const deptExists = await prisma.$queryRawUnsafe(`SELECT COUNT(*)::integer as count FROM departments WHERE id = '${testDeptId}'`);
+      const secExists = await prisma.$queryRawUnsafe(`SELECT COUNT(*)::integer as count FROM class_sections WHERE id = '${testSectionId}'`);
 
       if (cohortExists[0].count === 1 && deptExists[0].count === 1 && secExists[0].count === 1) {
         console.log("PASS: 18. Confirm Cohort, Department and ClassSection remain after student deletion");
@@ -407,9 +407,9 @@ async function runTests() {
 
     // Test 20: Confirm zero real student data exists in the temporary database
     try {
-      const realStudentsCount = await prisma.$queryRaw`
+      const realStudentsCount = await prisma.$queryRawUnsafe(`
         SELECT COUNT(*)::integer as count FROM student_profiles WHERE name NOT LIKE 'PHASE3_TEST_%'
-      `;
+      `);
       if (realStudentsCount[0].count === 0) {
         console.log("PASS: 20. Confirm zero real student data exists in the temporary database");
       } else {
@@ -435,18 +435,18 @@ async function runTests() {
       await prisma.$executeRawUnsafe(`DELETE FROM student_profiles WHERE id = '${testStudentId}'`);
 
       // Verify zero remains using type-cast queries
-      const enrollRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM student_enrollments WHERE id IN (
+      const enrollRemains = await prisma.$queryRawUnsafe(`SELECT COUNT(*)::integer as count FROM student_enrollments WHERE id IN (
         'd0000000-0000-0000-0000-000000000001', 'd0000000-0000-0000-0000-000000000002',
         'd0000000-0000-0000-0000-000000000003', 'd0000000-0000-0000-0000-000000000004',
         'd0000000-0000-0000-0000-000000000005', 'd0000000-0000-0000-0000-000000000006',
         'd0000000-0000-0000-0000-000000000007', 'd0000000-0000-0000-0000-000000000008',
         'd0000000-0000-0000-0000-000000000009', 'd0000000-0000-0000-0000-000000000010',
         'd0000000-0000-0000-0000-000000000011'
-      )`;
-      const classRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM class_sections WHERE id = ${testSectionId}`;
-      const deptRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM departments WHERE id IN (${testDeptId}, ${testDeptId2})`;
-      const cohRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM cohorts WHERE id IN (${testCohortId}, ${testCohortId2})`;
-      const stuRemains = await prisma.$queryRaw`SELECT COUNT(*)::integer as count FROM student_profiles WHERE id = ${testStudentId}`;
+      )`);
+      const classRemains = await prisma.$queryRawUnsafe(`SELECT COUNT(*)::integer as count FROM class_sections WHERE id = '${testSectionId}'`);
+      const deptRemains = await prisma.$queryRawUnsafe(`SELECT COUNT(*)::integer as count FROM departments WHERE id IN ('${testDeptId}', '${testDeptId2}')`);
+      const cohRemains = await prisma.$queryRawUnsafe(`SELECT COUNT(*)::integer as count FROM cohorts WHERE id IN ('${testCohortId}', '${testCohortId2}')`);
+      const stuRemains = await prisma.$queryRawUnsafe(`SELECT COUNT(*)::integer as count FROM student_profiles WHERE id = '${testStudentId}'`);
 
       const totalRemains = enrollRemains[0].count + classRemains[0].count + deptRemains[0].count + cohRemains[0].count + stuRemains[0].count;
 
