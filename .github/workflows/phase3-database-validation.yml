@@ -10,6 +10,8 @@ jobs:
   validate:
     name: Database Migration and Constraint Validation
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     services:
       postgres:
@@ -90,3 +92,16 @@ jobs:
 
       - name: Check Git Whitespace and Diff Warnings
         run: git diff --check
+
+      - name: Commit and Push Logs
+        if: always()
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin
+          git checkout -b ci-validation-logs || git checkout ci-validation-logs
+          if [ -f validation-output.txt ]; then
+            cp validation-output.txt log.txt
+            git add log.txt
+            git commit -m "chore(ci): update validation logs" && git push origin ci-validation-logs --force || true
+          fi
