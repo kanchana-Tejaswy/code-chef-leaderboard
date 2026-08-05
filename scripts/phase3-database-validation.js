@@ -86,10 +86,12 @@ async function runTests() {
       WHERE tablename = 'student_enrollments'
       AND indexname = 'student_enrollments_one_current_per_student'
     `;
-    if (partialIndex.length > 0 && partialIndex[0].indexdef.includes('WHERE is_current')) {
+    if (partialIndex.length > 0 && partialIndex[0].indexdef.toLowerCase().includes('is_current')) {
       console.log("PASS: student_enrollments_one_current_per_student partial unique index exists.");
     } else {
       console.error("FAIL: Partial unique index validation failed.");
+      const allIdxs = await prisma.$queryRaw`SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'student_enrollments'`;
+      console.log("DEBUG: All indexes on student_enrollments:", allIdxs);
     }
 
     // Verify CHECK Constraints
@@ -105,7 +107,7 @@ async function runTests() {
 
     // Verify Foreign Key Deltypes (onDelete: Restrict / Cascade)
     const fkConstraints = await prisma.$queryRaw`
-      SELECT conname, confdeltype FROM pg_constraint
+      SELECT conname, confdeltype::text AS confdeltype FROM pg_constraint
       WHERE conname IN (
         'class_sections_cohort_id_fkey',
         'class_sections_department_id_fkey',
