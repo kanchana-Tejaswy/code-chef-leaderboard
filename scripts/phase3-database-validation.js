@@ -132,7 +132,7 @@ async function runTests() {
     try {
       await prisma.$executeRawUnsafe(`
         INSERT INTO cohorts (id, code, start_year, end_year, status, updated_at)
-        VALUES ('${testCohortId}', 'PHASE3_TEST_2024_2028', 2024, 2028, 'ACTIVE', NOW())
+        VALUES ('${testCohortId}', 'PHASE3_T_2024_2028', 2024, 2028, 'ACTIVE', NOW())
       `);
       console.log("PASS: 1. Create Cohort PHASE3_TEST_2024_2028");
     } catch (e) {
@@ -289,7 +289,7 @@ async function runTests() {
       // Create second cohort
       await prisma.$executeRawUnsafe(`
         INSERT INTO cohorts (id, code, start_year, end_year, status, updated_at)
-        VALUES ('${testCohortId2}', 'PHASE3_TEST_2025_2029', 2025, 2029, 'ACTIVE', NOW())
+        VALUES ('${testCohortId2}', 'PHASE3_T_2025_2029', 2025, 2029, 'ACTIVE', NOW())
       `);
 
       const enrollId = "d0000000-0000-0000-0000-000000000008";
