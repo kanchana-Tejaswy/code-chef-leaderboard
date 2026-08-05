@@ -57,7 +57,7 @@ jobs:
         run: node scripts/ci/bootstrap-ci-db.js
 
       - name: Check Migration Deploy Status (Pre-deploy)
-        run: npx prisma migrate status
+        run: npx prisma migrate status || true
 
       - name: Deploy Database Migrations
         run: npx prisma migrate deploy

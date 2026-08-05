@@ -41,7 +41,20 @@ try {
 
   // 3. Generate baseline SQL script
   console.log("Generating baseline SQL script using prisma migrate diff...");
-  execSync(`npx prisma migrate diff --from-empty --to-schema "${schemaPath}" --script > "${sqlPath}"`, { stdio: 'inherit' });
+  const rawSql = execSync(`npx prisma migrate diff --from-empty --to-schema "${schemaPath}" --script`, {
+    env: { ...process.env, quiet: 'true' }
+  }).toString();
+
+  // Filter out any lines matching the injection log or prisma logs
+  const cleanSqlLines = rawSql.split('\n').filter(line => {
+    const trimmed = line.trim();
+    if (trimmed.startsWith('◇') || trimmed.includes('injected env') || trimmed.includes('Loaded Prisma config')) {
+      return false;
+    }
+    return true;
+  });
+  const cleanSql = cleanSqlLines.join('\n');
+  fs.writeFileSync(sqlPath, cleanSql);
 
   // Verify baseline SQL content
   const sqlContent = fs.readFileSync(sqlPath, 'utf8');
@@ -50,6 +63,7 @@ try {
     process.exit(1);
   }
   console.log("Baseline SQL script generated and verified successfully.");
+
 
   // 4. Apply baseline SQL via psql
   console.log("Applying baseline SQL script to local PostgreSQL...");
