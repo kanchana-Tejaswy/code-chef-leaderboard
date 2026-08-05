@@ -41,45 +41,46 @@ enum SyncInitiatedBy {
 }
 
 model StudentProfile {
-  id                String            @id @default(uuid())
-  name              String
-  rollNumber        String?           @unique @map("roll_number")
-  department        String?
-  year              Int?
-  branch            String?
-  section           String?
-  profilePictureUrl String?           @map("profile_picture_url")
-  codechefUsername  String?           @unique @map("codechef_username")
-  leetcodeUsername  String?           @unique @map("leetcode_username")
-  githubUsername    String?           @unique @map("github_username")
-  linkedinUrl       String?           @map("linkedin_url")
-  email             String?           @unique
-  verificationStatus String            @default("UNABLE_TO_VERIFY") @map("verification_status")
-  contactNumber     String?           @map("contact_number")
-  cgpa              Float?
-  codeforcesUsername String?          @unique @map("codeforces_username")
-  profileStatus     String            @default("INCOMPLETE") @map("profile_status")
-  leaderboardEligible Boolean         @default(false) @map("leaderboard_eligible")
-  dashboardEligible Boolean           @default(false) @map("dashboard_eligible")
-  adminApprovalStatus String            @default("PENDING") @map("admin_approval_status")
-  approvedAt         DateTime?         @map("approved_at")
-  approvedById       String?           @map("approved_by_id")
-  approvalNote       String?           @map("approval_note")
-  archivedAt         DateTime?         @map("archived_at")
-  archivedById       String?           @map("archived_by_id")
-  archivedBy         UserAccess?       @relation("ArchivedStudents", fields: [archivedById], references: [id], onDelete: SetNull)
-  createdAt         DateTime          @default(now()) @map("created_at")
-  updatedAt         DateTime          @updatedAt @map("updated_at")
-  
-  userAccess       UserAccess?
-  codechefProfile  CodechefProfile?
-  leetcodeProfile  LeetcodeProfile?
-  githubProfile    GithubProfile?
-  aiAnalysis       AiAnalysis?
-  leaderboardEntry LeaderboardEntry?
-  syncLogs         SyncLog[]
-  activityLogs     ActivityLog[]
-  normalizedProfile NormalizedProfile?
+  id                  String      @id @default(uuid())
+  name                String
+  rollNumber          String?     @unique @map("roll_number")
+  department          String?
+  year                Int?
+  branch              String?
+  section             String?
+  profilePictureUrl   String?     @map("profile_picture_url")
+  codechefUsername    String?     @unique @map("codechef_username")
+  leetcodeUsername    String?     @unique @map("leetcode_username")
+  githubUsername      String?     @unique @map("github_username")
+  linkedinUrl         String?     @map("linkedin_url")
+  email               String?     @unique
+  verificationStatus  String      @default("UNABLE_TO_VERIFY") @map("verification_status")
+  contactNumber       String?     @map("contact_number")
+  cgpa                Float?
+  codeforcesUsername  String?     @unique @map("codeforces_username")
+  profileStatus       String      @default("INCOMPLETE") @map("profile_status")
+  leaderboardEligible Boolean     @default(false) @map("leaderboard_eligible")
+  dashboardEligible   Boolean     @default(false) @map("dashboard_eligible")
+  adminApprovalStatus String      @default("PENDING") @map("admin_approval_status")
+  approvedAt          DateTime?   @map("approved_at")
+  approvedById        String?     @map("approved_by_id")
+  approvalNote        String?     @map("approval_note")
+  archivedAt          DateTime?   @map("archived_at")
+  archivedById        String?     @map("archived_by_id")
+  archivedBy          UserAccess? @relation("ArchivedStudents", fields: [archivedById], references: [id], onDelete: SetNull)
+  createdAt           DateTime    @default(now()) @map("created_at")
+  updatedAt           DateTime    @updatedAt @map("updated_at")
+
+  userAccess         UserAccess?
+  codechefProfile    CodechefProfile?
+  leetcodeProfile    LeetcodeProfile?
+  githubProfile      GithubProfile?
+  aiAnalysis         AiAnalysis?
+  leaderboardEntry   LeaderboardEntry?
+  syncLogs           SyncLog[]
+  activityLogs       ActivityLog[]
+  normalizedProfile  NormalizedProfile?
+  studentEnrollments StudentEnrollment[]
 
   @@index([department])
   @@index([createdAt])
@@ -123,7 +124,7 @@ model CodechefProfile {
   difficultyDistribution Json?          @map("difficulty_distribution")
   activitySummary        Json?          @map("activity_summary")
   statisticDetails       Json?          @map("statistic_details")
-  contests               Json?          // Backward compatibility
+  contests               Json? // Backward compatibility
   verificationMetadata   Json?          @map("verification_metadata")
   lastFetchedAt          DateTime       @default(now()) @map("last_fetched_at")
   createdAt              DateTime       @default(now()) @map("created_at")
@@ -134,52 +135,52 @@ model CodechefProfile {
 }
 
 model LeetcodeProfile {
-  id                     String         @id @default(uuid())
-  studentId              String         @unique @map("student_id")
-  student                StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  username               String         @unique
-  problemsSolved         Int?           @map("problems_solved")
-  easySolvedCount        Int?           @map("easy_solved_count")
-  mediumSolvedCount      Int?           @map("medium_solved_count")
-  hardSolvedCount        Int?           @map("hard_solved_count")
-  contestRating          Float?         @map("contest_rating")
-  contestRank            Int?           @map("contest_rank")
-  acceptanceRate         Float?         @map("acceptance_rate")
-  heatmap                Json?          // Calendar heatmap style data
-  weeklyActivity         Json?          // Weekly activity details
-  skillRadar             Json?          // Skill radar chart values
-  tagDistribution        Json?          // Tag distribution pie chart values
-  consistencyScore       Float?         @map("consistency_score")
-  ratingHistory          Json?          @map("rating_history")
-  contestHistory         Json?          @map("contest_history")
-  verificationMetadata   Json?          @map("verification_metadata")
-  lastFetchedAt          DateTime       @default(now()) @map("last_fetched_at")
-  createdAt              DateTime       @default(now()) @map("created_at")
-  updatedAt              DateTime       @updatedAt @map("updated_at")
+  id                   String         @id @default(uuid())
+  studentId            String         @unique @map("student_id")
+  student              StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  username             String         @unique
+  problemsSolved       Int?           @map("problems_solved")
+  easySolvedCount      Int?           @map("easy_solved_count")
+  mediumSolvedCount    Int?           @map("medium_solved_count")
+  hardSolvedCount      Int?           @map("hard_solved_count")
+  contestRating        Float?         @map("contest_rating")
+  contestRank          Int?           @map("contest_rank")
+  acceptanceRate       Float?         @map("acceptance_rate")
+  heatmap              Json? // Calendar heatmap style data
+  weeklyActivity       Json? // Weekly activity details
+  skillRadar           Json? // Skill radar chart values
+  tagDistribution      Json? // Tag distribution pie chart values
+  consistencyScore     Float?         @map("consistency_score")
+  ratingHistory        Json?          @map("rating_history")
+  contestHistory       Json?          @map("contest_history")
+  verificationMetadata Json?          @map("verification_metadata")
+  lastFetchedAt        DateTime       @default(now()) @map("last_fetched_at")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
 
   @@index([createdAt])
   @@map("leetcode_profiles")
 }
 
 model GithubProfile {
-  id                String         @id @default(uuid())
-  studentId         String         @unique @map("student_id")
-  student           StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  username          String         @unique
-  totalRepositories Int?           @map("total_repositories")
-  totalStars        Int?           @map("total_stars")
-  totalForks        Int?           @map("total_forks")
-  followers         Int?
-  contributions     Json?          // Contributions graph data
-  languages         Json?          // Language distribution pie chart
-  repos             Json?          // Top repositories list (clickable)
-  commitTimeline    Json?          // Commit timeline data
-  openSourceScore   Float?         @map("open_source_score")
-  repoQualityScore  Json?          @map("repo_quality_score") // Repository quality score radar data
-  verificationMetadata Json?         @map("verification_metadata")
-  lastFetchedAt     DateTime       @default(now()) @map("last_fetched_at")
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
+  id                   String         @id @default(uuid())
+  studentId            String         @unique @map("student_id")
+  student              StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  username             String         @unique
+  totalRepositories    Int?           @map("total_repositories")
+  totalStars           Int?           @map("total_stars")
+  totalForks           Int?           @map("total_forks")
+  followers            Int?
+  contributions        Json? // Contributions graph data
+  languages            Json? // Language distribution pie chart
+  repos                Json? // Top repositories list (clickable)
+  commitTimeline       Json? // Commit timeline data
+  openSourceScore      Float?         @map("open_source_score")
+  repoQualityScore     Json?          @map("repo_quality_score") // Repository quality score radar data
+  verificationMetadata Json?          @map("verification_metadata")
+  lastFetchedAt        DateTime       @default(now()) @map("last_fetched_at")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
 
   @@map("github_profiles")
 }
@@ -199,14 +200,14 @@ model AiAnalysis {
   overallPotential            String?        @map("overall_potential")
   placementReadiness          String?        @map("placement_readiness")
   expectedRating6Months       Int?           @map("expected_rating_6_months")
-  strengths                   Json?          // String array
-  weaknesses                  Json?          // String array
+  strengths                   Json? // String array
+  weaknesses                  Json? // String array
   improvementAreas            Json?          @map("improvement_areas") // String array
   careerRecommendation        String?        @map("career_recommendation")
   suggestedCompanies          Json?          @map("suggested_companies") // String array
   recommendedLearningPath     Json?          @map("recommended_learning_path") // String array
-  recommendations             Json?          // Backward compatibility
-  careerSuggestions           Json?          // Backward compatibility
+  recommendations             Json? // Backward compatibility
+  careerSuggestions           Json? // Backward compatibility
   generatedAt                 DateTime       @default(now()) @map("generated_at")
   createdAt                   DateTime       @default(now()) @map("created_at")
   updatedAt                   DateTime       @updatedAt @map("updated_at")
@@ -263,17 +264,17 @@ model ActivityLog {
 }
 
 model NormalizedProfile {
-  id                   String         @id @default(uuid())
-  studentId            String         @unique @map("student_id")
-  student              StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  username             String
-  platforms            Json           // Holds { codechef: {...}, leetcode: {...}, github: {...} }
-  ratingScore          Float          @default(0) @map("rating_score")
-  consistencyScore     Float          @default(0) @map("consistency_score")
-  problemSolvingScore  Float          @default(0) @map("problem_solving_score")
-  activityScore        Float          @default(0) @map("activity_score")
-  status               String         @default("COMPLETE") // COMPLETE | PARTIAL
-  updatedAt            DateTime       @updatedAt @map("updated_at")
+  id                  String         @id @default(uuid())
+  studentId           String         @unique @map("student_id")
+  student             StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  username            String
+  platforms           Json // Holds { codechef: {...}, leetcode: {...}, github: {...} }
+  ratingScore         Float          @default(0) @map("rating_score")
+  consistencyScore    Float          @default(0) @map("consistency_score")
+  problemSolvingScore Float          @default(0) @map("problem_solving_score")
+  activityScore       Float          @default(0) @map("activity_score")
+  status              String         @default("COMPLETE") // COMPLETE | PARTIAL
+  updatedAt           DateTime       @updatedAt @map("updated_at")
 
   @@map("normalized_profiles")
 }
@@ -281,7 +282,7 @@ model NormalizedProfile {
 model SyncJob {
   id               String    @id @default(uuid())
   studentId        String    @map("student_id")
-  status           String    // QUEUED | PROCESSING | CODECHEF_VERIFIED | LEETCODE_VERIFIED | VERIFIED | INCOMPLETE | FAILED | RETRY_PENDING | PENDING | RUNNING | COMPLETED
+  status           String // QUEUED | PROCESSING | CODECHEF_VERIFIED | LEETCODE_VERIFIED | VERIFIED | INCOMPLETE | FAILED | RETRY_PENDING | PENDING | RUNNING | COMPLETED
   attemptCount     Int       @default(0) @map("attempt_count")
   lastAttemptedAt  DateTime? @map("last_attempted_at")
   lastSuccessfulAt DateTime? @map("last_successful_at")
@@ -296,13 +297,13 @@ model SyncJob {
 }
 
 model FetchLog {
-  id                 String          @id @default(uuid())
-  platform           String
-  username           String
-  status             String          // SUCCESS | FAILURE
-  error              String?
-  retryCount         Int             @default(0) @map("retry_count")
-  createdAt          DateTime        @default(now()) @map("created_at")
+  id         String   @id @default(uuid())
+  platform   String
+  username   String
+  status     String // SUCCESS | FAILURE
+  error      String?
+  retryCount Int      @default(0) @map("retry_count")
+  createdAt  DateTime @default(now()) @map("created_at")
 
   @@map("fetch_logs")
 }
@@ -323,27 +324,27 @@ model Profile {
 }
 
 model UserAccess {
-  id                    String        @id @default(cuid())
-  authUserId            String?       @unique @map("auth_user_id")
-  email                 String        @unique
-  loginId               String        @unique @map("login_id")
-  role                  UserRole
-  status                AccountStatus @default(PENDING)
-  departmentId          String?       @map("department_id")
-  studentProfileId      String?       @unique @map("student_profile_id")
-  firstLoginCompleted   Boolean       @default(false) @map("first_login_completed")
-  mustSetPassword       Boolean       @default(true) @map("must_set_password")
-  canDeleteStudents     Boolean       @default(false) @map("can_delete_students")
-  approvedBy            String?       @map("approved_by")
-  approvedAt            DateTime?     @map("approved_at")
-  passwordSetAt         DateTime?     @map("password_set_at")
-  lastLoginAt           DateTime?     @map("last_login_at")
-  createdAt             DateTime      @default(now()) @map("created_at")
-  updatedAt             DateTime      @updatedAt @map("updated_at")
+  id                  String        @id @default(cuid())
+  authUserId          String?       @unique @map("auth_user_id")
+  email               String        @unique
+  loginId             String        @unique @map("login_id")
+  role                UserRole
+  status              AccountStatus @default(PENDING)
+  departmentId        String?       @map("department_id")
+  studentProfileId    String?       @unique @map("student_profile_id")
+  firstLoginCompleted Boolean       @default(false) @map("first_login_completed")
+  mustSetPassword     Boolean       @default(true) @map("must_set_password")
+  canDeleteStudents   Boolean       @default(false) @map("can_delete_students")
+  approvedBy          String?       @map("approved_by")
+  approvedAt          DateTime?     @map("approved_at")
+  passwordSetAt       DateTime?     @map("password_set_at")
+  lastLoginAt         DateTime?     @map("last_login_at")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
 
-  studentProfile        StudentProfile? @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
-  archivedStudents      StudentProfile[] @relation("ArchivedStudents")
-  auditLogs             AuditLog[]
+  studentProfile   StudentProfile?  @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+  archivedStudents StudentProfile[] @relation("ArchivedStudents")
+  auditLogs        AuditLog[]
 
   @@index([role])
   @@index([status])
@@ -362,7 +363,7 @@ model AuditLog {
   userAgent   String?  @map("user_agent")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  userAccess  UserAccess? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  userAccess UserAccess? @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
 
   @@index([actorUserId])
   @@index([action])
@@ -370,3 +371,106 @@ model AuditLog {
   @@map("audit_logs")
 }
 
+// ==========================================
+// PHASE 3 ADDITIVE ACADEMIC REGISTRY FOUNDATION
+// ==========================================
+
+enum CohortStatus {
+  UPCOMING
+  ACTIVE
+  GRADUATED
+  ARCHIVED
+}
+
+enum EnrollmentStatus {
+  ACTIVE
+  COMPLETED
+  PROMOTED
+  REPEATING
+  SUSPENDED
+  WITHDRAWN
+}
+
+model Cohort {
+  id            String              @id @default(uuid()) @db.Uuid
+  code          String              @unique @db.VarChar(20)
+  startYear     Int                 @map("start_year")
+  endYear       Int                 @map("end_year")
+  status        CohortStatus        @default(ACTIVE)
+  graduatedAt   DateTime?           @map("graduated_at")
+  archivedAt    DateTime?           @map("archived_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  classSections ClassSection[]
+  enrollments   StudentEnrollment[]
+
+  @@unique([startYear, endYear])
+  @@index([status])
+  @@map("cohorts")
+}
+
+model Department {
+  id            String              @id @default(uuid()) @db.Uuid
+  code          String              @unique @db.VarChar(20)
+  name          String
+  isActive      Boolean             @default(true) @map("is_active")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+  classSections ClassSection[]
+  enrollments   StudentEnrollment[]
+
+  @@index([isActive])
+  @@map("departments")
+}
+
+model ClassSection {
+  id           String   @id @default(uuid()) @db.Uuid
+  cohortId     String   @map("cohort_id") @db.Uuid
+  departmentId String   @map("department_id") @db.Uuid
+  name         String   @db.VarChar(50)
+  capacity     Int?
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  cohort      Cohort              @relation(fields: [cohortId], references: [id], onDelete: Restrict)
+  department  Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  enrollments StudentEnrollment[]
+
+  @@unique([id, cohortId, departmentId])
+  @@unique([cohortId, departmentId, name])
+  @@index([cohortId])
+  @@index([departmentId])
+  @@index([isActive])
+  @@map("class_sections")
+}
+
+model StudentEnrollment {
+  id               String           @id @default(uuid()) @db.Uuid
+  studentId        String           @map("student_id") @db.Uuid
+  cohortId         String           @map("cohort_id") @db.Uuid
+  departmentId     String           @map("department_id") @db.Uuid
+  classSectionId   String?          @map("class_section_id") @db.Uuid
+  academicYear     Int              @map("academic_year")
+  semester         Int?
+  enrollmentStatus EnrollmentStatus @default(ACTIVE) @map("enrollment_status")
+  isCurrent        Boolean          @default(true) @map("is_current")
+  startedAt        DateTime         @default(now()) @map("started_at")
+  endedAt          DateTime?        @map("ended_at")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  cohort       Cohort         @relation(fields: [cohortId], references: [id], onDelete: Restrict)
+  department   Department     @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  classSection ClassSection?  @relation(fields: [classSectionId, cohortId, departmentId], references: [id, cohortId, departmentId], onDelete: Restrict)
+
+  @@index([studentId])
+  @@index([cohortId])
+  @@index([departmentId])
+  @@index([classSectionId])
+  @@index([isCurrent])
+  @@index([cohortId, departmentId, isCurrent])
+  @@index([cohortId, departmentId, classSectionId, isCurrent])
+  @@map("student_enrollments")
+}
