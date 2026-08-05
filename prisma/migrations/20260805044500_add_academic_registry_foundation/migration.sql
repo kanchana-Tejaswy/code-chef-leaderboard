@@ -48,7 +48,7 @@ CREATE TABLE "class_sections" (
 -- CreateTable
 CREATE TABLE "student_enrollments" (
     "id" UUID NOT NULL,
-    "student_id" UUID NOT NULL,
+    "student_id" TEXT NOT NULL,
     "cohort_id" UUID NOT NULL,
     "department_id" UUID NOT NULL,
     "class_section_id" UUID,

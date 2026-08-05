@@ -447,7 +447,7 @@ model ClassSection {
 
 model StudentEnrollment {
   id               String           @id @default(uuid()) @db.Uuid
-  studentId        String           @map("student_id") @db.Uuid
+  studentId        String           @map("student_id")
   cohortId         String           @map("cohort_id") @db.Uuid
   departmentId     String           @map("department_id") @db.Uuid
   classSectionId   String?          @map("class_section_id") @db.Uuid
