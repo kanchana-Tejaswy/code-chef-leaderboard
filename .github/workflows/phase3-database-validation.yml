@@ -1,0 +1,70 @@
+name: Phase 3 Database Validation
+
+on:
+  push:
+    branches:
+      - phase3-academic-foundation
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Database Migration and Constraint Validation
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: ace_phase3_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: phase3_temp_validation_pwd
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgres://postgres:phase3_temp_validation_pwd@localhost:5432/ace_phase3_test
+      DIRECT_URL: postgres://postgres:phase3_temp_validation_pwd@localhost:5432/ace_phase3_test
+      NEXT_PUBLIC_SUPABASE_URL: http://localhost:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
+      SUPABASE_SERVICE_ROLE_KEY: dummy-service-role-key
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Project Dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Validate Prisma Schema
+        run: npx prisma validate
+
+      - name: Deploy Database Migrations
+        run: npx prisma migrate deploy
+
+      - name: Check Migration Deploy Status
+        run: npx prisma migrate status
+
+      - name: Run Database Constraint Verification
+        run: node scripts/phase3-database-validation.js
+
+      - name: Run Focused Vitest Test Suite
+        run: npx vitest run tests/phase3-academic-foundation.test.ts
+
+      - name: Compile and Build Next.js
+        run: npm run build
+
+      - name: Check Git Whitespace and Diff Warnings
+        run: git diff --check
