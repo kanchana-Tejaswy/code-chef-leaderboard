@@ -1,6 +1,7 @@
 const { execSync } = require('child_process');
 const path = require('path');
 const fs = require('fs');
+const { Pool } = require('pg');
 
 const url = process.env.DATABASE_URL;
 
@@ -25,10 +26,10 @@ const tempDir = process.env.RUNNER_TEMP || '/tmp';
 const schemaPath = path.join(tempDir, 'origin-main-schema.prisma');
 const sqlPath = path.join(tempDir, 'origin-main-baseline.sql');
 
-try {
+async function main() {
   // 2. Extract origin/main schema
   console.log("Extracting origin/main schema...");
-  const mainCommit = "edfd43dfa080203f2c91398ca7e08364ce24ddd2";
+  const mainCommit = "be230d2911d5751d77fd55f82b3dd5c237590dce";
   execSync(`git show ${mainCommit}:prisma/schema.prisma > "${schemaPath}"`, { stdio: 'inherit' });
 
   // Verify extracted schema content safely
@@ -53,7 +54,18 @@ try {
     }
     return true;
   });
-  const cleanSql = cleanSqlLines.join('\n');
+  
+  let cleanSql = cleanSqlLines.join('\n');
+  
+  // Append fake user access records (2 ADMIN, 2 GK_SIR)
+  cleanSql += `
+INSERT INTO "user_access" ("id", "email", "login_id", "role", "status", "first_login_completed", "must_set_password", "created_at", "updated_at") VALUES
+('PHASE37_TEST_A1', 'PHASE37_TEST_admin1@example.com', 'PHASE37_TEST_admin1', 'ADMIN', 'ACTIVE', false, true, NOW(), NOW()),
+('PHASE37_TEST_A2', 'PHASE37_TEST_admin2@example.com', 'PHASE37_TEST_admin2', 'ADMIN', 'ACTIVE', false, true, NOW(), NOW()),
+('PHASE37_TEST_G1', 'PHASE37_TEST_gksir1@example.com', 'PHASE37_TEST_gksir1', 'GK_SIR', 'ACTIVE', false, true, NOW(), NOW()),
+('PHASE37_TEST_G2', 'PHASE37_TEST_gksir2@example.com', 'PHASE37_TEST_gksir2', 'GK_SIR', 'ACTIVE', false, true, NOW(), NOW());
+`;
+  
   fs.writeFileSync(sqlPath, cleanSql);
 
   // Verify baseline SQL content
@@ -84,8 +96,7 @@ try {
     '20260723210000_add_student_csv_bulk_import_fields',
     '20260726000000_add_durable_sync_queue',
     '20260726000001_add_admin_approval_fields',
-    '20260730174800_add_student_archiving',
-    '20260731083000_add_can_delete_students'
+    '20260730174800_add_student_archiving'
   ];
 
   console.log("Marking historical migrations as applied...");
@@ -94,8 +105,38 @@ try {
     execSync(`npx prisma migrate resolve --applied ${migration}`, { stdio: 'inherit' });
   }
 
+  // 6. Pre-migration Checks using pg Client
+  console.log("Running pre-migration checks...");
+  const pool = new Pool({ connectionString: url });
+  
+  // 6a. Confirm can_delete_students does not exist
+  const columnRes = await pool.query(`
+    SELECT column_name 
+    FROM information_schema.columns 
+    WHERE table_name = 'user_access' AND column_name = 'can_delete_students'
+  `);
+  if (columnRes.rows.length > 0) {
+    console.error("FATAL Pre-migration check: can_delete_students column ALREADY exists!");
+    process.exit(1);
+  }
+  console.log("Pre-migration verification: can_delete_students column does not exist (PASS).");
+
+  // 6b. Confirm total UserAccess rows created is exactly 4
+  const countRes = await pool.query(`
+    SELECT COUNT(*) FROM "user_access" WHERE id LIKE 'PHASE37_TEST_%'
+  `);
+  const count = parseInt(countRes.rows[0].count, 10);
+  if (count !== 4) {
+    console.error(`FATAL Pre-migration check: UserAccess count is ${count}, expected 4!`);
+    process.exit(1);
+  }
+  console.log(`Pre-migration verification: Total UserAccess rows created is ${count} (PASS).`);
+  await pool.end();
+
   console.log("=== Legacy database baseline bootstrap completed successfully! ===");
-} catch (error) {
+}
+
+main().catch(error => {
   console.error("FATAL: Bootstrap failed: ", error.message);
   process.exit(1);
-}
+});

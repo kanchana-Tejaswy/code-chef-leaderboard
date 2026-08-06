@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - phase3-academic-foundation
+      - phase3-validation-temp
   workflow_dispatch:
 
 jobs:
@@ -63,6 +64,9 @@ jobs:
 
       - name: Deploy Database Migrations
         run: npx prisma migrate deploy
+
+      - name: Validate can_delete_students Migration
+        run: node scripts/ci/validate-can-delete.js
 
       - name: Check Migration Deploy Status (Post-deploy)
         run: npx prisma migrate status
