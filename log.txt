@@ -1,0 +1,35 @@
+Starting Phase 3 Database Constraint Verification...
+
+=== Checking Database Catalog Structure ===
+PASS: Additive tables (cohorts, departments, class_sections, student_enrollments) exist.
+PASS: CohortStatus and EnrollmentStatus enums exist with active labels.
+PASS: student_enrollments_one_current_per_student partial unique index exists.
+PASS: Academic year (1-4) and Semester (1-8) CHECK constraints exist.
+PASS: Deletion rules verified: RESTRICT on academic relations, CASCADE on StudentProfile.
+
+=== Executing Integration Constraints Tests ===
+PASS: 1. Create Cohort PHASE3_TEST_2024_2028
+PASS: 2. Create Department PHASE3_TEST_CSE
+PASS: 3. Create ClassSection A
+PASS: 4. Create fake StudentProfile
+PASS: 5. Create valid current StudentEnrollment
+PASS: 6. Allow enrollment where classSectionId is null
+PASS: 7. Reject academicYear = 0
+PASS: 8. Reject academicYear = 5
+PASS: 9. Reject semester = 0
+PASS: 10. Reject semester = 9
+PASS: 11. Reject two current enrollments for one student
+PASS: 12. Allow multiple historical enrollments where isCurrent = false
+PASS: 13. Reject using ClassSection with wrong Cohort
+PASS: 14. Reject using ClassSection with wrong Department
+PASS: 15. Reject deleting referenced Cohort
+PASS: 16. Reject deleting referenced Department
+PASS: 17. Delete StudentProfile and cascade enrollments
+PASS: 18. Confirm Cohort, Department and ClassSection remain after student deletion
+PASS: 19. Confirm unrelated model (AuditLog) works
+PASS: 20. Confirm zero real student data exists in the temporary database
+
+=== Executing Data Cleanup ===
+PASS: Cleanup complete. Zero PHASE3_TEST records remain.
+
+Phase 3 Database Constraint Verification complete.
