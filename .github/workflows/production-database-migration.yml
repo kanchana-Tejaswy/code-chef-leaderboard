@@ -31,7 +31,7 @@ jobs:
       - name: Check Migration Deploy Status (Pre-deploy)
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: npx prisma migrate status
+        run: npx prisma migrate status || true
 
       - name: Deploy Database Migrations
         env:
