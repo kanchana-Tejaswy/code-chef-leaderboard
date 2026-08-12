@@ -1619,6 +1619,29 @@ function PlatformSyncTab() {
     fetchStats();
   }, []);
 
+  useEffect(() => {
+    if (!stats || stats.remaining === 0 || stats.isPaused) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch("/api/admin/bulk-sync", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "process-batch", limit: 5 }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setStats(data.stats);
+          setFailedProfiles(data.failedProfiles || []);
+        }
+      } catch (e) {
+        console.error("Auto-poll process batch failed:", e);
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [stats]);
+
   const handleAction = async (action: string, payload: any = {}) => {
     setActionLoading(true);
     setMessage(null);

@@ -18,8 +18,17 @@ function isAdmin(request: NextRequest): boolean {
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   try {
-    await requireAdmin();
-    if (!isAdmin(request)) {
+    let authorized = false;
+    try {
+      await requireAdmin();
+      authorized = true;
+    } catch (e) {
+      if (isAdmin(request)) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -28,11 +37,42 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Missing jobId" }, { status: 400 });
     }
 
-    const job = getJob(jobId);
-    
-    if (!job) {
-      return NextResponse.json({ error: "Job not found" }, { status: 404 });
-    }
+    // 1. Advance the database queue asynchronously by processing next batch of 5
+    const { BulkSyncService } = await import("@/services/bulkSync.service");
+    BulkSyncService.processBatch(5, 2).catch((err) => {
+      console.error("Background batch processing error in status endpoint:", err);
+    });
+
+    // 2. Query database-driven queue counts
+    const stats = await BulkSyncService.getQueueProgressStats();
+
+    // 3. Map queue statistics to JobStatus format
+    const totalStudents = stats.eligibleProfiles || 1;
+    const remaining = stats.remaining;
+    const processedStudents = stats.eligibleProfiles - remaining;
+    const successfulStudents = stats.verified;
+    const failedStudents = stats.failed;
+    const skippedStudents = stats.incomplete;
+
+    const statusValue = remaining > 0 ? "RUNNING" : "SUCCESS";
+
+    const job = {
+      id: jobId,
+      requestedBy: "ADMIN_UI",
+      mode: "ALL",
+      startedAt: new Date(),
+      totalStudents,
+      processedStudents,
+      successfulStudents,
+      failedStudents,
+      skippedStudents,
+      status: statusValue,
+      errors: [],
+    };
+
+    // 4. Update the memory cache so other controllers stay in sync
+    const { updateJobProgress } = await import("@/lib/jobTracker");
+    updateJobProgress(jobId, job as any);
 
     return NextResponse.json({
       success: true,

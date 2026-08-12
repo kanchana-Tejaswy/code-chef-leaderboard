@@ -209,23 +209,49 @@ export class BulkSyncService {
       
       for (const student of chunk) {
         try {
-          await prisma.$transaction([
-            prisma.studentProfile.update({
-              where: { id: student.id },
-              data: {
-                profileStatus: "PENDING_VERIFICATION",
-                leaderboardEligible: false,
-                dashboardEligible: false
-              }
-            }),
-            prisma.syncJob.create({
-              data: {
-                studentId: student.id,
-                status: "QUEUED",
-                attemptCount: 0
-              }
-            })
-          ]);
+          const existingJob = await prisma.syncJob.findFirst({
+            where: { studentId: student.id }
+          });
+
+          if (existingJob) {
+            await prisma.$transaction([
+              prisma.studentProfile.update({
+                where: { id: student.id },
+                data: {
+                  profileStatus: "PENDING_VERIFICATION",
+                  leaderboardEligible: false,
+                  dashboardEligible: false
+                }
+              }),
+              prisma.syncJob.update({
+                where: { id: existingJob.id },
+                data: {
+                  status: "QUEUED",
+                  attemptCount: 0,
+                  error: null,
+                  errorCategory: null
+                }
+              })
+            ]);
+          } else {
+            await prisma.$transaction([
+              prisma.studentProfile.update({
+                where: { id: student.id },
+                data: {
+                  profileStatus: "PENDING_VERIFICATION",
+                  leaderboardEligible: false,
+                  dashboardEligible: false
+                }
+              }),
+              prisma.syncJob.create({
+                data: {
+                  studentId: student.id,
+                  status: "QUEUED",
+                  attemptCount: 0
+                }
+              })
+            ]);
+          }
           newlyQueued++;
         } catch (err) {
           console.error(`Failed to queue student ${student.id}:`, err);
@@ -282,7 +308,7 @@ export class BulkSyncService {
         const activeJob = await prisma.syncJob.findFirst({
           where: {
             studentId: student.id,
-            status: { in: ["QUEUED", "PROCESSING", "RETRY_PENDING", "VERIFIED"] },
+            status: { in: ["QUEUED", "PROCESSING", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] },
           },
         });
 
@@ -299,14 +325,29 @@ export class BulkSyncService {
             });
           }
 
-          // Create durable sync queue item
-          await prisma.syncJob.create({
-            data: {
-              studentId: student.id,
-              status: "QUEUED",
-              attemptCount: 0,
-            },
+          const existingJob = await prisma.syncJob.findFirst({
+            where: { studentId: student.id }
           });
+
+          if (existingJob) {
+            await prisma.syncJob.update({
+              where: { id: existingJob.id },
+              data: {
+                status: "QUEUED",
+                attemptCount: 0,
+                error: null,
+                errorCategory: null,
+              },
+            });
+          } else {
+            await prisma.syncJob.create({
+              data: {
+                studentId: student.id,
+                status: "QUEUED",
+                attemptCount: 0,
+              },
+            });
+          }
           queuedCount++;
         }
       }
@@ -567,74 +608,53 @@ export class BulkSyncService {
         if (queueIsPaused) break;
         const currentJob = jobs[jobIndex++];
         
-        // Run sync for single student (skipping global rank recalculation inside loop)
-        const syncResult = await SyncService.syncStudent(currentJob.studentId, "ADMIN_FORCE", true);
+        try {
+          // Run sync for single student (skipping global rank recalculation inside loop)
+          const syncResult = await SyncService.syncStudent(currentJob.studentId, "ADMIN_FORCE", true);
 
-        // Check verified status after sync attempt
-        const student = await prisma.studentProfile.findUnique({
-          where: { id: currentJob.studentId },
-          include: { codechefProfile: true, leetcodeProfile: true },
-        });
-
-        const ccVerified = Boolean(student?.codechefProfile && student.codechefProfile.username);
-        const lcVerified = Boolean(student?.leetcodeProfile && student.leetcodeProfile.username);
-        const bothVerified = ccVerified && lcVerified;
-
-        if (syncResult.success && bothVerified) {
-          successCount++;
-          await prisma.syncJob.update({
-            where: { id: currentJob.id },
-            data: {
-              status: "VERIFIED",
-              lastSuccessfulAt: new Date(),
-              error: null,
-              errorCategory: null,
-            },
-          });
-        } else {
-          // Check partial status or failure
-          let newStatus: QueueStatus = "FAILED";
-          if (ccVerified && !lcVerified) {
-            newStatus = "CODECHEF_VERIFIED";
-          } else if (!ccVerified && lcVerified) {
-            newStatus = "LEETCODE_VERIFIED";
+          if (syncResult.success) {
+            // Check if student profile is actually verified now
+            const student = await prisma.studentProfile.findUnique({
+              where: { id: currentJob.studentId },
+              select: { profileStatus: true }
+            });
+            if (student?.profileStatus === "VERIFIED") {
+              successCount++;
+            } else {
+              failedCount++;
+            }
           } else {
-            newStatus = "RETRY_PENDING";
+            failedCount++;
           }
-
-          const cat = this.categorizeError(syncResult.error);
-          const maxRetries = 3;
-          const isFinalFailure = currentJob.attemptCount >= maxRetries;
-
-          if (isFinalFailure && !bothVerified) {
-            await prisma.studentProfile.update({
-              where: { id: currentJob.studentId },
-              data: {
-                profileStatus: "INVALID",
-                leaderboardEligible: false,
-                dashboardEligible: false,
-              },
-            });
-          } else if (!bothVerified) {
-            await prisma.studentProfile.update({
-              where: { id: currentJob.studentId },
-              data: {
-                profileStatus: "INCOMPLETE",
-                leaderboardEligible: false,
-                dashboardEligible: false,
-              },
-            });
-          }
-
+        } catch (err: any) {
           failedCount++;
-          await prisma.syncJob.update({
-            where: { id: currentJob.id },
-            data: {
-              status: isFinalFailure ? "FAILED" : newStatus,
-              errorCategory: cat,
-              error: syncResult.error ? syncResult.error.slice(0, 250) : "Platform verification failed",
-            },
-          });
+          console.error(`Unexpected error processing student ${currentJob.studentId} in batch:`, err);
+          try {
+            const maxRetries = 3;
+            const isFinalFailure = currentJob.attemptCount >= maxRetries;
+            const newStatus = isFinalFailure ? "FAILED" : "RETRY_PENDING";
+            const cat = this.categorizeError(err?.message || "Unknown error");
+
+            await prisma.syncJob.update({
+              where: { id: currentJob.id },
+              data: {
+                status: newStatus,
+                errorCategory: cat,
+                error: err?.message ? err.message.slice(0, 250) : "Unexpected exception during sync",
+              },
+            });
+
+            await prisma.studentProfile.update({
+              where: { id: currentJob.studentId },
+              data: {
+                profileStatus: isFinalFailure ? "INVALID" : "INCOMPLETE",
+                leaderboardEligible: false,
+                dashboardEligible: false,
+              },
+            });
+          } catch (dbErr) {
+            console.error("Failed to recover from unexpected batch process exception:", dbErr);
+          }
         }
       }
     };

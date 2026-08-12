@@ -1,10 +1,37 @@
 import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { BulkSyncService } from "@/services/bulkSync.service";
+import crypto from "crypto";
+
+function isAdmin(request: NextRequest): boolean {
+  const authHeader = request.headers.get("authorization");
+  const adminSecret = process.env.ADMIN_SECRET || process.env.CRON_SECRET;
+  
+  if (!adminSecret) return false;
+  
+  if (authHeader && authHeader.trim().toLowerCase().startsWith("bearer ")) {
+    const token = authHeader.slice("Bearer ".length).trim();
+    if (token === adminSecret) return true;
+  }
+  
+  return false;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
+    let authorized = false;
+    try {
+      await requireAdmin();
+      authorized = true;
+    } catch (e) {
+      if (isAdmin(request)) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     // 1. Queue eligible profiles
     const queueResult = await BulkSyncService.queueEligibleStudents();
@@ -12,18 +39,23 @@ export async function POST(request: NextRequest) {
     // 2. Unpause queue if paused
     BulkSyncService.setPaused(false);
 
-    // 3. Start processing first batch asynchronously (does not block HTTP response)
+    // 3. Register virtual job in jobTracker
+    const jobId = crypto.randomUUID();
+    const stats = await BulkSyncService.getQueueProgressStats();
+    
+    const { createJob } = await import("@/lib/jobTracker");
+    createJob(jobId, "ADMIN_UI", "ALL", stats.eligibleProfiles);
+
+    // 4. Start processing first batch asynchronously (does not block HTTP response)
     BulkSyncService.processBatch(5, 2).catch((err) => {
       console.error("Background batch processing error:", err);
     });
-
-    // 4. Return progress stats immediately
-    const stats = await BulkSyncService.getQueueProgressStats();
 
     return NextResponse.json(
       {
         success: true,
         message: `Queued ${queueResult.queuedCount} eligible profiles. Verification processing started.`,
+        jobId,
         queueResult,
         stats,
       },
