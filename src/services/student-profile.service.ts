@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { isMissingOrNA, extractPlatformHandle } from "@/utils/urlValidation";
+import { normalizeRoll, getCohortYears } from "@/utils/normalization";
 import { ActivityService } from "./activity.service";
 import crypto from "crypto";
 
@@ -366,6 +367,78 @@ export class StudentProfileService {
           verificationStatus: "UNABLE_TO_VERIFY",
         },
       });
+
+      // Resolve and create StudentEnrollment in the registry
+      const normRes = normalizeRoll(data.rollNumber);
+      if (normRes.normalized) {
+        const cohortInfo = getCohortYears(normRes.normalized);
+        if (cohortInfo) {
+          // 1. Get or create cohort
+          let cohort = await dbClient.cohort.findUnique({
+            where: { code: cohortInfo.code },
+          });
+          if (!cohort) {
+            cohort = await dbClient.cohort.create({
+              data: {
+                code: cohortInfo.code,
+                startYear: cohortInfo.startYear,
+                endYear: cohortInfo.endYear,
+                status: "ACTIVE",
+              },
+            });
+          }
+
+          // 2. Get or create department
+          const deptCode = data.department ? data.department.trim().toUpperCase() : "CSE";
+          let dept = await dbClient.department.findUnique({
+            where: { code: deptCode },
+          });
+          if (!dept) {
+            dept = await dbClient.department.create({
+              data: {
+                code: deptCode,
+                name: deptCode,
+                isActive: true,
+              },
+            });
+          }
+
+          // 3. Get or create class section
+          const sectionName = data.section ? data.section.trim().toUpperCase() : "A";
+          let section = await dbClient.classSection.findUnique({
+            where: {
+              cohortId_departmentId_name: {
+                cohortId: cohort.id,
+                departmentId: dept.id,
+                name: sectionName,
+              },
+            },
+          });
+          if (!section) {
+            section = await dbClient.classSection.create({
+              data: {
+                cohortId: cohort.id,
+                departmentId: dept.id,
+                name: sectionName,
+                isActive: true,
+              },
+            });
+          }
+
+          // 4. Create enrollment
+          await dbClient.studentEnrollment.create({
+            data: {
+              studentId: profile.id,
+              cohortId: cohort.id,
+              departmentId: dept.id,
+              classSectionId: section.id,
+              academicYear: parsedYear,
+              isCurrent: true,
+              enrollmentStatus: "ACTIVE",
+            },
+          });
+        }
+      }
 
       try {
         await ActivityService.logEvent(

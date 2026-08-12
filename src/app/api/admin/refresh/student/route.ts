@@ -19,8 +19,17 @@ function isAdmin(request: NextRequest): boolean {
 
 export async function POST(request: NextRequest) {
   try {
-    await requireAdmin();
-    if (!isAdmin(request)) {
+    let authorized = false;
+    try {
+      await requireAdmin();
+      authorized = true;
+    } catch (e) {
+      if (isAdmin(request)) {
+        authorized = true;
+      }
+    }
+
+    if (!authorized) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

@@ -84,13 +84,33 @@ export class SyncService {
       console.log(`[Sanitized Log] [CLOUDTEST001] Sync started. Initiated by: ${initiatedBy}`);
     }
 
-    // Create or update SyncJob
-    const syncJob = await prisma.syncJob.create({
-      data: {
+    // Find an active/existing job in QUEUED, PROCESSING, RETRY_PENDING, CODECHEF_VERIFIED, LEETCODE_VERIFIED status, or create a new one
+    let syncJob = await prisma.syncJob.findFirst({
+      where: {
         studentId,
-        status: "RUNNING",
-      },
+        status: { in: ["QUEUED", "PROCESSING", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] }
+      }
     });
+
+    if (syncJob) {
+      syncJob = await prisma.syncJob.update({
+        where: { id: syncJob.id },
+        data: {
+          status: "PROCESSING",
+          attemptCount: syncJob.status === "PROCESSING" ? syncJob.attemptCount : (syncJob.attemptCount + 1),
+          lastAttemptedAt: new Date()
+        }
+      });
+    } else {
+      syncJob = await prisma.syncJob.create({
+        data: {
+          studentId,
+          status: "PROCESSING",
+          attemptCount: 1,
+          lastAttemptedAt: new Date()
+        }
+      });
+    }
 
     if (!student.codechefUsername && !student.leetcodeUsername) {
       if (isCloudTest) {
@@ -125,7 +145,7 @@ export class SyncService {
       await prisma.syncJob.update({
         where: { id: syncJob.id },
         data: {
-          status: "COMPLETED",
+          status: "INCOMPLETE",
         },
       });
 
@@ -566,11 +586,34 @@ export class SyncService {
         });
       }
 
-      // Complete SyncJob
+      // Update SyncJob status based on verification results
+      let finalStatus = "FAILED";
+      if (bothVerified) {
+        finalStatus = "VERIFIED";
+      } else {
+        const maxRetries = 3;
+        const isFinalFailure = (syncJob.attemptCount ?? 0) >= maxRetries;
+        if (isFinalFailure) {
+          finalStatus = "FAILED";
+        } else if (isCcVerified) {
+          finalStatus = "CODECHEF_VERIFIED";
+        } else if (isLcVerified) {
+          finalStatus = "LEETCODE_VERIFIED";
+        } else {
+          finalStatus = "RETRY_PENDING";
+        }
+      }
+
+      const { BulkSyncService } = await import("./bulkSync.service");
+      const errCat = bothVerified ? null : BulkSyncService.categorizeError(codechefError || "Platform verification failed");
+
       await prisma.syncJob.update({
         where: { id: syncJob.id },
         data: {
-          status: "COMPLETED",
+          status: finalStatus,
+          lastSuccessfulAt: bothVerified ? new Date() : (syncJob.lastSuccessfulAt || null),
+          error: bothVerified ? null : (codechefError || "Platform verification failed"),
+          errorCategory: errCat,
         },
       });
 
@@ -620,12 +663,19 @@ export class SyncService {
           },
         });
 
-        // Fail SyncJob
+        // Fail SyncJob safely
+        const { BulkSyncService } = await import("./bulkSync.service");
+        const maxRetries = 3;
+        const isFinalFailure = (syncJob.attemptCount ?? 0) >= maxRetries;
+        const finalStatus = isFinalFailure ? "FAILED" : "RETRY_PENDING";
+        const errCat = BulkSyncService.categorizeError(err.message || "Unknown error occurred");
+
         await prisma.syncJob.update({
           where: { id: syncJob.id },
           data: {
-            status: "FAILED",
-            error: err.message || "Unknown error occurred.",
+            status: finalStatus,
+            error: err.message ? err.message.slice(0, 250) : "Unknown error occurred.",
+            errorCategory: errCat,
           },
         });
       } catch (logErr) {
