@@ -76,37 +76,50 @@ export async function POST(request: NextRequest) {
           // Disable and delete Supabase Auth user if exists
           const authUserId = student.userAccess?.authUserId;
           if (authUserId) {
-            const supabaseAdmin = createAdminClient();
-
-            // Disable user first (ban user)
-            const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
-              ban_duration: "876000h"
-            });
-            if (banError) {
-              console.error(`[Bulk Delete] Failed to ban Supabase user ${authUserId}:`, banError);
+            let supabaseAdmin = null;
+            try {
+              supabaseAdmin = createAdminClient();
+            } catch (e) {
+              console.error("[Bulk Delete] Supabase admin client unavailable, skipping Auth cleanup:", e);
             }
 
-            // Delete Auth account
-            const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
-            if (deleteAuthError) {
-              console.error(`[Bulk Delete] Failed to delete Supabase user ${authUserId}:`, deleteAuthError);
+            if (supabaseAdmin) {
+              try {
+                // Disable user first (ban user)
+                const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+                  ban_duration: "876000h"
+                });
+                if (banError) {
+                  console.error(`[Bulk Delete] Failed to ban Supabase user ${authUserId}:`, banError);
+                }
+              } catch (e) {
+                console.error(`[Bulk Delete] Exception banning Supabase user ${authUserId}:`, e);
+              }
+
+              try {
+                // Delete Auth account
+                const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
+                if (deleteAuthError) {
+                  console.error(`[Bulk Delete] Failed to delete Supabase user ${authUserId}:`, deleteAuthError);
+                }
+              } catch (e) {
+                console.error(`[Bulk Delete] Exception deleting Supabase user ${authUserId}:`, e);
+              }
             }
           }
 
-          // Run database deletion in a transaction for this student
-          await prisma.$transaction(async (tx) => {
-            await tx.syncJob.deleteMany({ where: { studentId: id } });
-            await tx.leaderboardEntry.deleteMany({ where: { studentId: id } });
-            await tx.codechefProfile.deleteMany({ where: { studentId: id } });
-            await tx.leetcodeProfile.deleteMany({ where: { studentId: id } });
-            await tx.githubProfile.deleteMany({ where: { studentId: id } });
-            await tx.aiAnalysis.deleteMany({ where: { studentId: id } });
-            await tx.syncLog.deleteMany({ where: { studentId: id } });
-            await tx.activityLog.deleteMany({ where: { studentId: id } });
-            await tx.normalizedProfile.deleteMany({ where: { studentId: id } });
-            await tx.userAccess.deleteMany({ where: { studentProfileId: id } });
-            await tx.studentProfile.delete({ where: { id } });
-          });
+          // Run database deletion sequentially for this student
+          await prisma.syncJob.deleteMany({ where: { studentId: id } });
+          await prisma.leaderboardEntry.deleteMany({ where: { studentId: id } });
+          await prisma.codechefProfile.deleteMany({ where: { studentId: id } });
+          await prisma.leetcodeProfile.deleteMany({ where: { studentId: id } });
+          await prisma.githubProfile.deleteMany({ where: { studentId: id } });
+          await prisma.aiAnalysis.deleteMany({ where: { studentId: id } });
+          await prisma.syncLog.deleteMany({ where: { studentId: id } });
+          await prisma.activityLog.deleteMany({ where: { studentId: id } });
+          await prisma.normalizedProfile.deleteMany({ where: { studentId: id } });
+          await prisma.userAccess.deleteMany({ where: { studentProfileId: id } });
+          await prisma.studentProfile.delete({ where: { id } });
 
           // Record audit event
           const rollSnapshot = student.rollNumber ? student.rollNumber.trim() : "N/A";
