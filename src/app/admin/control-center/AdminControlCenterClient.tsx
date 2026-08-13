@@ -3343,6 +3343,86 @@ function StudentApprovalsTab({ role = "ADMIN" }: { role?: string }) {
           </div>
         </div>
       )}
+
+      {/* MODAL 5: SINGLE STUDENT DELETE CONFIRMATION DIALOG */}
+      {deletingStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl border border-brand-border bg-brand-card p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between gap-3 text-rose-400">
+              <h3 className="text-lg font-black text-brand-text">Delete Student Permanently?</h3>
+              <button onClick={() => setDeletingStudent(null)} className="text-brand-muted hover:text-brand-text cursor-pointer">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-brand-muted leading-relaxed">
+              This action permanently removes this student and related platform/academic records. This action cannot be undone.
+            </p>
+
+            <div className="text-xs border-y border-brand-border py-3">
+              <div className="mb-2">
+                <span className="block text-[9px] uppercase font-bold text-brand-muted">Student</span>
+                <span className="text-brand-text font-black block">{deletingStudent.name} <span className="text-[10px] font-mono text-brand-muted">({deletingStudent.rollNumber || 'N/A'})</span></span>
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">Reason</label>
+                <select
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  className="w-full px-3 py-2 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none"
+                >
+                  <option value="Dummy Profile">Dummy / Test Profile</option>
+                  <option value="Duplicate">Duplicate Student</option>
+                  <option value="Incorrect">Incorrect Record</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">Notes (optional)</label>
+                <textarea
+                  value={deleteNotes}
+                  onChange={(e) => setDeleteNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Optional note to record in the audit log"
+                  className="w-full p-3 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none"
+                />
+              </div>
+
+              <div className="mt-3">
+                <label className="block text-[9px] uppercase font-bold text-brand-muted mb-1">Type DELETE to confirm</label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  placeholder="Type DELETE to confirm permanent deletion"
+                  className="w-full px-3 py-2 bg-brand-bg border border-brand-border rounded-xl text-xs text-brand-text focus:outline-none font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 justify-end pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeletingStudent(null)}
+                className="px-4 py-2 border border-brand-border rounded-lg text-xs font-bold uppercase text-brand-muted hover:text-brand-text cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting || deleteConfirmText !== "DELETE" || !deleteReason}
+                onClick={() => handleDeleteStudent(deletingStudent.id)}
+                className={`px-5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all cursor-pointer ${isDeleting ? "bg-rose-600/70 text-white" : "bg-rose-600 hover:bg-rose-700 text-white"}`}
+              >
+                {isDeleting ? "Deleting..." : "Delete Permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
