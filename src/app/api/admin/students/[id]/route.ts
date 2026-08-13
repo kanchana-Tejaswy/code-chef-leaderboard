@@ -304,20 +304,37 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     // Handle Supabase Auth account and UserAccess relation
     const authUserId = student.userAccess?.authUserId;
     if (authUserId) {
-      const supabaseAdmin = createAdminClient();
-      
-      // Disable first
-      const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
-        ban_duration: "876000h"
-      });
-      if (banError) {
-        console.error(`Failed to ban/disable Supabase user ${authUserId}:`, banError);
+      let supabaseAdmin: ReturnType<typeof createAdminClient> | null = null;
+      try {
+        supabaseAdmin = createAdminClient();
+      } catch (e) {
+        // Log and continue - missing service credentials should not block DB deletion
+        console.error("Supabase admin client unavailable, skipping Auth cleanup:", e instanceof Error ? e.message : e);
+        supabaseAdmin = null;
       }
 
-      // Delete Auth account
-      const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
-      if (deleteAuthError) {
-        console.error(`Failed to delete Supabase user ${authUserId}:`, deleteAuthError);
+      if (supabaseAdmin) {
+        try {
+          // Disable first (best-effort)
+          const { error: banError } = await supabaseAdmin.auth.admin.updateUserById(authUserId, {
+            ban_duration: "876000h"
+          });
+          if (banError) {
+            console.error(`Failed to ban/disable Supabase user ${authUserId}:`, banError);
+          }
+        } catch (e) {
+          console.error(`Exception while banning Supabase user ${authUserId}:`, e);
+        }
+
+        try {
+          // Delete Auth account (best-effort)
+          const { error: deleteAuthError } = await supabaseAdmin.auth.admin.deleteUser(authUserId);
+          if (deleteAuthError) {
+            console.error(`Failed to delete Supabase user ${authUserId}:`, deleteAuthError);
+          }
+        } catch (e) {
+          console.error(`Exception while deleting Supabase user ${authUserId}:`, e);
+        }
       }
     }
 
