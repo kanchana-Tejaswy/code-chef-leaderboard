@@ -114,6 +114,11 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
               Leaderboard
             </Link>
           )}
+          {userRole && (
+            <Link href="/contests" prefetch={false} className={navItemClass("/contests")}>
+              Contests
+            </Link>
+          )}
           {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
             <Link href="/analytics" prefetch={false} className={navItemClass("/analytics")}>
               Analytics
@@ -224,6 +229,16 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
               className={mobileNavItemClass("/leaderboard")}
             >
               Leaderboard
+            </Link>
+          )}
+          {userRole && (
+            <Link
+              href="/contests"
+              prefetch={false}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className={mobileNavItemClass("/contests")}
+            >
+              Contests
             </Link>
           )}
           {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
