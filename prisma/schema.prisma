@@ -71,16 +71,17 @@ model StudentProfile {
   createdAt           DateTime    @default(now()) @map("created_at")
   updatedAt           DateTime    @updatedAt @map("updated_at")
 
-  userAccess         UserAccess?
-  codechefProfile    CodechefProfile?
-  leetcodeProfile    LeetcodeProfile?
-  githubProfile      GithubProfile?
-  aiAnalysis         AiAnalysis?
-  leaderboardEntry   LeaderboardEntry?
-  syncLogs           SyncLog[]
-  activityLogs       ActivityLog[]
-  normalizedProfile  NormalizedProfile?
+  userAccess            UserAccess?
+  codechefProfile       CodechefProfile?
+  leetcodeProfile       LeetcodeProfile?
+  githubProfile         GithubProfile?
+  aiAnalysis            AiAnalysis?
+  leaderboardEntry      LeaderboardEntry?
+  syncLogs              SyncLog[]
+  activityLogs          ActivityLog[]
+  normalizedProfile     NormalizedProfile?
   studentEnrollments StudentEnrollment[]
+  contestParticipations ContestParticipation[]
 
   @@index([department])
   @@index([createdAt])
@@ -460,10 +461,11 @@ model StudentEnrollment {
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
 
-  student      StudentProfile @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  cohort       Cohort         @relation(fields: [cohortId], references: [id], onDelete: Restrict)
-  department   Department     @relation(fields: [departmentId], references: [id], onDelete: Restrict)
-  classSection ClassSection?  @relation(fields: [classSectionId, cohortId, departmentId], references: [id, cohortId, departmentId], onDelete: Restrict)
+  student               StudentProfile         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  cohort                Cohort                 @relation(fields: [cohortId], references: [id], onDelete: Restrict)
+  department            Department             @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  classSection          ClassSection?          @relation(fields: [classSectionId, cohortId, departmentId], references: [id, cohortId, departmentId], onDelete: Restrict)
+  contestParticipations ContestParticipation[]
 
   @@index([studentId])
   @@index([cohortId])
@@ -473,4 +475,77 @@ model StudentEnrollment {
   @@index([cohortId, departmentId, isCurrent])
   @@index([cohortId, departmentId, classSectionId, isCurrent])
   @@map("student_enrollments")
+}
+
+// ==========================================
+// PHASE 5 CONTEST ANALYTICS PLATFORM
+// ==========================================
+
+enum ContestPlatform {
+  CODECHEF
+  LEETCODE
+  CODEFORCES
+}
+
+enum ContestStatus {
+  UPCOMING
+  LIVE
+  COMPLETED
+  CANCELLED
+}
+
+model Contest {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  platform             ContestPlatform
+  platformContestId    String                 @map("platform_contest_id")
+  name                 String
+  slug                 String                 @unique
+  contestUrl           String?                @map("contest_url")
+  startTime            DateTime               @map("start_time")
+  endTime              DateTime               @map("end_time")
+  durationMinutes      Int?                   @map("duration_minutes")
+  contestType          String?                @map("contest_type")
+  status               ContestStatus          @default(UPCOMING)
+  lastMetadataSyncedAt DateTime?              @map("last_metadata_synced_at")
+  lastResultsSyncedAt  DateTime?              @map("last_results_synced_at")
+  createdAt            DateTime               @default(now()) @map("created_at")
+  updatedAt            DateTime               @updatedAt @map("updated_at")
+  participations       ContestParticipation[]
+
+  @@unique([platform, platformContestId])
+  @@index([status])
+  @@index([startTime])
+  @@map("contests")
+}
+
+model ContestParticipation {
+  id                  String             @id @default(uuid()) @db.Uuid
+  contestId           String             @map("contest_id") @db.Uuid
+  studentId           String             @map("student_id")
+  studentEnrollmentId String?            @map("student_enrollment_id") @db.Uuid
+  platformUsername    String             @map("platform_username")
+  score               Float?
+  rank                Int?
+  problemsSolved      Int?               @map("problems_solved")
+  penalty             Float?
+  ratingBefore        Int?               @map("rating_before")
+  ratingAfter         Int?               @map("rating_after")
+  ratingChange        Int?               @map("rating_change")
+  participatedAt      DateTime?          @map("participated_at")
+  sourceUpdatedAt     DateTime?          @map("source_updated_at")
+  syncedAt            DateTime           @default(now()) @map("synced_at")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  contest           Contest            @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  student           StudentProfile     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  studentEnrollment StudentEnrollment? @relation(fields: [studentEnrollmentId], references: [id], onDelete: SetNull)
+
+  @@unique([contestId, studentId])
+  @@index([contestId])
+  @@index([studentId])
+  @@index([studentEnrollmentId])
+  @@index([rank])
+  @@index([score])
+  @@map("contest_participations")
 }
