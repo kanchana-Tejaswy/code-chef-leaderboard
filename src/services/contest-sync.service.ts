@@ -1,6 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { SyncService } from "./sync.service";
 import { ContestPlatform } from "@prisma/client";
+import { getAdapterForPlatform } from "./adapters";
 
 export interface SyncSummary {
   eligibleHandles: number;
@@ -14,9 +15,31 @@ export interface SyncSummary {
 
 export class ContestSyncService {
   /**
-   * Synchronizes the results for a specific contest.
+   * Synchronizes the results for a specific contest by resolving its platform adapter.
    */
   static async syncContestResults(contestId: string): Promise<SyncSummary> {
+    const contest = await prisma.contest.findFirst({
+      where: {
+        OR: [
+          { id: contestId },
+          { slug: contestId },
+          { platformContestId: contestId },
+        ],
+      },
+    });
+
+    if (!contest) {
+      throw new Error(`Contest not found with identifier: ${contestId}`);
+    }
+
+    const adapter = getAdapterForPlatform(contest.platform);
+    return adapter.syncContestResults(contest.id);
+  }
+
+  /**
+   * Original CodeChef results synchronization logic.
+   */
+  static async syncCodeChefResults(contestId: string): Promise<SyncSummary> {
     const summary: SyncSummary = {
       eligibleHandles: 0,
       matchedParticipants: 0,
@@ -43,7 +66,7 @@ export class ContestSyncService {
     }
 
     if (contest.platform !== ContestPlatform.CODECHEF) {
-      throw new Error(`Contest platform ${contest.platform} sync is not supported yet.`);
+      throw new Error(`Contest platform ${contest.platform} sync is not supported by CodeChef adapter.`);
     }
 
     // 2. Fetch all student profiles with CodeChef usernames configured

@@ -147,6 +147,8 @@ export class LeetcodeService {
           attended
           rating
           ranking
+          problemsSolved
+          finishTimeInSeconds
           contest {
             title
             startTime
@@ -343,7 +345,9 @@ export class LeetcodeService {
     const contestHistory = attendedContests.map((h: any) => ({
       contest: h.contest?.title || "Contest",
       rank: h.ranking,
-      rating: Math.round(h.rating)
+      rating: Math.round(h.rating),
+      problemsSolved: h.problemsSolved || null,
+      finishTimeInSeconds: h.finishTimeInSeconds || null
     }));
 
     const contestRating = userContestRanking?.rating ?? null;

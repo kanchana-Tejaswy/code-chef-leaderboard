@@ -68,21 +68,30 @@ export async function GET(
     }
 
     // Fetch total eligible students count (in database)
-    const eligibleCount = await prisma.studentProfile.count({
-      where: {
-        codechefUsername: { not: null },
-        profileStatus: "VERIFIED",
-        ...(HODDepartmentId
-          ? {
-              studentEnrollments: {
-                some: {
-                  departmentId: HODDepartmentId,
-                  isCurrent: true,
-                },
+    const eligibleWhere: any = {
+      profileStatus: "VERIFIED",
+      ...(HODDepartmentId
+        ? {
+            studentEnrollments: {
+              some: {
+                departmentId: HODDepartmentId,
+                isCurrent: true,
               },
-            }
-          : {}),
-      },
+            },
+          }
+        : {}),
+    };
+
+    if (contest.platform === "CODECHEF") {
+      eligibleWhere.codechefUsername = { not: null };
+    } else if (contest.platform === "LEETCODE") {
+      eligibleWhere.leetcodeUsername = { not: null };
+    } else if (contest.platform === "CODEFORCES") {
+      eligibleWhere.codeforcesUsername = { not: null };
+    }
+
+    const eligibleCount = await prisma.studentProfile.count({
+      where: eligibleWhere,
     });
 
     const participationPercentage =

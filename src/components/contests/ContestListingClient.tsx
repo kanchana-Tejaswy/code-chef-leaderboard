@@ -56,7 +56,7 @@ interface ContestListingClientProps {
 export function ContestListingClient({ userRole }: ContestListingClientProps) {
   const [activeTab, setActiveTab] = useState<"LIVE" | "UPCOMING" | "COMPLETED">("COMPLETED");
   const [search, setSearch] = useState("");
-  const [platform, setPlatform] = useState("");
+  const [platform, setPlatform] = useState("ALL");
   const [page, setPage] = useState(1);
   const [contests, setContests] = useState<Contest[]>([]);
   const [pagination, setPagination] = useState<Pagination | null>(null);
@@ -74,7 +74,7 @@ export function ContestListingClient({ userRole }: ContestListingClientProps) {
         limit: "9",
       });
       if (search) params.append("search", search);
-      if (platform) params.append("platform", platform);
+      if (platform && platform !== "ALL") params.append("platform", platform);
 
       const res = await fetch(`/api/contests?${params.toString()}`);
       if (!res.ok) {
@@ -131,12 +131,15 @@ export function ContestListingClient({ userRole }: ContestListingClientProps) {
   const getPlatformLabel = (plat: string) => {
     if (plat === "CODECHEF") return "CodeChef";
     if (plat === "LEETCODE") return "LeetCode";
+    if (plat === "CODEFORCES") return "Codeforces";
     return plat;
   };
 
   const getPlatformColor = (plat: string) => {
-    if (plat === "CODECHEF") return "bg-amber-600/10 text-amber-500 border-amber-500/25";
-    return "bg-amber-500/10 text-amber-400 border-amber-500/25";
+    if (plat === "CODECHEF") return "bg-amber-500/10 text-amber-500 border-amber-500/25";
+    if (plat === "LEETCODE") return "bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border-yellow-500/25";
+    if (plat === "CODEFORCES") return "bg-orange-500/10 text-orange-600 dark:text-orange-500 border-orange-500/25";
+    return "bg-brand-muted/10 text-brand-muted border-brand-border";
   };
 
   return (
@@ -194,9 +197,10 @@ export function ContestListingClient({ userRole }: ContestListingClientProps) {
               onChange={(e) => setPlatform(e.target.value)}
               className="w-full appearance-none rounded-lg border border-brand-border bg-brand-bg px-3 py-2 pr-8 text-xs font-bold text-brand-text focus:border-[#EAB308] focus:ring-1 focus:ring-[#EAB308] outline-none"
             >
-              <option value="">All Platforms</option>
+              <option value="ALL">All Platforms</option>
               <option value="CODECHEF">CodeChef</option>
               <option value="LEETCODE">LeetCode</option>
+              <option value="CODEFORCES">Codeforces</option>
             </select>
             <Filter className="absolute right-3 top-2.5 h-3.5 w-3.5 text-brand-muted pointer-events-none" />
           </div>
