@@ -144,7 +144,7 @@ export function ContestListingClient({ userRole }: ContestListingClientProps) {
       {/* Header Section */}
       <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl font-extrabold tracking-tight text-white sm:text-3xl flex items-center gap-2">
+          <h1 className="text-2xl font-extrabold tracking-tight text-brand-text sm:text-3xl flex items-center gap-2">
             <Trophy className="h-8 w-8 text-[#EAB308]" />
             Contest Intelligence
           </h1>
@@ -158,7 +158,7 @@ export function ContestListingClient({ userRole }: ContestListingClientProps) {
           <button
             onClick={handleRefreshMetadata}
             disabled={isRefreshing}
-            className="flex items-center justify-center gap-2 rounded-lg border border-[#EAB308]/20 bg-zinc-950/40 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[#EAB308] transition-all hover:bg-[#EAB308]/10 disabled:opacity-50"
+            className="flex items-center justify-center gap-2 rounded-lg border border-[#EAB308]/20 bg-zinc-100 dark:bg-zinc-950/40 px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-[#EAB308] transition-all hover:bg-[#EAB308]/10 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh Contests List
@@ -282,7 +282,7 @@ export function ContestListingClient({ userRole }: ContestListingClientProps) {
                     </div>
 
                     {/* Title */}
-                    <h3 className="text-base font-extrabold text-white group-hover:text-[#EAB308] transition-colors line-clamp-2">
+                    <h3 className="text-base font-extrabold text-brand-text group-hover:text-[#EAB308] transition-colors line-clamp-2">
                       {contest.name}
                     </h3>
 
@@ -324,7 +324,7 @@ export function ContestListingClient({ userRole }: ContestListingClientProps) {
                         }
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-border bg-brand-bg py-2.5 text-xs font-bold uppercase tracking-widest text-brand-text transition-all hover:bg-brand-muted/10 hover:text-white"
+                        className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand-border bg-brand-bg py-2.5 text-xs font-bold uppercase tracking-widest text-brand-text transition-all hover:bg-brand-muted/10 hover:text-brand-text"
                       >
                         {contest.status === "LIVE" ? "Join Contest" : "Open Platform"}
                         <ExternalLink className="h-3 w-3" />
@@ -340,7 +340,7 @@ export function ContestListingClient({ userRole }: ContestListingClientProps) {
           {pagination && pagination.totalPages > 1 && (
             <div className="mt-8 flex items-center justify-between border-t border-brand-border/40 pt-4">
               <span className="text-xs font-bold text-brand-muted">
-                Showing page <strong className="text-white">{pagination.page}</strong> of <strong className="text-white">{pagination.totalPages}</strong> ({pagination.total} total contests)
+                Showing page <strong className="text-brand-text">{pagination.page}</strong> of <strong className="text-brand-text">{pagination.totalPages}</strong> ({pagination.total} total contests)
               </span>
 
               <div className="flex gap-2">

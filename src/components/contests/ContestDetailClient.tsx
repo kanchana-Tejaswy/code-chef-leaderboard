@@ -350,7 +350,7 @@ export function ContestDetailClient({
               </span>
               <span className="text-xs font-bold text-brand-muted">ID: {platformContestId}</span>
             </div>
-            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-white sm:text-3xl">
+            <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-brand-text sm:text-3xl">
               {contestName}
             </h1>
             <p className="mt-2 text-xs font-medium text-brand-muted flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -399,7 +399,7 @@ export function ContestDetailClient({
           ].map((card, idx) => (
             <div key={idx} className="rounded-xl border border-brand-border bg-brand-card p-4 flex flex-col justify-between">
               <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-muted">{card.label}</span>
-              <span className="mt-2 text-xl font-black text-white">{card.value}</span>
+              <span className="mt-2 text-xl font-black text-brand-text">{card.value}</span>
             </div>
           ))}
         </div>
@@ -417,14 +417,14 @@ export function ContestDetailClient({
             {topPerformers[1] && (
               <div className="flex flex-col items-center w-full max-w-[12rem] order-2 sm:order-1">
                 <div className="relative mb-2">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-700 bg-zinc-950 font-extrabold text-zinc-400 text-sm">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-950 font-extrabold text-zinc-500 dark:text-zinc-400 text-sm">
                     🥈
                   </div>
                 </div>
-                <span className="text-xs font-extrabold text-white text-center line-clamp-1">{topPerformers[1].name}</span>
+                <span className="text-xs font-extrabold text-brand-text text-center line-clamp-1">{topPerformers[1].name}</span>
                 <span className="text-[9px] font-bold text-brand-muted">{topPerformers[1].rollNumber}</span>
-                <div className="mt-3 flex h-20 w-full flex-col items-center justify-center rounded-t-xl border border-zinc-700/30 bg-zinc-950/40 p-2">
-                  <span className="text-xs font-black text-zinc-400">Rank {topPerformers[1].rank}</span>
+                <div className="mt-3 flex h-20 w-full flex-col items-center justify-center rounded-t-xl border border-zinc-200 dark:border-zinc-700/30 bg-zinc-100/50 dark:bg-zinc-950/40 p-2">
+                  <span className="text-xs font-black text-zinc-700 dark:text-zinc-400">Rank {topPerformers[1].rank}</span>
                   <span className="text-[10px] text-brand-muted mt-1">Change: {topPerformers[1].ratingChange !== null ? `${topPerformers[1].ratingChange > 0 ? "+" : ""}${topPerformers[1].ratingChange}` : "N/A"}</span>
                 </div>
               </div>
@@ -435,13 +435,13 @@ export function ContestDetailClient({
               <div className="flex flex-col items-center w-full max-w-[14rem] order-1 sm:order-2">
                 <div className="relative mb-2">
                   <Crown className="absolute -top-6 left-1/2 -translate-x-1/2 h-5 w-5 text-[#EAB308] animate-bounce" />
-                  <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#EAB308]/40 bg-zinc-950 font-extrabold text-[#EAB308] text-lg shadow-[0_4px_20px_rgba(234,179,8,0.15)]">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-full border-2 border-amber-500/30 dark:border-[#EAB308]/40 bg-[#EAB308]/10 dark:bg-zinc-950 font-extrabold text-[#EAB308] text-lg shadow-[0_4px_20px_rgba(234,179,8,0.15)]">
                     🥇
                   </div>
                 </div>
-                <span className="text-sm font-black text-white text-center line-clamp-1">{topPerformers[0].name}</span>
+                <span className="text-sm font-black text-brand-text text-center line-clamp-1">{topPerformers[0].name}</span>
                 <span className="text-[9px] font-bold text-brand-muted">{topPerformers[0].rollNumber}</span>
-                <div className="mt-3 flex h-24 w-full flex-col items-center justify-center rounded-t-xl border border-[#EAB308]/15 bg-gradient-to-t from-zinc-950/80 to-[#EAB308]/5 p-2">
+                <div className="mt-3 flex h-24 w-full flex-col items-center justify-center rounded-t-xl border border-amber-500/10 dark:border-[#EAB308]/15 bg-gradient-to-t from-amber-500/5 dark:from-zinc-950/80 to-amber-500/15 dark:to-[#EAB308]/5 p-2">
                   <span className="text-sm font-black text-[#EAB308]">Rank {topPerformers[0].rank}</span>
                   <span className="text-[10px] text-brand-muted mt-1">Change: {topPerformers[0].ratingChange !== null ? `${topPerformers[0].ratingChange > 0 ? "+" : ""}${topPerformers[0].ratingChange}` : "N/A"}</span>
                 </div>
@@ -452,14 +452,14 @@ export function ContestDetailClient({
             {topPerformers[2] && (
               <div className="flex flex-col items-center w-full max-w-[12rem] order-3">
                 <div className="relative mb-2">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-full border border-amber-800/30 bg-zinc-950 font-extrabold text-amber-600 text-sm">
+                  <div className="flex h-14 w-14 items-center justify-center rounded-full border border-orange-200 dark:border-amber-800/30 bg-orange-100 dark:bg-zinc-950 font-extrabold text-amber-700 dark:text-amber-600 text-sm">
                     🥉
                   </div>
                 </div>
-                <span className="text-xs font-extrabold text-white text-center line-clamp-1">{topPerformers[2].name}</span>
+                <span className="text-xs font-extrabold text-brand-text text-center line-clamp-1">{topPerformers[2].name}</span>
                 <span className="text-[9px] font-bold text-brand-muted">{topPerformers[2].rollNumber}</span>
-                <div className="mt-3 flex h-16 w-full flex-col items-center justify-center rounded-t-xl border border-amber-800/10 bg-zinc-950/40 p-2">
-                  <span className="text-xs font-black text-amber-600">Rank {topPerformers[2].rank}</span>
+                <div className="mt-3 flex h-16 w-full flex-col items-center justify-center rounded-t-xl border border-amber-900/10 dark:border-amber-800/10 bg-amber-500/5 dark:bg-zinc-950/40 p-2">
+                  <span className="text-xs font-black text-amber-700 dark:text-amber-600">Rank {topPerformers[2].rank}</span>
                   <span className="text-[10px] text-brand-muted mt-1">Change: {topPerformers[2].ratingChange !== null ? `${topPerformers[2].ratingChange > 0 ? "+" : ""}${topPerformers[2].ratingChange}` : "N/A"}</span>
                 </div>
               </div>
@@ -494,7 +494,7 @@ export function ContestDetailClient({
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ backgroundColor: "#09090b", borderColor: "#27272a", borderRadius: "8px" }} />
+                    <Tooltip contentStyle={{ backgroundColor: "var(--chart-tooltip-bg)", borderColor: "var(--chart-tooltip-border)", borderRadius: "8px" }} labelStyle={{ color: "var(--chart-tooltip-text)" }} itemStyle={{ color: "var(--chart-tooltip-text)" }} />
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
@@ -512,10 +512,10 @@ export function ContestDetailClient({
               {distributionData.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={distributionData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                    <XAxis dataKey="name" stroke="#71717a" fontSize={10} fontWeight="bold" />
-                    <YAxis stroke="#71717a" fontSize={10} fontWeight="bold" />
-                    <Tooltip cursor={{ fill: "rgba(234, 179, 8, 0.05)" }} contentStyle={{ backgroundColor: "#09090b", borderColor: "#27272a", borderRadius: "8px" }} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
+                    <XAxis dataKey="name" stroke="var(--chart-axis)" fontSize={10} fontWeight="bold" />
+                    <YAxis stroke="var(--chart-axis)" fontSize={10} fontWeight="bold" />
+                    <Tooltip cursor={{ fill: "rgba(234, 179, 8, 0.05)" }} contentStyle={{ backgroundColor: "var(--chart-tooltip-bg)", borderColor: "var(--chart-tooltip-border)", borderRadius: "8px" }} labelStyle={{ color: "var(--chart-tooltip-text)" }} itemStyle={{ color: "var(--chart-tooltip-text)" }} />
                     <Bar dataKey="count" fill="#EAB308" radius={[4, 4, 0, 0]}>
                       {distributionData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill="#EAB308" />
@@ -577,7 +577,7 @@ export function ContestDetailClient({
               <Filter className="absolute right-3 top-3.5 h-3.5 w-3.5 text-brand-muted pointer-events-none" />
             </div>
           ) : (
-            <div className="rounded-lg border border-brand-border/40 bg-zinc-950/20 px-3 py-2.5 text-xs font-bold text-brand-muted flex items-center justify-between">
+            <div className="rounded-lg border border-brand-border/40 bg-brand-highlight px-3 py-2.5 text-xs font-bold text-brand-muted flex items-center justify-between">
               <span>Dept: {breakdowns?.department ? Object.keys(breakdowns.department)[0] : "Scoped"}</span>
               <Filter className="h-3.5 w-3.5 text-brand-muted/40" />
             </div>
@@ -615,20 +615,20 @@ export function ContestDetailClient({
             <table className="w-full border-collapse text-left text-xs font-bold">
               <thead>
                 <tr className="border-b border-brand-border/80 bg-brand-card uppercase tracking-wider text-brand-muted select-none">
-                  <th onClick={() => handleSort("rank")} className="cursor-pointer py-3.5 px-4 transition-colors hover:text-white">
+                  <th onClick={() => handleSort("rank")} className="cursor-pointer py-3.5 px-4 transition-colors hover:text-brand-text">
                     Rank {sortBy === "rank" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
                   </th>
-                  <th onClick={() => handleSort("name")} className="cursor-pointer py-3.5 px-4 transition-colors hover:text-white">
+                  <th onClick={() => handleSort("name")} className="cursor-pointer py-3.5 px-4 transition-colors hover:text-brand-text">
                     Student {sortBy === "name" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
                   </th>
-                  <th onClick={() => handleSort("rollNumber")} className="cursor-pointer py-3.5 px-4 transition-colors hover:text-white">
+                  <th onClick={() => handleSort("rollNumber")} className="cursor-pointer py-3.5 px-4 transition-colors hover:text-brand-text">
                     Roll Number {sortBy === "rollNumber" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
                   </th>
                   <th className="py-3.5 px-4">Cohort</th>
                   <th className="py-3.5 px-4">Dept</th>
                   <th className="py-3.5 px-4">Section</th>
                   <th className="py-3.5 px-4 text-right">Problems</th>
-                  <th onClick={() => handleSort("ratingChange")} className="cursor-pointer py-3.5 px-4 text-right transition-colors hover:text-white">
+                  <th onClick={() => handleSort("ratingChange")} className="cursor-pointer py-3.5 px-4 text-right transition-colors hover:text-brand-text">
                     Rating Change {sortBy === "ratingChange" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
                   </th>
                   <th className="py-3.5 px-4 text-right">Rating After</th>
@@ -637,12 +637,12 @@ export function ContestDetailClient({
               <tbody className="divide-y divide-brand-border/60">
                 {participants.map((p) => (
                   <tr key={p.id} className="hover:bg-brand-muted/5 transition-colors text-brand-text">
-                    <td className="py-3.5 px-4 text-white font-extrabold">#{p.rank ?? "N/A"}</td>
+                    <td className="py-3.5 px-4 text-brand-text font-extrabold">#{p.rank ?? "N/A"}</td>
                     <td className="py-3.5 px-4">
                       {userRole === "STUDENT" && p.student.id !== p.student.id ? (
                         <span className="text-brand-muted">Private Profile</span>
                       ) : (
-                        <Link href={`/student/${p.student.id}`} className="text-white hover:text-[#EAB308] hover:underline">
+                        <Link href={`/student/${p.student.id}`} className="text-brand-text hover:text-[#EAB308] hover:underline">
                           {p.student.name}
                         </Link>
                       )}
@@ -659,7 +659,7 @@ export function ContestDetailClient({
                         </span>
                       ) : "N/A"}
                     </td>
-                    <td className="py-3.5 px-4 text-right text-white font-extrabold">{p.ratingAfter ?? "N/A"}</td>
+                    <td className="py-3.5 px-4 text-right text-brand-text font-extrabold">{p.ratingAfter ?? "N/A"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -671,7 +671,7 @@ export function ContestDetailClient({
         {!participantsLoading && totalPages > 1 && (
           <div className="mt-4 flex items-center justify-between border-t border-brand-border/40 pt-4">
             <span className="text-xs font-bold text-brand-muted">
-              Showing standings page <strong className="text-white">{page}</strong> of <strong className="text-white">{totalPages}</strong> ({totalParticipants} total participants)
+              Showing standings page <strong className="text-brand-text">{page}</strong> of <strong className="text-brand-text">{totalPages}</strong> ({totalParticipants} total participants)
             </span>
 
             <div className="flex gap-2">
