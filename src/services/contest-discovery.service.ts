@@ -1,11 +1,52 @@
 import { prisma } from "../lib/prisma";
 import { ContestPlatform, ContestStatus } from "@prisma/client";
+import { getAdapterForPlatform } from "./adapters";
 
 export class ContestDiscoveryService {
   /**
-   * Fetches the complete contest list from CodeChef and updates the database.
+   * Run discovery on all platforms (CodeChef, LeetCode, Codeforces)
    */
   static async discoverContests(): Promise<{
+    discovered: number;
+    upserted: number;
+    errors: string[];
+  }> {
+    const platforms = [
+      ContestPlatform.CODECHEF,
+      ContestPlatform.LEETCODE,
+      ContestPlatform.CODEFORCES,
+    ];
+
+    let totalDiscovered = 0;
+    let totalUpserted = 0;
+    const allErrors: string[] = [];
+
+    for (const p of platforms) {
+      try {
+        const adapter = getAdapterForPlatform(p);
+        const result = await adapter.discoverContests();
+        totalDiscovered += result.discovered;
+        totalUpserted += result.upserted;
+        if (result.errors && result.errors.length > 0) {
+          allErrors.push(...result.errors);
+        }
+      } catch (err: any) {
+        console.error(`[Contest Discovery] Platform ${p} discovery failed:`, err);
+        allErrors.push(`Platform ${p} discovery failed: ${err.message}`);
+      }
+    }
+
+    return {
+      discovered: totalDiscovered,
+      upserted: totalUpserted,
+      errors: allErrors,
+    };
+  }
+
+  /**
+   * Fetches the complete contest list from CodeChef and updates the database.
+   */
+  static async discoverCodeChefContests(): Promise<{
     discovered: number;
     upserted: number;
     errors: string[];

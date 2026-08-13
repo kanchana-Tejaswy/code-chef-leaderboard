@@ -9,7 +9,8 @@ export async function GET(request: NextRequest) {
 
     // Parse query params
     const { searchParams } = new URL(request.url);
-    const platform = searchParams.get("platform") as ContestPlatform | null;
+    const platformParam = searchParams.get("platform");
+    const platform = (platformParam && platformParam !== "ALL") ? (platformParam as ContestPlatform) : null;
     const status = searchParams.get("status") as ContestStatus | null;
     const search = searchParams.get("search") || "";
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));

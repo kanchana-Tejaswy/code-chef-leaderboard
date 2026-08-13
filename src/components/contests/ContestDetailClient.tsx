@@ -49,12 +49,34 @@ function formatDateTime(dateStr: string | Date): string {
   return `${formatDate(d)} at ${formatTime(d)}`;
 }
 
+function formatPenalty(seconds: number | null): string {
+  if (seconds === null) return "N/A";
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}m ${secs}s`;
+}
+
+const getPlatformLabel = (plat: string) => {
+  if (plat === "CODECHEF") return "CodeChef";
+  if (plat === "LEETCODE") return "LeetCode";
+  if (plat === "CODEFORCES") return "Codeforces";
+  return plat;
+};
+
+const getPlatformColor = (plat: string) => {
+  if (plat === "CODECHEF") return "bg-amber-500/10 text-amber-500 border-amber-500/25";
+  if (plat === "LEETCODE") return "bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 border-yellow-500/25";
+  if (plat === "CODEFORCES") return "bg-orange-500/10 text-orange-600 dark:text-orange-500 border-orange-500/25";
+  return "bg-brand-muted/10 text-brand-muted border-brand-border";
+};
+
 
 interface Participant {
   id: string;
   rank: number | null;
   score: number | null;
   problemsSolved: number | null;
+  penalty: number | null;
   ratingBefore: number | null;
   ratingAfter: number | null;
   ratingChange: number | null;
@@ -345,8 +367,8 @@ export function ContestDetailClient({
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <div className="flex items-center gap-3">
-              <span className="rounded-full border border-amber-500/25 bg-amber-500/10 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-500">
-                {platform}
+              <span className={`rounded-full border px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider ${getPlatformColor(platform)}`}>
+                {getPlatformLabel(platform)}
               </span>
               <span className="text-xs font-bold text-brand-muted">ID: {platformContestId}</span>
             </div>
@@ -628,6 +650,9 @@ export function ContestDetailClient({
                   <th className="py-3.5 px-4">Dept</th>
                   <th className="py-3.5 px-4">Section</th>
                   <th className="py-3.5 px-4 text-right">Problems</th>
+                  {platform === "LEETCODE" && (
+                    <th className="py-3.5 px-4 text-right">Penalty</th>
+                  )}
                   <th onClick={() => handleSort("ratingChange")} className="cursor-pointer py-3.5 px-4 text-right transition-colors hover:text-brand-text">
                     Rating Change {sortBy === "ratingChange" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
                   </th>
@@ -652,6 +677,11 @@ export function ContestDetailClient({
                     <td className="py-3.5 px-4">{p.studentEnrollment?.department.code}</td>
                     <td className="py-3.5 px-4">{p.studentEnrollment?.classSection?.name ?? "N/A"}</td>
                     <td className="py-3.5 px-4 text-right">{p.problemsSolved ?? "N/A"}</td>
+                    {platform === "LEETCODE" && (
+                      <td className="py-3.5 px-4 text-right text-brand-muted">
+                        {p.penalty !== null ? formatPenalty(p.penalty) : "N/A"}
+                      </td>
+                    )}
                     <td className="py-3.5 px-4 text-right">
                       {p.ratingChange !== null ? (
                         <span className={p.ratingChange > 0 ? "text-green-500" : p.ratingChange < 0 ? "text-red-500" : "text-brand-muted"}>
