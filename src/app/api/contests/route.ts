@@ -1,253 +1,95 @@
-import { NextResponse } from "next/server";
-import { requireLeaderboardAccess } from "@/lib/auth";
+import { requireActiveUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
+import { ContestPlatform, ContestStatus } from "@prisma/client";
 
-// Simple in-memory cache
-let cachedContests: any[] = [];
-let lastFetched = 0;
-const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
-
-function parseCodeChefDate(dateStr: string): Date {
-  if (!dateStr) return new Date();
-  if (dateStr.includes("Z") || dateStr.includes("+") || dateStr.includes("T")) {
-    return new Date(dateStr);
-  }
-  const clean = dateStr.trim().replace(" ", "T");
-  const hasOffset = /[-+]\d{2}:?\d{2}$/.test(clean);
-  const withOffset = hasOffset ? clean : `${clean}+05:30`;
-  const parsed = new Date(withOffset);
-  return isNaN(parsed.getTime()) ? new Date(dateStr) : parsed;
-}
-
-function getCodeChefType(code: string, name: string): string {
-  const n = (name || "").toLowerCase();
-  const c = (code || "").toLowerCase();
-  if (n.includes("starters") || n.includes("cook-off") || n.includes("lunchtime") || c.includes("start") || c.includes("cook") || c.includes("ltime")) {
-    return "Rated";
-  }
-  return "Unrated";
-}
-
-async function fetchCodeChefContests(): Promise<any[]> {
+export async function GET(request: NextRequest) {
   try {
-    const res = await fetch("https://www.codechef.com/api/list/contests/all", {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      },
-      next: { revalidate: 600 }
+    const userAccess = await requireActiveUser();
+
+    // Parse query params
+    const { searchParams } = new URL(request.url);
+    const platform = searchParams.get("platform") as ContestPlatform | null;
+    const status = searchParams.get("status") as ContestStatus | null;
+    const search = searchParams.get("search") || "";
+    const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "10", 10)));
+
+    // Scope to HOD department if caller is an HOD
+    let HODDepartmentId: string | null = null;
+    if (userAccess.role === "HOD") {
+      HODDepartmentId = userAccess.departmentId;
+      if (!HODDepartmentId) {
+        return NextResponse.json({ error: "HOD has no assigned department." }, { status: 403 });
+      }
+    }
+
+    // Build Contest search where clause
+    const where: any = {};
+    if (platform) {
+      where.platform = platform;
+    }
+    if (status) {
+      where.status = status;
+    }
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { platformContestId: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const total = await prisma.contest.count({ where });
+    const contests = await prisma.contest.findMany({
+      where,
+      orderBy: { startTime: "desc" },
+      skip: (page - 1) * limit,
+      take: limit,
     });
 
-    if (!res.ok) {
-      throw new Error(`CodeChef response error: ${res.status}`);
-    }
-
-    const data = await res.json();
-    const contests: any[] = [];
-
-    // Parse present (live) contests
-    if (Array.isArray(data.present_contests)) {
-      data.present_contests.forEach((c: any) => {
-        const start = parseCodeChefDate(c.contest_start_date);
-        const end = parseCodeChefDate(c.contest_end_date);
-        const duration = parseInt(c.contest_duration) || 120;
-        contests.push({
-          id: `codechef-${c.contest_code}`,
-          platform: "codechef",
-          name: c.contest_name || c.contest_code,
-          type: getCodeChefType(c.contest_code, c.contest_name),
-          startTime: start.toISOString(),
-          endTime: end.toISOString(),
-          duration,
-          link: `https://www.codechef.com/${c.contest_code}`,
-          status: "LIVE"
-        });
-      });
-    }
-
-    // Parse future (upcoming) contests
-    if (Array.isArray(data.future_contests)) {
-      data.future_contests.forEach((c: any) => {
-        const start = parseCodeChefDate(c.contest_start_date);
-        const end = parseCodeChefDate(c.contest_end_date);
-        const duration = parseInt(c.contest_duration) || 120;
-        contests.push({
-          id: `codechef-${c.contest_code}`,
-          platform: "codechef",
-          name: c.contest_name || c.contest_code,
-          type: getCodeChefType(c.contest_code, c.contest_name),
-          startTime: start.toISOString(),
-          endTime: end.toISOString(),
-          duration,
-          link: `https://www.codechef.com/${c.contest_code}`,
-          status: "UPCOMING"
-        });
-      });
-    }
-
-    return contests;
-  } catch (err: any) {
-    console.warn("Failed to fetch CodeChef official contests, trying public fallback:", err.message);
-    try {
-      const fallbackRes = await fetch("https://kontests.net/api/v1/codechef", {
-        next: { revalidate: 600 }
-      });
-      if (fallbackRes.ok) {
-        const fallbackData = await fallbackRes.json();
-        return fallbackData.map((c: any) => {
-          const start = new Date(c.start_time);
-          const end = new Date(c.end_time);
-          const duration = Math.round(parseFloat(c.duration) / 60) || 120;
-          const now = new Date();
-          const status = now >= start && now <= end ? "LIVE" : "UPCOMING";
-          return {
-            id: `codechef-${c.name.replace(/\s+/g, "-")}`,
-            platform: "codechef",
-            name: c.name,
-            type: getCodeChefType(c.name, c.name),
-            startTime: start.toISOString(),
-            endTime: end.toISOString(),
-            duration,
-            link: c.url || "https://www.codechef.com",
-            status
-          };
-        });
-      }
-    } catch (fallbackErr: any) {
-      console.error("CodeChef fallback also failed:", fallbackErr.message);
-    }
-    return [];
-  }
-}
-
-async function fetchLeetCodeContests(): Promise<any[]> {
-  try {
-    const res = await fetch("https://leetcode.com/graphql", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      },
-      body: JSON.stringify({
-        query: `
-          query {
-            allContests {
-              title
-              titleSlug
-              startTime
-              duration
+    // Fetch participant counts, optionally scoped to HOD's department
+    const participantCounts = await prisma.contestParticipation.groupBy({
+      by: ["contestId"],
+      where: {
+        contestId: { in: contests.map((c) => c.id) },
+        ...(HODDepartmentId
+          ? {
+              studentEnrollment: {
+                departmentId: HODDepartmentId,
+              },
             }
-          }
-        `
-      }),
-      next: { revalidate: 600 }
+          : {}),
+      },
+      _count: {
+        id: true,
+      },
     });
 
-    if (!res.ok) {
-      throw new Error(`LeetCode response error: ${res.status}`);
-    }
-
-    const data = await res.json();
-    const allContests = data.data?.allContests || [];
-    const nowSec = Math.floor(Date.now() / 1000);
-    
-    const activeContests = allContests.filter((c: any) => {
-      const endTimeSec = c.startTime + c.duration;
-      return endTimeSec >= nowSec;
+    const countMap = new Map<string, number>();
+    participantCounts.forEach((c) => {
+      countMap.set(c.contestId, c._count.id);
     });
 
-    return activeContests.map((c: any) => {
-      const startMs = c.startTime * 1000;
-      const endMs = startMs + c.duration * 1000;
-      const start = new Date(startMs);
-      const end = new Date(endMs);
-      const duration = Math.round(c.duration / 60);
-      const now = new Date();
-      const status = now >= start && now <= end ? "LIVE" : "UPCOMING";
-      const isWeeklyOrBiweekly = c.titleSlug.includes("weekly") || c.titleSlug.includes("biweekly");
-      return {
-        id: `leetcode-${c.titleSlug}`,
-        platform: "leetcode",
-        name: c.title,
-        type: isWeeklyOrBiweekly ? "Rated" : "Unrated",
-        startTime: start.toISOString(),
-        endTime: end.toISOString(),
-        duration,
-        link: `https://leetcode.com/contest/${c.titleSlug}`,
-        status
-      };
+    const data = contests.map((c) => ({
+      ...c,
+      participantCount: countMap.get(c.id) || 0,
+    }));
+
+    return NextResponse.json({
+      success: true,
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
     });
   } catch (err: any) {
-    console.warn("Failed to fetch LeetCode official contests, trying public fallback:", err.message);
-    try {
-      const fallbackRes = await fetch("https://kontests.net/api/v1/leetcode", {
-        next: { revalidate: 600 }
-      });
-      if (fallbackRes.ok) {
-        const fallbackData = await fallbackRes.json();
-        return fallbackData.map((c: any) => {
-          const start = new Date(c.start_time);
-          const end = new Date(c.end_time);
-          const duration = Math.round(parseFloat(c.duration) / 60) || 90;
-          const now = new Date();
-          const status = now >= start && now <= end ? "LIVE" : "UPCOMING";
-          const nameLower = c.name.toLowerCase();
-          const isWeeklyOrBiweekly = nameLower.includes("weekly") || nameLower.includes("biweekly");
-          return {
-            id: `leetcode-${c.name.replace(/\s+/g, "-")}`,
-            platform: "leetcode",
-            name: c.name,
-            type: isWeeklyOrBiweekly ? "Rated" : "Unrated",
-            startTime: start.toISOString(),
-            endTime: end.toISOString(),
-            duration,
-            link: c.url || "https://leetcode.com/contest",
-            status
-          };
-        });
-      }
-    } catch (fallbackErr: any) {
-      console.error("LeetCode fallback also failed:", fallbackErr.message);
+    if (err.name === "AuthError") {
+      return NextResponse.json({ error: err.message, code: err.code }, { status: err.code === "FORBIDDEN_ROLE" ? 403 : 401 });
     }
-    return [];
-  }
-}
-
-export const dynamic = "force-dynamic";
-
-export async function GET() {
-  try {
-    await requireLeaderboardAccess();
-    
-    const now = Date.now();
-    if (now - lastFetched < CACHE_DURATION && cachedContests.length > 0) {
-      return NextResponse.json({ success: true, contests: cachedContests }, {
-        headers: { "Cache-Control": "private, no-store" }
-      });
-    }
-
-    const [codechef, leetcode] = await Promise.all([
-      fetchCodeChefContests().catch(() => []),
-      fetchLeetCodeContests().catch(() => [])
-    ]);
-
-    const combined = [...codechef, ...leetcode];
-
-    // Sort by startTime
-    combined.sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
-
-    // Update Cache
-    cachedContests = combined;
-    lastFetched = now;
-
-    return NextResponse.json({ success: true, contests: combined }, {
-      headers: { "Cache-Control": "private, no-store" }
-    });
-  } catch (error: any) {
-    console.error("Contests aggregation failed:", error);
-    if (error.name === "AuthError") {
-      const status = error.code === "UNAUTHORIZED" ? 401 : 403;
-      const errorMsg = error.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
-      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
-    }
-    return NextResponse.json({ success: false, contests: cachedContests, error: error.message }, { status: 500 });
+    console.error("GET /api/contests error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
