@@ -12,14 +12,19 @@ export default async function LoginPage() {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (user) {
-    const userAccess = await prisma.userAccess.findFirst({
-      where: {
-        OR: [
-          { authUserId: user.id },
-          { email: user.email?.toLowerCase() },
-        ],
-      },
-    });
+    let userAccess = null;
+    try {
+      userAccess = await prisma.userAccess.findFirst({
+        where: {
+          OR: [
+            { authUserId: user.id },
+            { email: user.email?.toLowerCase() },
+          ],
+        },
+      });
+    } catch (error) {
+      console.error("[Login Page] Failed to load user access record:", error);
+    }
 
     if (
       userAccess &&

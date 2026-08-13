@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as fs from "fs";
 import * as path from "path";
 
+vi.mock("server-only", () => ({}));
+
 // Mocks for dependencies
 vi.mock("@/utils/supabase/server", () => ({
   createClient: vi.fn(),

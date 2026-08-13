@@ -30,9 +30,15 @@ export async function getAuthenticatedUserAccess(): Promise<UserAccess | null> {
   const user = await getAuthenticatedUser();
   if (!user) return null;
 
-  const userAccess = await prisma.userAccess.findUnique({
-    where: { authUserId: user.id }
-  });
+  let userAccess: UserAccess | null = null;
+  try {
+    userAccess = await prisma.userAccess.findUnique({
+      where: { authUserId: user.id }
+    });
+  } catch (error) {
+    console.error("[Auth] Failed to load user access record:", error);
+    return null;
+  }
 
   if (!userAccess) return null;
 

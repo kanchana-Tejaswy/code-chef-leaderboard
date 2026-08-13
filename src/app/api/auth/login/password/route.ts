@@ -17,6 +17,18 @@ const RESTRICTED_PORTAL_RESPONSE = {
   message: "This portal is available to authorised administrators and institutional staff.",
 };
 
+const LOGIN_SERVICE_UNAVAILABLE_RESPONSE = {
+  success: false,
+  message: "The login service is temporarily unavailable. Please try again shortly.",
+};
+
+function getStaffRoleFallbackRedirect(email: string) {
+  if (email.toLowerCase().includes("admin")) {
+    return "/admin/control-center";
+  }
+  return "/dashboard";
+}
+
 export async function POST(req: Request) {
   try {
     const contentType = req.headers.get("content-type") || "";
@@ -93,14 +105,31 @@ export async function POST(req: Request) {
     }
 
     // Fetch database UserAccess record
-    const userAccess = await prisma.userAccess.findFirst({
-      where: {
-        OR: [
-          { authUserId: authData.user.id },
-          { email: normEmail },
-        ],
-      },
-    });
+    let userAccess;
+    try {
+      userAccess = await prisma.userAccess.findFirst({
+        where: {
+          OR: [
+            { authUserId: authData.user.id },
+            { email: normEmail },
+          ],
+        },
+      });
+    } catch (dbError) {
+      console.error("[Admin Login DB Error]:", dbError);
+      await supabase.auth.signOut();
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Unable to load your staff access record. Please contact the administrator.",
+          redirectTo: getStaffRoleFallbackRedirect(normEmail),
+        },
+        {
+          status: 503,
+          headers: { "Cache-Control": "no-store" },
+        }
+      );
+    }
 
     // 1. Missing access record or Non-Admin/Staff role check
     if (!userAccess || (userAccess.role !== UserRole.ADMIN && userAccess.role !== UserRole.GK_SIR && userAccess.role !== UserRole.HOD)) {
