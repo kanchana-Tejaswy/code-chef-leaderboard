@@ -7,6 +7,7 @@ import { normalizeAndValidateUrl } from "@/utils/urlValidation";
 import { recordAuditEvent } from "@/services/audit.service";
 import { SyncService } from "@/services/sync.service";
 import { createAdminClient } from "@/utils/supabase/admin";
+import { StudentProfileService } from "@/services/student-profile.service";
 
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -34,6 +35,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       codeforcesUsername,
       githubUsername,
       linkedinUrl,
+      hackerrankUsername,
+      hackerearthUsername,
       cohortId,
       departmentId,
       classSectionId
@@ -137,12 +140,38 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: linkedinError }, { status: 400 });
     }
 
+    const { isValid: isHrValid, handle: newHackerrank, error: hrError } = normalizeAndValidateUrl(hackerrankUsername, "hackerrank");
+    if (!isHrValid) {
+      return NextResponse.json({ error: hrError }, { status: 400 });
+    }
+
+    const { isValid: isHeValid, handle: newHackerearth, error: heError } = normalizeAndValidateUrl(hackerearthUsername, "hackerearth");
+    if (!isHeValid) {
+      return NextResponse.json({ error: heError }, { status: 400 });
+    }
+
+    let oldHackerrank = "";
+    let oldHackerearth = "";
+
+    if (prisma.studentPlatformAccount) {
+      const existingHrAccount = await prisma.studentPlatformAccount.findUnique({
+        where: { studentProfileId_platform: { studentProfileId: studentId, platform: "HACKERRANK" } }
+      });
+      const existingHeAccount = await prisma.studentPlatformAccount.findUnique({
+        where: { studentProfileId_platform: { studentProfileId: studentId, platform: "HACKEREARTH" } }
+      });
+      oldHackerrank = existingHrAccount?.normalizedHandle || "";
+      oldHackerearth = existingHeAccount?.normalizedHandle || "";
+    }
+
     const isPlatformChanged = 
       oldStudent.codechefUsername !== newCodechef ||
       oldStudent.leetcodeUsername !== newLeetcode ||
       oldStudent.codeforcesUsername !== newCodeforces ||
       oldStudent.githubUsername !== newGithub ||
-      oldStudent.linkedinUrl !== newLinkedin;
+      oldStudent.linkedinUrl !== newLinkedin ||
+      oldHackerrank.toLowerCase() !== (newHackerrank || "").toLowerCase() ||
+      oldHackerearth.toLowerCase() !== (newHackerearth || "").toLowerCase();
 
     let targetSectionName = branch ? String(branch).trim() : oldStudent.section;
     if (classSectionId) {
@@ -233,6 +262,24 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         }
       });
 
+      // Sync platform accounts
+      await StudentProfileService.syncPlatformAccounts(
+        studentId,
+        {
+          codechefUsername: newCodechef,
+          leetcodeUsername: newLeetcode,
+          codeforcesUsername: newCodeforces,
+          githubUsername: newGithub,
+          linkedinUrl: newLinkedin,
+          hackerrankUsername: newHackerrank,
+          hackerearthUsername: newHackerearth,
+        },
+        tx
+      );
+
+      // Re-evaluate eligibility status
+      await StudentProfileService.calculateAndUpdateEligibility(studentId, tx);
+
       if (isPlatformChanged) {
         await tx.syncJob.deleteMany({
           where: { studentId, status: "QUEUED" }
@@ -254,6 +301,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           githubProfile: true,
           aiAnalysis: true,
           leaderboardEntry: true,
+          platformAccounts: true,
         },
       });
     });
@@ -446,6 +494,40 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
     }
     console.error("Error deleting student profile:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+    await requireAdmin();
+    const { id: studentId } = await params;
+
+    const student = await prisma.studentProfile.findUnique({
+      where: { id: studentId },
+      include: {
+        codechefProfile: true,
+        leetcodeProfile: true,
+        githubProfile: true,
+        aiAnalysis: true,
+        leaderboardEntry: true,
+        studentEnrollments: true,
+        platformAccounts: true
+      }
+    });
+
+    if (!student) {
+      return NextResponse.json({ error: "Student not found." }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, student });
+  } catch (err: any) {
+    if (err.name === "AuthError") {
+      const status = err.code === "UNAUTHORIZED" ? 401 : 403;
+      const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
+      return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
+    }
+    console.error("Error fetching student profile:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

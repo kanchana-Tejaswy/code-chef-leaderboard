@@ -41,6 +41,8 @@ export async function POST(request: NextRequest) {
       let duplicateEmailCount = 0;
       let duplicatePlatformCount = 0;
       let invalidCount = 0;
+      let existingCount = 0;
+      let newCount = 0;
 
       const previewRows = evaluated.map((e) => {
         if (e.hadDuplicateHandle) duplicatePlatformCount++;
@@ -49,6 +51,12 @@ export async function POST(request: NextRequest) {
         else if (e.classification === "DUPLICATE_ROLL_NUMBER") duplicateRollCount++;
         else if (e.classification === "DUPLICATE_EMAIL") duplicateEmailCount++;
         else invalidCount++;
+
+        if (e.isUpdate) {
+          existingCount++;
+        } else {
+          newCount++;
+        }
 
         return {
           index: e.index,
@@ -67,9 +75,14 @@ export async function POST(request: NextRequest) {
           codeforcesUsername: e.normalized.codeforcesUsername,
           githubUsername: e.normalized.githubUsername,
           linkedinUrl: e.normalized.linkedinUrl,
+          hackerrankUsername: e.normalized.hackerrankUsername,
+          hackerearthUsername: e.normalized.hackerearthUsername,
           classification: e.classification,
           reasons: e.reasons,
           hadDuplicateHandle: Boolean(e.hadDuplicateHandle),
+          isUpdate: Boolean(e.isUpdate),
+          existingId: e.existingId || null,
+          changedFields: e.changedFields || [],
         };
       });
 
@@ -83,6 +96,8 @@ export async function POST(request: NextRequest) {
           duplicateEmail: duplicateEmailCount,
           duplicatePlatformUsername: duplicatePlatformCount,
           invalid: invalidCount,
+          existingStudents: existingCount,
+          newStudents: newCount,
         },
         rows: previewRows,
       }, { headers: { "Cache-Control": "private, no-store" } });

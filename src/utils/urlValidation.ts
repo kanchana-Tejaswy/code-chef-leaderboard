@@ -17,7 +17,7 @@ export function isMissingOrNA(val: string | null | undefined): boolean {
   return false;
 }
 
-export type PlatformType = "codechef" | "leetcode" | "github" | "linkedin" | "codeforces";
+export type PlatformType = "codechef" | "leetcode" | "github" | "linkedin" | "codeforces" | "hackerrank" | "hackerearth";
 
 /**
  * Converts an existing raw username or URL into a complete platform profile URL for UI input display.
@@ -54,6 +54,10 @@ export function formatToFullUrl(
       return `https://www.linkedin.com/in/${trimmed}`;
     case "codeforces":
       return `https://codeforces.com/profile/${trimmed}`;
+    case "hackerrank":
+      return `https://www.hackerrank.com/profile/${trimmed}`;
+    case "hackerearth":
+      return `https://www.hackerearth.com/@${trimmed}`;
     default:
       return trimmed;
   }
@@ -186,6 +190,46 @@ export function normalizeAndValidateUrl(
       }
       return { isValid: false, normalizedUrl: null, handle: null, error: getPlatformErrorMessage("codeforces") };
     }
+
+    if (platform === "hackerrank") {
+      if (host === "hackerrank.com" || host === "www.hackerrank.com" || host.endsWith(".hackerrank.com")) {
+        let handle: string | null = null;
+        if (parts[0] === "profile" && parts[1]) {
+          handle = parts[1];
+        } else if (parts.length === 1) {
+          handle = parts[0];
+        }
+        if (handle && isValidHandle(handle)) {
+          return {
+            isValid: true,
+            normalizedUrl: `https://www.hackerrank.com/profile/${handle}`,
+            handle,
+          };
+        }
+      }
+      return { isValid: false, normalizedUrl: null, handle: null, error: getPlatformErrorMessage("hackerrank") };
+    }
+
+    if (platform === "hackerearth") {
+      if (host === "hackerearth.com" || host === "www.hackerearth.com" || host.endsWith(".hackerearth.com")) {
+        let handle: string | null = null;
+        if (parts[0] === "users" && parts[1]) {
+          handle = parts[1];
+        } else if (parts[0].startsWith("@")) {
+          handle = parts[0].slice(1);
+        } else if (parts.length === 1) {
+          handle = parts[0];
+        }
+        if (handle && isValidHandle(handle)) {
+          return {
+            isValid: true,
+            normalizedUrl: `https://www.hackerearth.com/@${handle}`,
+            handle,
+          };
+        }
+      }
+      return { isValid: false, normalizedUrl: null, handle: null, error: getPlatformErrorMessage("hackerearth") };
+    }
   } catch {
     // URL parsing failed
   }
@@ -210,6 +254,10 @@ function getPlatformErrorMessage(platform: PlatformType): string {
       return "Enter a valid LinkedIn profile URL.";
     case "codeforces":
       return "Enter a valid Codeforces profile URL.";
+    case "hackerrank":
+      return "Enter a valid HackerRank profile URL.";
+    case "hackerearth":
+      return "Enter a valid HackerEarth profile URL.";
     default:
       return "Enter a valid profile URL.";
   }
@@ -247,7 +295,7 @@ export function extractPlatformHandle(
 
 export function extractUsername(url: string | null | undefined): string | null {
   if (isMissingOrNA(url)) return null;
-  for (const plat of ["github", "codechef", "leetcode", "codeforces"] as PlatformType[]) {
+  for (const plat of ["github", "codechef", "leetcode", "codeforces", "hackerrank", "hackerearth"] as PlatformType[]) {
     const handle = extractPlatformHandle(url, plat);
     if (handle) return handle;
   }

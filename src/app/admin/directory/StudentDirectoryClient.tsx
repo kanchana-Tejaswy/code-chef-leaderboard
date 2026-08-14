@@ -22,7 +22,8 @@ import {
   AlertTriangle,
   ExternalLink,
   ChevronLeft,
-  Loader2
+  Loader2,
+  ShieldCheck
 } from "lucide-react";
 import { useToast } from "@/components/shared/toast";
 import { UserRole } from "@prisma/client";
@@ -78,6 +79,18 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<any>(null);
 
+  // Roster Import State
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importStep, setImportStep] = useState<"upload" | "preview" | "summary">("upload");
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [previewSummary, setPreviewSummary] = useState<any>(null);
+  const [previewRows, setPreviewRows] = useState<any[]>([]);
+  const [previewSearch, setPreviewSearch] = useState("");
+  const [previewFilter, setPreviewFilter] = useState<"all" | "new" | "existing" | "invalid">("all");
+  const [isProcessingImport, setIsProcessingImport] = useState(false);
+  const [finalSummary, setFinalSummary] = useState<any>(null);
+
   // Student Form State
   const [studentForm, setStudentForm] = useState({
     name: "",
@@ -93,7 +106,9 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
     leetcodeUsername: "",
     codeforcesUsername: "",
     githubUsername: "",
-    linkedinUrl: ""
+    linkedinUrl: "",
+    hackerrankUsername: "",
+    hackerearthUsername: ""
   });
 
   // Section Form State
@@ -273,7 +288,9 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
         leetcodeUsername: "",
         codeforcesUsername: "",
         githubUsername: "",
-        linkedinUrl: ""
+        linkedinUrl: "",
+        hackerrankUsername: "",
+        hackerearthUsername: ""
       });
 
       if (initialCohort && initialDept) {
@@ -291,10 +308,14 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
         const studentRes = await fetch(`/api/admin/students/${student.id}`);
         const sData = await studentRes.json();
         if (sData.success && sData.student) {
+          setEditingStudent(sData.student);
           const currentE = sData.student.studentEnrollments?.find((e: any) => e.isCurrent);
           const cId = currentE?.cohortId || "";
           const dId = currentE?.departmentId || "";
           const sId = currentE?.classSectionId || "";
+
+          const hrAccount = sData.student.platformAccounts?.find((p: any) => p.platform === "HACKERRANK");
+          const heAccount = sData.student.platformAccounts?.find((p: any) => p.platform === "HACKEREARTH");
 
           setStudentForm({
             name: student.name || "",
@@ -310,7 +331,9 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
             leetcodeUsername: student.leetcodeUsername || "",
             codeforcesUsername: student.codeforcesUsername || "",
             githubUsername: student.githubUsername || "",
-            linkedinUrl: student.linkedinUrl || ""
+            linkedinUrl: student.linkedinUrl || "",
+            hackerrankUsername: hrAccount?.normalizedHandle || "",
+            hackerearthUsername: heAccount?.normalizedHandle || ""
           });
 
           if (cId && dId) {
@@ -355,7 +378,9 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
         leetcodeUsername: studentForm.leetcodeUsername.trim() || null,
         codeforcesUsername: studentForm.codeforcesUsername.trim() || null,
         githubUsername: studentForm.githubUsername.trim() || null,
-        linkedinUrl: studentForm.linkedinUrl.trim() || null
+        linkedinUrl: studentForm.linkedinUrl.trim() || null,
+        hackerrankUsername: studentForm.hackerrankUsername.trim() || null,
+        hackerearthUsername: studentForm.hackerearthUsername.trim() || null
       };
 
       const res = await fetch(url, {
@@ -459,6 +484,227 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
     }
   };
 
+  // Client-side CSV parser
+  const parseCSV = (text: string): any[] => {
+    const lines = text.split(/\r?\n/);
+    if (lines.length < 2) return [];
+
+    const rawHeaders = lines[0].split(",").map(h => h.trim().replace(/^["']|["']$/g, ""));
+    const results: any[] = [];
+
+    const headerMapping: { [key: string]: string } = {
+      name: "name",
+      studentname: "name",
+      "student name": "name",
+      rollnumber: "rollNumber",
+      roll_number: "rollNumber",
+      "roll no": "rollNumber",
+      "roll number": "rollNumber",
+      email: "email",
+      emailid: "email",
+      "email id": "email",
+      contactnumber: "contactNumber",
+      contact_number: "contactNumber",
+      phone: "contactNumber",
+      phonenumber: "contactNumber",
+      year: "year",
+      yearofstudy: "year",
+      "year of study": "year",
+      branch: "branch",
+      department: "department",
+      section: "section",
+      cgpa: "cgpa",
+      gpa: "cgpa",
+      codechef: "codechefUsername",
+      codechefusername: "codechefUsername",
+      codechef_username: "codechefUsername",
+      leetcode: "leetcodeUsername",
+      leetcodeusername: "leetcodeUsername",
+      leetcode_username: "leetcodeUsername",
+      codeforces: "codeforcesUsername",
+      codeforcesusername: "codeforcesUsername",
+      codeforces_username: "codeforcesUsername",
+      github: "githubUsername",
+      githubusername: "githubUsername",
+      github_username: "githubUsername",
+      linkedin: "linkedinUrl",
+      linkedinurl: "linkedinUrl",
+      linkedin_url: "linkedinUrl",
+      hackerrank: "hackerrankUsername",
+      hackerrankusername: "hackerrankUsername",
+      hackerearth: "hackerearthUsername",
+      hackerearthusername: "hackerearthUsername",
+    };
+
+    const headers = rawHeaders.map(h => headerMapping[h.toLowerCase()] || h);
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const matches: string[] = [];
+      let currentField = "";
+      let inQuotes = false;
+      
+      for (let charIndex = 0; charIndex < line.length; charIndex++) {
+        const char = line[charIndex];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          matches.push(currentField.trim());
+          currentField = "";
+        } else {
+          currentField += char;
+        }
+      }
+      matches.push(currentField.trim());
+
+      const row: any = {};
+      headers.forEach((header, index) => {
+        let val = matches[index] ? matches[index].trim() : "";
+        val = val.replace(/^["']|["']$/g, "");
+        row[header] = val;
+      });
+      results.push(row);
+    }
+    return results;
+  };
+
+  const handleCSVPreview = async (file: File) => {
+    setImportError(null);
+    setActionLoading(true);
+    try {
+      const text = await file.text();
+      const parsedRows = parseCSV(text);
+
+      if (parsedRows.length === 0) {
+        throw new Error("The CSV file is empty or has no rows.");
+      }
+
+      if (parsedRows.length > 500) {
+        throw new Error("Maximum of 500 rows allowed per API preview/import batch.");
+      }
+
+      const res = await fetch("/api/students/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "preview", rows: parsedRows })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Failed to parse preview from CSV.");
+      }
+
+      setPreviewSummary(data.summary);
+      setPreviewRows(data.rows);
+      setImportStep("preview");
+    } catch (err: any) {
+      setImportError(err.message || "Failed to preview file.");
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCSVImport = async () => {
+    if (previewRows.length === 0) return;
+    setIsProcessingImport(true);
+    setImportError(null);
+
+    try {
+      const chunkSize = 100;
+      const totalRows = previewRows.map(r => ({
+        name: r.name,
+        rollNumber: r.rollNumber,
+        email: r.email,
+        contactNumber: r.contactNumber,
+        year: r.year,
+        branch: r.branch,
+        department: r.department,
+        section: r.section,
+        cgpa: r.cgpa,
+        codechefUsername: r.codechefUsername,
+        leetcodeUsername: r.leetcodeUsername,
+        codeforcesUsername: r.codeforcesUsername,
+        githubUsername: r.githubUsername,
+        linkedinUrl: r.linkedinUrl,
+        hackerrankUsername: r.hackerrankUsername,
+        hackerearthUsername: r.hackerearthUsername,
+      }));
+
+      const finalMetrics = {
+        totalRows: totalRows.length,
+        actuallyCreated: 0,
+        actuallyUpdated: 0,
+        unchanged: 0,
+        incompleteCreated: 0,
+        duplicateRollSkipped: 0,
+        duplicateEmailSkipped: 0,
+        invalidIdentitySkipped: 0,
+        duplicateHandlesCleared: 0,
+        databaseFailures: 0,
+      };
+
+      const failedDetails: any[] = [];
+      const importedIds: string[] = [];
+
+      const totalChunks = Math.ceil(totalRows.length / chunkSize);
+
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * chunkSize;
+        const end = Math.min(start + chunkSize, totalRows.length);
+        const chunk = totalRows.slice(start, end);
+
+        const res = await fetch("/api/students/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "import",
+            rows: chunk,
+            batchIndex: chunkIndex,
+            totalBatches: totalChunks
+          })
+        });
+
+        const data = await res.json();
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Batch ingestion failed.");
+        }
+
+        finalMetrics.actuallyCreated += data.summary.actuallyCreated || 0;
+        finalMetrics.actuallyUpdated += data.summary.actuallyUpdated || 0;
+        finalMetrics.unchanged += data.summary.unchanged || 0;
+        finalMetrics.incompleteCreated += data.summary.incompleteCreated || 0;
+        finalMetrics.duplicateRollSkipped += data.summary.duplicateRollSkipped || 0;
+        finalMetrics.duplicateEmailSkipped += data.summary.duplicateEmailSkipped || 0;
+        finalMetrics.invalidIdentitySkipped += data.summary.invalidIdentitySkipped || 0;
+        finalMetrics.duplicateHandlesCleared += data.summary.duplicateHandlesCleared || 0;
+        finalMetrics.databaseFailures += data.summary.databaseFailures || 0;
+
+        if (data.failedRows) {
+          failedDetails.push(...data.failedRows);
+        }
+        if (data.importedIds) {
+          importedIds.push(...data.importedIds);
+        }
+      }
+
+      setFinalSummary({
+        metrics: finalMetrics,
+        failedRows: failedDetails,
+        importedIds
+      });
+
+      showToast(`Bulk roster ingestion completed successfully.`, "success");
+      setImportStep("summary");
+      fetchDirectoryData();
+    } catch (err: any) {
+      setImportError(err.message || "Bulk import processing failed.");
+    } finally {
+      setIsProcessingImport(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-brand-background text-brand-text p-6 md:p-8 space-y-6">
       
@@ -489,6 +735,12 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
                   <Plus className="h-4 w-4 text-brand-accent" /> Add Section
                 </button>
               )}
+              <button
+                onClick={() => setShowImportModal(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl bg-brand-card hover:bg-brand-card/75 border border-brand-border text-brand-text transition-all cursor-pointer hover:border-brand-accent/50"
+              >
+                <FileText className="h-4 w-4 text-brand-accent" /> Import Roster
+              </button>
               <button
                 onClick={() => handleOpenStudentModal("create")}
                 className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl bg-brand-accent hover:bg-brand-accent/80 text-black font-black transition-all cursor-pointer shadow-lg shadow-brand-accent/10"
@@ -1240,6 +1492,28 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
                     />
                   </div>
 
+                  <div className="space-y-1">
+                    <label className="text-[9px] uppercase font-black tracking-wider text-brand-muted">HackerRank Username / URL</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. tejaswy_k"
+                      value={studentForm.hackerrankUsername}
+                      onChange={(e) => setStudentForm((f) => ({ ...f, hackerrankUsername: e.target.value }))}
+                      className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2 text-xs text-brand-text focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] uppercase font-black tracking-wider text-brand-muted">HackerEarth Username / URL</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. tejaswy_k"
+                      value={studentForm.hackerearthUsername}
+                      onChange={(e) => setStudentForm((f) => ({ ...f, hackerearthUsername: e.target.value }))}
+                      className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2 text-xs text-brand-text focus:outline-none"
+                    />
+                  </div>
+
                   <div className="space-y-1 md:col-span-2">
                     <label className="text-[9px] uppercase font-black tracking-wider text-brand-muted">LinkedIn Profile URL</label>
                     <input
@@ -1252,6 +1526,74 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
                   </div>
                 </div>
               </div>
+
+              {/* Leaderboard Eligibility Checklist (Only in Edit Mode) */}
+              {modalMode === "edit" && editingStudent && (
+                <div className="border-t border-brand-border/40 pt-4 space-y-3">
+                  <h3 className="text-xs font-black text-brand-text uppercase tracking-wider flex items-center gap-1.5">
+                    <ShieldCheck className="h-4 w-4 text-brand-accent" /> Leaderboard Eligibility Checklist
+                  </h3>
+
+                  <div className="bg-brand-background/40 border border-brand-border/60 rounded-xl p-4 space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {/* CodeChef Configured */}
+                      <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-brand-card/10 border border-brand-border/30">
+                        <span className="text-brand-muted font-bold uppercase tracking-wider">CodeChef Configured</span>
+                        {!!editingStudent.codechefUsername ? (
+                          <span className="text-green-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">✓ Yes</span>
+                        ) : (
+                          <span className="text-red-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">✗ Missing</span>
+                        )}
+                      </div>
+
+                      {/* CodeChef Verified */}
+                      <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-brand-card/10 border border-brand-border/30">
+                        <span className="text-brand-muted font-bold uppercase tracking-wider">CodeChef Verified</span>
+                        {editingStudent.platformAccounts?.find((p: any) => p.platform === "CODECHEF")?.verificationStatus === "VERIFIED" ? (
+                          <span className="text-green-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">✓ Verified</span>
+                        ) : (
+                          <span className="text-red-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">✗ {editingStudent.platformAccounts?.find((p: any) => p.platform === "CODECHEF")?.verificationStatus || "NOT_CONFIGURED"}</span>
+                        )}
+                      </div>
+
+                      {/* LeetCode Configured */}
+                      <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-brand-card/10 border border-brand-border/30">
+                        <span className="text-brand-muted font-bold uppercase tracking-wider">LeetCode Configured</span>
+                        {!!editingStudent.leetcodeUsername ? (
+                          <span className="text-green-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">✓ Yes</span>
+                        ) : (
+                          <span className="text-red-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">✗ Missing</span>
+                        )}
+                      </div>
+
+                      {/* LeetCode Verified */}
+                      <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-brand-card/10 border border-brand-border/30">
+                        <span className="text-brand-muted font-bold uppercase tracking-wider">LeetCode Verified</span>
+                        {editingStudent.platformAccounts?.find((p: any) => p.platform === "LEETCODE")?.verificationStatus === "VERIFIED" ? (
+                          <span className="text-green-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">✓ Verified</span>
+                        ) : (
+                          <span className="text-red-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">✗ {editingStudent.platformAccounts?.find((p: any) => p.platform === "LEETCODE")?.verificationStatus || "NOT_CONFIGURED"}</span>
+                        )}
+                      </div>
+
+                      {/* Admin Approval Status */}
+                      <div className="flex items-center justify-between text-xs p-2 rounded-lg bg-brand-card/10 border border-brand-border/30 md:col-span-2">
+                        <span className="text-brand-muted font-bold uppercase tracking-wider">Admin Approval Status</span>
+                        {editingStudent.adminApprovalStatus === "APPROVED" ? (
+                          <span className="text-green-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">✓ APPROVED</span>
+                        ) : (
+                          <span className="text-yellow-400 font-bold uppercase tracking-wider text-[10px] flex items-center gap-1">⚠ {editingStudent.adminApprovalStatus || "PENDING"}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Overall Status banner */}
+                    <div className={`p-3 rounded-lg border text-xs font-black uppercase tracking-widest text-center ${editingStudent.leaderboardEligible ? "bg-green-950/20 border-green-500/30 text-green-400" : "bg-red-950/20 border-red-500/30 text-red-400"}`}>
+                      {editingStudent.leaderboardEligible ? "✓ Eligible for Leaderboard & Dashboard" : "✗ Not Eligible (Fails Checklist)"}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Action buttons */}
               <div className="flex justify-end gap-3 pt-4 border-t border-brand-border/40">
@@ -1366,6 +1708,322 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* BULK ROSTER IMPORT MODAL */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="relative w-full max-w-4xl rounded-2xl border border-brand-border bg-brand-card/95 p-6 shadow-2xl space-y-6 my-8">
+            <button
+              onClick={() => {
+                setShowImportModal(false);
+                setImportStep("upload");
+                setImportFile(null);
+                setPreviewRows([]);
+                setPreviewSummary(null);
+                setFinalSummary(null);
+                setImportError(null);
+              }}
+              className="absolute right-4 top-4 text-brand-muted hover:text-brand-text cursor-pointer transition-colors"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div>
+              <h2 className="text-base font-black text-brand-text uppercase tracking-widest flex items-center gap-2">
+                <FileText className="h-5 w-5 text-brand-accent" /> Bulk Student Roster Ingestion
+              </h2>
+              <p className="text-[10px] text-brand-muted uppercase font-bold tracking-wider mt-1">
+                Upload CSV student roster with academic placements and coding handles
+              </p>
+            </div>
+
+            {/* Stepper indicators */}
+            <div className="flex items-center gap-4 text-xs font-black uppercase tracking-wider text-brand-muted border-b border-brand-border/40 pb-4">
+              <span className={`flex items-center gap-1.5 ${importStep === "upload" ? "text-brand-accent" : ""}`}>
+                <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] ${importStep === "upload" ? "bg-brand-accent text-black" : "bg-brand-border"}`}>1</span>
+                Upload
+              </span>
+              <ChevronRight className="h-4 w-4 text-brand-border" />
+              <span className={`flex items-center gap-1.5 ${importStep === "preview" ? "text-brand-accent" : ""}`}>
+                <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] ${importStep === "preview" ? "bg-brand-accent text-black" : "bg-brand-border"}`}>2</span>
+                Preview
+              </span>
+              <ChevronRight className="h-4 w-4 text-brand-border" />
+              <span className={`flex items-center gap-1.5 ${importStep === "summary" ? "text-brand-accent" : ""}`}>
+                <span className={`h-5 w-5 rounded-full flex items-center justify-center text-[10px] ${importStep === "summary" ? "bg-brand-accent text-black" : "bg-brand-border"}`}>3</span>
+                Summary
+              </span>
+            </div>
+
+            {/* STEP 1: UPLOAD STEP */}
+            {importStep === "upload" && (
+              <div className="space-y-6">
+                <div 
+                  className="flex flex-col items-center justify-center border-2 border-dashed border-brand-border hover:border-brand-accent/50 rounded-2xl p-12 text-center bg-brand-background/40 hover:bg-brand-background/60 transition-all cursor-pointer group"
+                  onClick={() => document.getElementById("csv-file-input")?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    if (e.dataTransfer.files?.[0]) {
+                      const file = e.dataTransfer.files[0];
+                      if (file.name.endsWith(".csv")) {
+                        setImportFile(file);
+                        handleCSVPreview(file);
+                      } else {
+                        setImportError("Invalid file type. Please upload a .csv file.");
+                      }
+                    }
+                  }}
+                >
+                  <FileText className="h-12 w-12 text-brand-muted group-hover:text-brand-accent transition-colors mb-4" />
+                  <p className="text-xs text-brand-text font-bold uppercase tracking-wider">Drag & drop your CSV file here</p>
+                  <p className="text-[10px] text-brand-muted mt-1 uppercase">or click to browse from your computer</p>
+                  <input
+                    id="csv-file-input"
+                    type="file"
+                    accept=".csv"
+                    className="hidden"
+                    onChange={(e) => {
+                      if (e.target.files?.[0]) {
+                        const file = e.target.files[0];
+                        setImportFile(file);
+                        handleCSVPreview(file);
+                      }
+                    }}
+                  />
+                </div>
+
+                {importError && (
+                  <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/30 text-xs text-red-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" /> {importError}
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center bg-brand-background/30 border border-brand-border/40 p-4 rounded-xl text-[10px] uppercase font-black tracking-wider text-brand-muted">
+                  <span>Template requires: name, rollNumber, email, year, department, section, cgpa, codechef, leetcode</span>
+                  <a
+                    href="data:text/csv;charset=utf-8,name,rollNumber,email,contactNumber,year,branch,department,section,cgpa,codechef,leetcode,codeforces,github,linkedin,hackerrank,hackerearth%0ASmith,22BCE0001,smith@student.com,9876543210,3,CSE,CSE,A,8.5,cc_smith,lc_smith,cf_smith,gh_smith,https://linkedin.com/in/smith,hr_smith,he_smith"
+                    download="roster_template.csv"
+                    className="text-brand-accent hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    Download CSV Template <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: PREVIEW STEP */}
+            {importStep === "preview" && (
+              <div className="space-y-6">
+                {/* Search & Filter Header */}
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-2 bg-brand-background border border-brand-border rounded-xl px-3 py-1.5 w-full md:max-w-xs">
+                    <Search className="h-4 w-4 text-brand-muted" />
+                    <input
+                      type="text"
+                      placeholder="Search preview rows..."
+                      value={previewSearch}
+                      onChange={(e) => setPreviewSearch(e.target.value)}
+                      className="bg-transparent border-none text-xs text-brand-text placeholder-brand-muted focus:outline-none w-full"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-brand-muted">
+                    <span>Filter:</span>
+                    <select
+                      value={previewFilter}
+                      onChange={(e: any) => setPreviewFilter(e.target.value)}
+                      className="bg-brand-background border border-brand-border rounded-xl px-3 py-1.5 text-xs text-brand-text focus:outline-none"
+                    >
+                      <option value="all">All Rows ({previewRows.length})</option>
+                      <option value="new">New Creations ({previewSummary?.newStudents || 0})</option>
+                      <option value="existing">Idempotent Updates ({previewSummary?.existingStudents || 0})</option>
+                      <option value="invalid">Validation Failures ({previewSummary?.invalid || 0})</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Preview Table */}
+                <div className="border border-brand-border/60 rounded-xl overflow-hidden max-h-[300px] overflow-y-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-brand-background/60 text-[9px] uppercase font-black tracking-wider text-brand-muted border-b border-brand-border/60">
+                        <th className="p-3 w-12 text-center">Row</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3">Student Info</th>
+                        <th className="p-3">Academic Placement</th>
+                        <th className="p-3">Coding Handles</th>
+                        <th className="p-3">Notes / Delta</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewRows
+                        .filter(r => {
+                          const matchesSearch = r.name.toLowerCase().includes(previewSearch.toLowerCase()) || r.rollNumber.toLowerCase().includes(previewSearch.toLowerCase());
+                          if (!matchesSearch) return false;
+                          if (previewFilter === "new") return !r.isUpdate;
+                          if (previewFilter === "existing") return r.isUpdate;
+                          if (previewFilter === "invalid") return r.classification !== "READY" && r.classification !== "INCOMPLETE";
+                          return true;
+                        })
+                        .map((r, i) => {
+                          const isInvalid = r.classification !== "READY" && r.classification !== "INCOMPLETE";
+                          return (
+                            <tr key={i} className="border-b border-brand-border/40 hover:bg-brand-card/20 text-xs">
+                              <td className="p-3 text-center text-brand-muted font-bold">{r.rowNumber}</td>
+                              <td className="p-3">
+                                {isInvalid ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-red-950/40 border border-red-500/30 text-red-400">
+                                    Invalid
+                                  </span>
+                                ) : r.isUpdate ? (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-yellow-950/40 border border-yellow-500/30 text-yellow-400">
+                                    Update
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-green-950/40 border border-green-500/30 text-green-400">
+                                    New
+                                  </span>
+                                )}
+                              </td>
+                              <td className="p-3 space-y-0.5">
+                                <p className="font-black text-brand-text">{r.name}</p>
+                                <p className="text-[10px] text-brand-muted font-bold">{r.rollNumber} {r.email ? `• ${r.email}` : ""}</p>
+                              </td>
+                              <td className="p-3 space-y-0.5">
+                                <p className="font-bold text-brand-text">{r.department} - Year {r.year}</p>
+                                <p className="text-[10px] text-brand-muted">Section: {r.section || "Unassigned"}</p>
+                              </td>
+                              <td className="p-3 text-[10px] text-brand-muted space-y-0.5">
+                                <p>CodeChef: <span className="text-brand-text font-bold">{r.codechefUsername || "N/A"}</span></p>
+                                <p>LeetCode: <span className="text-brand-text font-bold">{r.leetcodeUsername || "N/A"}</span></p>
+                              </td>
+                              <td className="p-3 text-[10px] max-w-xs truncate">
+                                {isInvalid ? (
+                                  <span className="text-red-400 font-bold block">{r.reasons.join(", ")}</span>
+                                ) : r.isUpdate ? (
+                                  <div className="space-y-0.5">
+                                    <span className="text-yellow-400 font-bold block">Delta Changes:</span>
+                                    {r.changedFields.length > 0 ? (
+                                      r.changedFields.map((f: string, fi: number) => (
+                                        <span key={fi} className="text-brand-muted block font-semibold">{f}</span>
+                                      ))
+                                    ) : (
+                                      <span className="text-brand-muted block italic">No changes (unchanged)</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-green-400 block font-semibold">New student profile registry</span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {importError && (
+                  <div className="p-4 rounded-xl bg-red-950/40 border border-red-500/30 text-xs text-red-400 font-bold uppercase tracking-wider flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4" /> {importError}
+                  </div>
+                )}
+
+                <div className="flex justify-between items-center pt-4 border-t border-brand-border/40">
+                  <button
+                    onClick={() => setImportStep("upload")}
+                    className="px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl bg-brand-background border border-brand-border text-brand-muted hover:text-brand-text cursor-pointer transition-all"
+                  >
+                    Back to Upload
+                  </button>
+                  <button
+                    onClick={handleCSVImport}
+                    disabled={isProcessingImport || previewSummary?.invalid === previewRows.length}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl bg-brand-accent hover:bg-brand-accent/95 text-black font-black disabled:opacity-40 cursor-pointer transition-all shadow-lg shadow-brand-accent/15"
+                  >
+                    {isProcessingImport ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    Confirm Roster Import ({previewRows.length - (previewSummary?.invalid || 0)} Valid Rows)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 3: SUMMARY STEP */}
+            {importStep === "summary" && finalSummary && (
+              <div className="space-y-6">
+                {/* Stats Summary Cards Grid */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  <div className="bg-brand-background border border-brand-border/60 p-4 rounded-xl text-center space-y-1">
+                    <span className="text-[9px] uppercase font-black tracking-wider text-brand-muted">Total Rows</span>
+                    <p className="text-xl font-black text-brand-text">{finalSummary.metrics.totalRows}</p>
+                  </div>
+                  <div className="bg-green-950/20 border border-green-500/20 p-4 rounded-xl text-center space-y-1">
+                    <span className="text-[9px] uppercase font-black tracking-wider text-green-400">Created</span>
+                    <p className="text-xl font-black text-green-400">{finalSummary.metrics.actuallyCreated}</p>
+                  </div>
+                  <div className="bg-yellow-950/20 border border-yellow-500/20 p-4 rounded-xl text-center space-y-1">
+                    <span className="text-[9px] uppercase font-black tracking-wider text-yellow-400">Updated</span>
+                    <p className="text-xl font-black text-yellow-400">{finalSummary.metrics.actuallyUpdated}</p>
+                  </div>
+                  <div className="bg-brand-card/40 border border-brand-border/40 p-4 rounded-xl text-center space-y-1">
+                    <span className="text-[9px] uppercase font-black tracking-wider text-brand-muted">Unchanged</span>
+                    <p className="text-xl font-black text-brand-muted">{finalSummary.metrics.unchanged}</p>
+                  </div>
+                  <div className="bg-red-950/20 border border-red-500/20 p-4 rounded-xl text-center space-y-1 col-span-2 md:col-span-1">
+                    <span className="text-[9px] uppercase font-black tracking-wider text-red-400">Failed</span>
+                    <p className="text-xl font-black text-red-400">{finalSummary.metrics.databaseFailures}</p>
+                  </div>
+                </div>
+
+                {/* Deletion details or Failure logs if present */}
+                {finalSummary.failedRows.length > 0 && (
+                  <div className="space-y-3">
+                    <h3 className="text-xs font-black uppercase text-red-400 tracking-wider flex items-center gap-1.5">
+                      <AlertTriangle className="h-4 w-4" /> Failed / Skipped Rows details ({finalSummary.failedRows.length})
+                    </h3>
+                    <div className="border border-red-500/20 rounded-xl overflow-hidden max-h-[150px] overflow-y-auto">
+                      <table className="w-full text-left border-collapse text-[11px]">
+                        <thead className="bg-red-950/15 border-b border-red-500/20 text-red-400">
+                          <tr>
+                            <th className="p-2 w-12 text-center">Row</th>
+                            <th className="p-2">Roll Number</th>
+                            <th className="p-2">Error Reason</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {finalSummary.failedRows.map((f: any, fi: number) => (
+                            <tr key={fi} className="border-b border-brand-border/40 hover:bg-brand-card/10">
+                              <td className="p-2 text-center text-brand-muted font-bold">{f.rowNumber}</td>
+                              <td className="p-2 font-bold text-brand-text">{f.maskedRollNumber}</td>
+                              <td className="p-2 text-red-300 font-semibold">{f.reason}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex justify-end pt-4 border-t border-brand-border/40">
+                  <button
+                    onClick={() => {
+                      setShowImportModal(false);
+                      setImportStep("upload");
+                      setImportFile(null);
+                      setPreviewRows([]);
+                      setPreviewSummary(null);
+                      setFinalSummary(null);
+                    }}
+                    className="px-6 py-2.5 text-xs font-black uppercase tracking-wider rounded-xl bg-brand-accent hover:bg-brand-accent/80 text-black font-black cursor-pointer transition-all"
+                  >
+                    Finish & Close
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
