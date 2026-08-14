@@ -34,6 +34,9 @@ export async function PATCH(
     }
 
     if (action === "sync") {
+      if (student.archivedAt !== null) {
+        return NextResponse.json({ error: "Archived students cannot be verified/synced." }, { status: 400 });
+      }
       // Direct student verification sync
       const result = await SyncService.syncStudent(studentId, "ADMIN_FORCE", false);
       if (!result.success) {

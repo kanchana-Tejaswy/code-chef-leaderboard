@@ -40,6 +40,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Missing studentProfileId parameter" }, { status: 400 });
     }
 
+    const student = await prisma.studentProfile.findUnique({
+      where: { id: studentId },
+      include: {
+        platformAccounts: {
+          where: { platform: { in: ["CODECHEF", "LEETCODE"] } }
+        }
+      }
+    });
+
+    if (!student) {
+      return NextResponse.json({ error: "Student profile not found." }, { status: 404 });
+    }
+
+    const ccVerified = student.platformAccounts?.find(p => p.platform === "CODECHEF")?.verificationStatus === "VERIFIED";
+    const lcVerified = student.platformAccounts?.find(p => p.platform === "LEETCODE")?.verificationStatus === "VERIFIED";
+    const adminApproved = student.adminApprovalStatus === "APPROVED";
+    const isActive = student.archivedAt === null;
+
+    if (!ccVerified || !lcVerified || !adminApproved || !isActive) {
+      return NextResponse.json({ error: "Student is not eligible for leaderboard refresh." }, { status: 400 });
+    }
+
     const result = await SyncService.syncStudent(studentId, "ADMIN_FORCE", false);
 
     if (!result.success) {
