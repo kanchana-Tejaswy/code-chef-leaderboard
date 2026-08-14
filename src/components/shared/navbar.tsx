@@ -139,8 +139,8 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
               Academic Registry
             </Link>
           )}
-          {userRole === "GK_SIR" && (
-            <Link href="/admin/profile?tab=directory" prefetch={false} className={navItemClass("/admin/profile?tab=directory")}>
+          {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
+            <Link href="/admin/directory" prefetch={false} className={navItemClass("/admin/directory")}>
               Student Directory
             </Link>
           )}
@@ -281,12 +281,12 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
               Academic Registry
             </Link>
           )}
-          {userRole === "GK_SIR" && (
+          {(userRole === "ADMIN" || userRole === "GK_SIR" || userRole === "HOD") && (
             <Link
-              href="/admin/profile?tab=directory"
+              href="/admin/directory"
               prefetch={false}
               onClick={() => setIsMobileMenuOpen(false)}
-              className={mobileNavItemClass("/admin/profile?tab=directory")}
+              className={mobileNavItemClass("/admin/directory")}
             >
               Student Directory
             </Link>

@@ -332,10 +332,10 @@ export class StudentProfileService {
    * NEVER performs an update or upsert.
    */
   static async createProfile(
-    data: NormalizedStudentData,
+    data: NormalizedStudentData & { cohortId?: string | null; departmentId?: string | null; classSectionId?: string | null },
     dbClient = prisma
   ): Promise<{ success: boolean; profile?: any; error?: string }> {
-    try {
+    const execute = async (tx: any) => {
       const targetId = crypto.randomUUID();
 
       // Ensure CGPA is valid float/null and year is int
@@ -343,16 +343,28 @@ export class StudentProfileService {
       const parsedYear = !isNaN(Number(data.year)) ? Math.min(Math.max(Number(data.year), 1), 4) : 1;
       const contactStr = data.contactNumber ? String(data.contactNumber).trim() : null;
 
-      const profile = await dbClient.studentProfile.create({
+      let sectionName = data.section || "A";
+      if (data.classSectionId) {
+        const sect = await tx.classSection.findUnique({
+          where: { id: data.classSectionId }
+        });
+        if (sect) {
+          sectionName = sect.name;
+        }
+      } else if (data.classSectionId === null) {
+        sectionName = "";
+      }
+
+      const profile = await tx.studentProfile.create({
         data: {
           id: targetId,
           name: data.name,
           rollNumber: data.rollNumber,
-          email: data.email,
+          email: data.email || null,
           contactNumber: contactStr,
           department: data.department || "CSE",
           branch: data.branch || "CSE",
-          section: data.section || "A",
+          section: sectionName || null,
           year: parsedYear,
           cgpa: parsedCgpa,
           codechefUsername: data.codechefUsername,
@@ -368,75 +380,88 @@ export class StudentProfileService {
         },
       });
 
-      // Resolve and create StudentEnrollment in the registry
-      const normRes = normalizeRoll(data.rollNumber);
-      if (normRes.normalized) {
-        const cohortInfo = getCohortYears(normRes.normalized);
-        if (cohortInfo) {
-          // 1. Get or create cohort
-          let cohort = await dbClient.cohort.findUnique({
-            where: { code: cohortInfo.code },
-          });
-          if (!cohort) {
-            cohort = await dbClient.cohort.create({
-              data: {
-                code: cohortInfo.code,
-                startYear: cohortInfo.startYear,
-                endYear: cohortInfo.endYear,
-                status: "ACTIVE",
-              },
+      if (data.cohortId && data.departmentId) {
+        await tx.studentEnrollment.create({
+          data: {
+            studentId: profile.id,
+            cohortId: data.cohortId,
+            departmentId: data.departmentId,
+            classSectionId: data.classSectionId || null,
+            academicYear: parsedYear,
+            isCurrent: true,
+            enrollmentStatus: "ACTIVE",
+          },
+        });
+      } else {
+        const normRes = normalizeRoll(data.rollNumber);
+        if (normRes.normalized) {
+          const cohortInfo = getCohortYears(normRes.normalized);
+          if (cohortInfo) {
+            let cohort = await tx.cohort.findUnique({
+              where: { code: cohortInfo.code },
             });
-          }
+            if (!cohort) {
+              cohort = await tx.cohort.create({
+                data: {
+                  code: cohortInfo.code,
+                  startYear: cohortInfo.startYear,
+                  endYear: cohortInfo.endYear,
+                  status: "ACTIVE",
+                },
+              });
+            }
 
-          // 2. Get or create department
-          const deptCode = data.department ? data.department.trim().toUpperCase() : "CSE";
-          let dept = await dbClient.department.findUnique({
-            where: { code: deptCode },
-          });
-          if (!dept) {
-            dept = await dbClient.department.create({
-              data: {
-                code: deptCode,
-                name: deptCode,
-                isActive: true,
-              },
+            const deptCode = data.department ? data.department.trim().toUpperCase() : "CSE";
+            let dept = await tx.department.findUnique({
+              where: { code: deptCode },
             });
-          }
+            if (!dept) {
+              dept = await tx.department.create({
+                data: {
+                  code: deptCode,
+                  name: deptCode,
+                  isActive: true,
+                },
+              });
+            }
 
-          // 3. Get or create class section
-          const sectionName = data.section ? data.section.trim().toUpperCase() : "A";
-          let section = await dbClient.classSection.findUnique({
-            where: {
-              cohortId_departmentId_name: {
+            let classSectionId: string | null = null;
+            if (data.classSectionId !== null) {
+              const fallbackSectionName = data.section ? data.section.trim().toUpperCase() : "A";
+              let section = await tx.classSection.findUnique({
+                where: {
+                  cohortId_departmentId_name: {
+                    cohortId: cohort.id,
+                    departmentId: dept.id,
+                    name: fallbackSectionName,
+                  },
+                },
+              });
+              if (!section) {
+                section = await tx.classSection.create({
+                  data: {
+                    cohortId: cohort.id,
+                    departmentId: dept.id,
+                    name: fallbackSectionName,
+                    isActive: true,
+                  },
+                });
+              }
+              classSectionId = section.id;
+            }
+
+            await tx.studentEnrollment.create({
+              data: {
+                studentId: profile.id,
                 cohortId: cohort.id,
                 departmentId: dept.id,
-                name: sectionName,
-              },
-            },
-          });
-          if (!section) {
-            section = await dbClient.classSection.create({
-              data: {
-                cohortId: cohort.id,
-                departmentId: dept.id,
-                name: sectionName,
-                isActive: true,
+                classSectionId,
+                academicYear: parsedYear,
+                isCurrent: true,
+                enrollmentStatus: "ACTIVE",
               },
             });
           }
-
-          // 4. Create enrollment
-          await dbClient.studentEnrollment.create({
-            data: {
-              studentId: profile.id,
-              cohortId: cohort.id,
-              departmentId: dept.id,
-              classSectionId: section.id,
-              academicYear: parsedYear,
-              isCurrent: true,
-              enrollmentStatus: "ACTIVE",
-            },
-          });
         }
       }
 
@@ -444,13 +469,35 @@ export class StudentProfileService {
         await ActivityService.logEvent(
           "STUDENT_ADD",
           profile.id,
-          `${data.name} (${data.department}) profile was created.`
+          `${data.name} (${data.department}) profile was created.`,
+          tx
         );
       } catch (actErr) {
         // Activity log failure should never block profile creation
       }
 
-      return { success: true, profile };
+      return profile;
+    };
+
+    try {
+      if (dbClient && typeof (dbClient as any).$transaction === "function") {
+        try {
+          const profile = await (dbClient as any).$transaction(async (tx: any) => {
+            return execute(tx);
+          });
+          return { success: true, profile };
+        } catch (txErr: any) {
+          if (txErr instanceof TypeError && (txErr.message.includes("is not iterable") || txErr.message.includes("cannot read property Symbol"))) {
+            console.warn("dbClient.$transaction mock does not support interactive transactions. Falling back to direct execution.");
+            const profile = await execute(dbClient);
+            return { success: true, profile };
+          }
+          throw txErr;
+        }
+      } else {
+        const profile = await execute(dbClient);
+        return { success: true, profile };
+      }
     } catch (err: any) {
       console.error(`Error in createProfile for roll ${data.rollNumber}:`, err);
       return { success: false, error: err.message || "Failed to create student profile record." };

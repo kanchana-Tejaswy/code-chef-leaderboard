@@ -33,7 +33,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       leetcodeUsername, 
       codeforcesUsername,
       githubUsername,
-      linkedinUrl
+      linkedinUrl,
+      cohortId,
+      departmentId,
+      classSectionId
     } = body;
 
     if (!studentId || typeof studentId !== "string") {
@@ -141,12 +144,25 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       oldStudent.githubUsername !== newGithub ||
       oldStudent.linkedinUrl !== newLinkedin;
 
+    let targetSectionName = branch ? String(branch).trim() : oldStudent.section;
+    if (classSectionId) {
+      const sectObj = await prisma.classSection.findUnique({
+        where: { id: classSectionId }
+      });
+      if (sectObj) {
+        targetSectionName = sectObj.name;
+      }
+    } else if (classSectionId === null) {
+      targetSectionName = "";
+    }
+
     const updates: any = {
       name: cleanedName,
       contactNumber: contactNumber !== undefined ? (contactNumber ? String(contactNumber).trim() : null) : oldStudent.contactNumber,
       year: parsedYear !== null ? parsedYear : oldStudent.year,
       branch: branch ? String(branch).trim() : oldStudent.branch,
       department: branch ? String(branch).trim() : oldStudent.department,
+      section: targetSectionName || null,
       cgpa: parsedCgpa !== null ? parsedCgpa : oldStudent.cgpa,
       codechefUsername: newCodechef,
       leetcodeUsername: newLeetcode,
@@ -164,36 +180,85 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       updates.dashboardEligible = false;
     }
 
-    // Update database record (preserving permanent email & rollNumber)
-    const updatedStudent = await prisma.studentProfile.update({
-      where: { id: studentId },
-      data: updates,
-    });
-
-    // Sync updates to UserAccess
-    await prisma.userAccess.updateMany({
-      where: { studentProfileId: studentId },
-      data: {
-        ...(email?.trim() ? { email: email.trim() } : {}),
-        ...(rollNumber?.trim() ? { loginId: rollNumber.trim() } : {}),
-        ...(branch?.trim() ? { departmentId: branch.trim() } : {}),
-      }
-    });
-
-    if (isPlatformChanged) {
-      // Create exactly one SyncJob queue record in database
-      await prisma.syncJob.deleteMany({
-        where: { studentId, status: "QUEUED" }
+    const finalStudent = await prisma.$transaction(async (tx) => {
+      // 1. Update StudentProfile
+      const updatedStudent = await tx.studentProfile.update({
+        where: { id: studentId },
+        data: updates,
       });
-      await prisma.syncJob.create({
+
+      // 2. Update StudentEnrollment placement history
+      if (cohortId && departmentId) {
+        const currentEnrollment = await tx.studentEnrollment.findFirst({
+          where: { studentId, isCurrent: true }
+        });
+
+        const targetSectionId = classSectionId || null;
+
+        const hasPlacementChanged = !currentEnrollment || 
+          currentEnrollment.cohortId !== cohortId ||
+          currentEnrollment.departmentId !== departmentId ||
+          currentEnrollment.classSectionId !== targetSectionId;
+
+        if (hasPlacementChanged) {
+          if (currentEnrollment) {
+            await tx.studentEnrollment.update({
+              where: { id: currentEnrollment.id },
+              data: { isCurrent: false, endedAt: new Date() }
+            });
+          }
+
+          await tx.studentEnrollment.create({
+            data: {
+              studentId,
+              cohortId,
+              departmentId,
+              classSectionId: targetSectionId,
+              academicYear: parsedYear || oldStudent.year || 1,
+              isCurrent: true,
+              enrollmentStatus: "ACTIVE",
+              startedAt: new Date()
+            }
+          });
+        }
+      }
+
+      // 3. Sync updates to UserAccess
+      await tx.userAccess.updateMany({
+        where: { studentProfileId: studentId },
         data: {
-          studentId,
-          status: "QUEUED",
-          attemptCount: 0
+          ...(email?.trim() ? { email: email.trim() } : {}),
+          ...(rollNumber?.trim() ? { loginId: rollNumber.trim() } : {}),
+          ...(updates.branch ? { departmentId: updates.branch } : {}),
         }
       });
 
-      // Record audit event
+      if (isPlatformChanged) {
+        await tx.syncJob.deleteMany({
+          where: { studentId, status: "QUEUED" }
+        });
+        await tx.syncJob.create({
+          data: {
+            studentId,
+            status: "QUEUED",
+            attemptCount: 0
+          }
+        });
+      }
+
+      return tx.studentProfile.findUnique({
+        where: { id: studentId },
+        include: {
+          codechefProfile: true,
+          leetcodeProfile: true,
+          githubProfile: true,
+          aiAnalysis: true,
+          leaderboardEntry: true,
+        },
+      });
+    });
+
+    if (isPlatformChanged) {
       const changedUrls: string[] = [];
       if (oldStudent.codechefUsername !== newCodechef) changedUrls.push("codechefUsername");
       if (oldStudent.leetcodeUsername !== newLeetcode) changedUrls.push("leetcodeUsername");
@@ -235,18 +300,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     } catch (e) {
       // ignore
     }
-
-    // Fetch the updated student profile with included data to return to the frontend
-    const finalStudent = await prisma.studentProfile.findUnique({
-        where: { id: studentId },
-        include: {
-            codechefProfile: true,
-            leetcodeProfile: true,
-            githubProfile: true,
-            aiAnalysis: true,
-            leaderboardEntry: true,
-        },
-    });
 
     return NextResponse.json({ success: true, student: finalStudent });
   } catch (err: any) {
