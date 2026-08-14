@@ -82,9 +82,11 @@ model StudentProfile {
   normalizedProfile     NormalizedProfile?
   studentEnrollments StudentEnrollment[]
   contestParticipations ContestParticipation[]
+  platformAccounts    StudentPlatformAccount[]
 
   @@index([department])
   @@index([createdAt])
+  @@index([name])
   @@map("student_profiles")
 }
 
@@ -548,4 +550,40 @@ model ContestParticipation {
   @@index([rank])
   @@index([score])
   @@map("contest_participations")
+}
+
+enum Platform {
+  CODECHEF
+  LEETCODE
+  CODEFORCES
+  GITHUB
+  LINKEDIN
+  HACKERRANK
+  HACKEREARTH
+}
+
+enum PlatformVerificationStatus {
+  NOT_CONFIGURED
+  PENDING
+  VERIFIED
+  INVALID
+  FAILED
+}
+
+model StudentPlatformAccount {
+  id                 String                     @id @default(uuid())
+  studentProfileId   String                     @map("student_id")
+  platform           Platform
+  profileUrl         String                     @map("profile_url")
+  normalizedHandle   String                     @map("normalized_handle")
+  verificationStatus PlatformVerificationStatus @default(NOT_CONFIGURED) @map("verification_status")
+  verifiedAt         DateTime?                  @map("verified_at")
+  createdAt          DateTime                   @default(now()) @map("created_at")
+  updatedAt          DateTime                   @updatedAt @map("updated_at")
+
+  student            StudentProfile             @relation(fields: [studentProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([studentProfileId, platform])
+  @@index([platform, normalizedHandle])
+  @@map("student_platform_accounts")
 }

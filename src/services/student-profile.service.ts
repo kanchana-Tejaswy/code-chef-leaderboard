@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { isMissingOrNA, extractPlatformHandle } from "@/utils/urlValidation";
+import { isMissingOrNA, extractPlatformHandle, formatToFullUrl } from "@/utils/urlValidation";
 import { normalizeRoll, getCohortYears } from "@/utils/normalization";
 import { ActivityService } from "./activity.service";
 import crypto from "crypto";
@@ -44,6 +44,14 @@ export interface RawStudentInput {
   github_url?: string | null;
   linkedinUrl?: string | null;
   linkedin_url?: string | null;
+  hackerrankUsername?: string | null;
+  hackerrank_username?: string | null;
+  hackerrankUrl?: string | null;
+  hackerrank_url?: string | null;
+  hackerearthUsername?: string | null;
+  hackerearth_username?: string | null;
+  hackerearthUrl?: string | null;
+  hackerearth_url?: string | null;
   profilePictureUrl?: string | null;
   profile_picture_url?: string | null;
 }
@@ -63,6 +71,8 @@ export interface NormalizedStudentData {
   codeforcesUsername: string | null;
   githubUsername: string | null;
   linkedinUrl: string | null;
+  hackerrankUsername: string | null;
+  hackerearthUsername: string | null;
   profilePictureUrl: string | null;
 }
 
@@ -128,6 +138,12 @@ export class StudentProfileService {
     const rawLn = input.linkedinUrl || input.linkedin_url;
     const linkedinUrl = extractPlatformHandle(rawLn ? String(rawLn) : null, "linkedin");
 
+    const rawHr = input.hackerrankUsername || input.hackerrank_username || input.hackerrankUrl || input.hackerrank_url;
+    const hackerrankUsername = extractPlatformHandle(rawHr ? String(rawHr) : null, "hackerrank");
+
+    const rawHe = input.hackerearthUsername || input.hackerearth_username || input.hackerearthUrl || input.hackerearth_url;
+    const hackerearthUsername = extractPlatformHandle(rawHe ? String(rawHe) : null, "hackerearth");
+
     const rawPic = input.profilePictureUrl || input.profile_picture_url;
     const profilePictureUrl = isMissingOrNA(rawPic ? String(rawPic) : null)
       ? null
@@ -148,17 +164,16 @@ export class StudentProfileService {
       codeforcesUsername,
       githubUsername,
       linkedinUrl,
+      hackerrankUsername,
+      hackerearthUsername,
       profilePictureUrl,
     };
   }
 
-  /**
-   * Evaluates and classifies a set of student rows against database records and batch duplicates.
-   */
   static async evaluateRows(
     rows: RawStudentInput[],
     dbStudentsOverride?: any[]
-  ): Promise<EvaluatedRow[]> {
+  ): Promise<(EvaluatedRow & { isUpdate?: boolean; existingId?: string; changedFields?: string[] })[]> {
     let allDbStudents = dbStudentsOverride;
     if (!allDbStudents) {
       try {
@@ -167,10 +182,20 @@ export class StudentProfileService {
             id: true,
             rollNumber: true,
             email: true,
+            contactNumber: true,
+            name: true,
             codechefUsername: true,
             leetcodeUsername: true,
             githubUsername: true,
             codeforcesUsername: true,
+            linkedinUrl: true,
+            section: true,
+            department: true,
+            branch: true,
+            year: true,
+            cgpa: true,
+            adminApprovalStatus: true,
+            archivedAt: true,
           },
         });
       } catch (err) {
@@ -178,12 +203,23 @@ export class StudentProfileService {
       }
     }
 
-    const dbRollSet = new Set(allDbStudents.filter((s) => s.rollNumber).map((s) => s.rollNumber!.toUpperCase()));
-    const dbEmailSet = new Set(allDbStudents.filter((s) => s.email).map((s) => s.email!.toLowerCase()));
-    const dbCcSet = new Set(allDbStudents.filter((s) => s.codechefUsername).map((s) => s.codechefUsername!.toLowerCase()));
-    const dbLcSet = new Set(allDbStudents.filter((s) => s.leetcodeUsername).map((s) => s.leetcodeUsername!.toLowerCase()));
-    const dbGhSet = new Set(allDbStudents.filter((s) => s.githubUsername).map((s) => s.githubUsername!.toLowerCase()));
-    const dbCfSet = new Set(allDbStudents.filter((s) => s.codeforcesUsername).map((s) => s.codeforcesUsername!.toLowerCase()));
+    const studentMap = new Map<string, any>();
+    const emailToStudentId = new Map<string, string>();
+    const ccToStudentId = new Map<string, string>();
+    const lcToStudentId = new Map<string, string>();
+    const ghToStudentId = new Map<string, string>();
+    const cfToStudentId = new Map<string, string>();
+
+    for (const s of allDbStudents) {
+      if (s.rollNumber) {
+        studentMap.set(s.rollNumber.toUpperCase(), s);
+      }
+      if (s.email) emailToStudentId.set(s.email.toLowerCase(), s.id);
+      if (s.codechefUsername) ccToStudentId.set(s.codechefUsername.toLowerCase(), s.id);
+      if (s.leetcodeUsername) lcToStudentId.set(s.leetcodeUsername.toLowerCase(), s.id);
+      if (s.githubUsername) ghToStudentId.set(s.githubUsername.toLowerCase(), s.id);
+      if (s.codeforcesUsername) cfToStudentId.set(s.codeforcesUsername.toLowerCase(), s.id);
+    }
 
     const batchRollSet = new Set<string>();
     const batchEmailSet = new Set<string>();
@@ -192,14 +228,30 @@ export class StudentProfileService {
     const batchGhSet = new Set<string>();
     const batchCfSet = new Set<string>();
 
-    const evaluated: EvaluatedRow[] = [];
+    const evaluated: any[] = [];
 
     for (let index = 0; index < rows.length; index++) {
       const raw = rows[index];
       const norm = this.normalizeInput(raw);
       const reasons: string[] = [];
-
       let classification: RowClassification = "READY";
+
+      const existingStudent = norm.rollNumber ? studentMap.get(norm.rollNumber.toUpperCase()) : null;
+      const isUpdate = !!existingStudent;
+
+      // Merge with existing values to preserve richer data if incoming is blank
+      if (isUpdate) {
+        if (isMissingOrNA(norm.name) && existingStudent.name) norm.name = existingStudent.name;
+        if (isMissingOrNA(norm.email) && existingStudent.email) norm.email = existingStudent.email;
+        if (isMissingOrNA(norm.contactNumber) && existingStudent.contactNumber) norm.contactNumber = existingStudent.contactNumber;
+        if (isMissingOrNA(norm.section) && existingStudent.section) norm.section = existingStudent.section;
+        if ((norm.cgpa === null || isNaN(norm.cgpa)) && existingStudent.cgpa !== null) norm.cgpa = existingStudent.cgpa;
+        if (isMissingOrNA(norm.codechefUsername) && existingStudent.codechefUsername) norm.codechefUsername = existingStudent.codechefUsername;
+        if (isMissingOrNA(norm.leetcodeUsername) && existingStudent.leetcodeUsername) norm.leetcodeUsername = existingStudent.leetcodeUsername;
+        if (isMissingOrNA(norm.codeforcesUsername) && existingStudent.codeforcesUsername) norm.codeforcesUsername = existingStudent.codeforcesUsername;
+        if (isMissingOrNA(norm.githubUsername) && existingStudent.githubUsername) norm.githubUsername = existingStudent.githubUsername;
+        if (isMissingOrNA(norm.linkedinUrl) && existingStudent.linkedinUrl) norm.linkedinUrl = existingStudent.linkedinUrl;
+      }
 
       // --- Identity Validation ---
       if (!norm.name) {
@@ -215,10 +267,8 @@ export class StudentProfileService {
         reasons.push(`Invalid roll number format: ${norm.rollNumber}`);
       }
 
-      if (!norm.email) {
-        classification = "INVALID_EMAIL";
-        reasons.push("Email ID is required.");
-      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm.email)) {
+      // Email is only verified/required if present. During initial roster ingestion, email may be null.
+      if (norm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(norm.email)) {
         classification = "INVALID_EMAIL";
         reasons.push(`Invalid email format: ${norm.email}`);
       }
@@ -233,31 +283,30 @@ export class StudentProfileService {
         reasons.push(`CGPA must be a decimal between 0.0 and 10.0 (got ${raw.cgpa}).`);
       }
 
-      // If basic validation failed already, proceed with classification
       if (reasons.length > 0) {
-        evaluated.push({ index, raw, normalized: norm, classification, reasons });
+        evaluated.push({ index, raw, normalized: norm, classification, reasons, isUpdate, existingId: existingStudent?.id });
         continue;
       }
 
       // --- Duplicate Checks ---
-      if (dbRollSet.has(norm.rollNumber)) {
-        classification = "DUPLICATE_ROLL_NUMBER";
-        reasons.push(`Roll number ${norm.rollNumber} already exists in database.`);
-      } else if (batchRollSet.has(norm.rollNumber)) {
+      if (batchRollSet.has(norm.rollNumber)) {
         classification = "DUPLICATE_ROLL_NUMBER";
         reasons.push(`Duplicate roll number ${norm.rollNumber} within uploaded CSV.`);
       }
 
-      if (dbEmailSet.has(norm.email)) {
-        classification = "DUPLICATE_EMAIL";
-        reasons.push(`Email ${norm.email} already exists in database.`);
-      } else if (batchEmailSet.has(norm.email)) {
-        classification = "DUPLICATE_EMAIL";
-        reasons.push(`Duplicate email ${norm.email} within uploaded CSV.`);
+      if (norm.email) {
+        const conflictingStudentId = emailToStudentId.get(norm.email.toLowerCase());
+        if (conflictingStudentId && conflictingStudentId !== existingStudent?.id) {
+          classification = "DUPLICATE_EMAIL";
+          reasons.push(`Email ${norm.email} already exists on another student.`);
+        } else if (batchEmailSet.has(norm.email.toLowerCase())) {
+          classification = "DUPLICATE_EMAIL";
+          reasons.push(`Duplicate email ${norm.email} within uploaded CSV.`);
+        }
       }
 
       if (classification === "DUPLICATE_ROLL_NUMBER" || classification === "DUPLICATE_EMAIL") {
-        evaluated.push({ index, raw, normalized: norm, classification, reasons });
+        evaluated.push({ index, raw, normalized: norm, classification, reasons, isUpdate, existingId: existingStudent?.id });
         continue;
       }
 
@@ -265,7 +314,8 @@ export class StudentProfileService {
 
       if (norm.codechefUsername) {
         const lowerCc = norm.codechefUsername.toLowerCase();
-        if (dbCcSet.has(lowerCc) || batchCcSet.has(lowerCc)) {
+        const conflictingId = ccToStudentId.get(lowerCc);
+        if ((conflictingId && conflictingId !== existingStudent?.id) || batchCcSet.has(lowerCc)) {
           hadDuplicateHandle = true;
           reasons.push(`Duplicate CodeChef handle '${norm.codechefUsername}' cleared.`);
           norm.codechefUsername = null;
@@ -276,7 +326,8 @@ export class StudentProfileService {
 
       if (norm.leetcodeUsername) {
         const lowerLc = norm.leetcodeUsername.toLowerCase();
-        if (dbLcSet.has(lowerLc) || batchLcSet.has(lowerLc)) {
+        const conflictingId = lcToStudentId.get(lowerLc);
+        if ((conflictingId && conflictingId !== existingStudent?.id) || batchLcSet.has(lowerLc)) {
           hadDuplicateHandle = true;
           reasons.push(`Duplicate LeetCode handle '${norm.leetcodeUsername}' cleared.`);
           norm.leetcodeUsername = null;
@@ -287,7 +338,8 @@ export class StudentProfileService {
 
       if (norm.githubUsername) {
         const lowerGh = norm.githubUsername.toLowerCase();
-        if (dbGhSet.has(lowerGh) || batchGhSet.has(lowerGh)) {
+        const conflictingId = ghToStudentId.get(lowerGh);
+        if ((conflictingId && conflictingId !== existingStudent?.id) || batchGhSet.has(lowerGh)) {
           hadDuplicateHandle = true;
           reasons.push(`Duplicate GitHub handle '${norm.githubUsername}' cleared.`);
           norm.githubUsername = null;
@@ -298,7 +350,8 @@ export class StudentProfileService {
 
       if (norm.codeforcesUsername) {
         const lowerCf = norm.codeforcesUsername.toLowerCase();
-        if (dbCfSet.has(lowerCf) || batchCfSet.has(lowerCf)) {
+        const conflictingId = cfToStudentId.get(lowerCf);
+        if ((conflictingId && conflictingId !== existingStudent?.id) || batchCfSet.has(lowerCf)) {
           hadDuplicateHandle = true;
           reasons.push(`Duplicate Codeforces handle '${norm.codeforcesUsername}' cleared.`);
           norm.codeforcesUsername = null;
@@ -309,23 +362,45 @@ export class StudentProfileService {
 
       if (hadDuplicateHandle) {
         classification = "INCOMPLETE";
-        reasons.push("Profile created as INCOMPLETE due to cleared duplicate platform handle(s).");
+        reasons.push("Profile classified as INCOMPLETE due to cleared duplicate platform handle(s).");
       } else if (!norm.codechefUsername || !norm.leetcodeUsername) {
         classification = "INCOMPLETE";
-        reasons.push("Profile created as INCOMPLETE (requires both CodeChef and LeetCode URLs).");
+        reasons.push("Profile classified as INCOMPLETE (requires both CodeChef and LeetCode handles).");
       } else {
         classification = "READY";
       }
 
-      // Mark batch tracking sets for roll and email
-      batchRollSet.add(norm.rollNumber);
-      batchEmailSet.add(norm.email);
+      const changedFields: string[] = [];
+      if (isUpdate) {
+        if (norm.name !== existingStudent.name) changedFields.push(`name: ${existingStudent.name || "blank"} -> ${norm.name}`);
+        if (norm.email !== existingStudent.email) changedFields.push(`email: ${existingStudent.email || "blank"} -> ${norm.email || "blank"}`);
+        if (norm.contactNumber !== existingStudent.contactNumber) changedFields.push(`contactNumber: ${existingStudent.contactNumber || "blank"} -> ${norm.contactNumber || "blank"}`);
+        if (norm.section !== existingStudent.section) changedFields.push(`section: ${existingStudent.section || "blank"} -> ${norm.section || "blank"}`);
+        if (norm.year !== existingStudent.year) changedFields.push(`year: ${existingStudent.year} -> ${norm.year}`);
+        if (norm.cgpa !== existingStudent.cgpa) changedFields.push(`cgpa: ${existingStudent.cgpa !== null ? existingStudent.cgpa : "blank"} -> ${norm.cgpa !== null ? norm.cgpa : "blank"}`);
+        if (norm.codechefUsername !== existingStudent.codechefUsername) changedFields.push(`codechef: ${existingStudent.codechefUsername || "blank"} -> ${norm.codechefUsername || "blank"}`);
+        if (norm.leetcodeUsername !== existingStudent.leetcodeUsername) changedFields.push(`leetcode: ${existingStudent.leetcodeUsername || "blank"} -> ${norm.leetcodeUsername || "blank"}`);
+      }
 
-      evaluated.push({ index, raw, normalized: norm, classification, reasons, hadDuplicateHandle });
+      batchRollSet.add(norm.rollNumber);
+      if (norm.email) batchEmailSet.add(norm.email.toLowerCase());
+
+      evaluated.push({
+        index,
+        raw,
+        normalized: norm,
+        classification,
+        reasons,
+        hadDuplicateHandle,
+        isUpdate,
+        existingId: existingStudent?.id,
+        changedFields
+      });
     }
 
     return evaluated;
   }
+
 
   /**
    * Creates a single student profile in database.
@@ -465,6 +540,24 @@ export class StudentProfileService {
         }
       }
 
+      // Sync new/configured platform accounts
+      await StudentProfileService.syncPlatformAccounts(
+        profile.id,
+        {
+          codechefUsername: data.codechefUsername,
+          leetcodeUsername: data.leetcodeUsername,
+          codeforcesUsername: data.codeforcesUsername,
+          githubUsername: data.githubUsername,
+          linkedinUrl: data.linkedinUrl,
+          hackerrankUsername: data.hackerrankUsername,
+          hackerearthUsername: data.hackerearthUsername,
+        },
+        tx
+      );
+
+      // Evaluate eligibility status
+      await StudentProfileService.calculateAndUpdateEligibility(profile.id, tx);
+
       try {
         await ActivityService.logEvent(
           "STUDENT_ADD",
@@ -563,6 +656,8 @@ export class StudentProfileService {
     summary: {
       totalRows: number;
       actuallyCreated: number;
+      actuallyUpdated: number;
+      unchanged: number;
       incompleteCreated: number;
       duplicateRollSkipped: number;
       duplicateEmailSkipped: number;
@@ -581,6 +676,8 @@ export class StudentProfileService {
     const evaluated = await this.evaluateRows(rows);
 
     let actuallyCreated = 0;
+    let actuallyUpdated = 0;
+    let unchanged = 0;
     let incompleteCreated = 0;
     let duplicateRollSkipped = 0;
     let duplicateEmailSkipped = 0;
@@ -640,6 +737,39 @@ export class StudentProfileService {
         continue;
       }
 
+      if (item.isUpdate) {
+        if (item.changedFields && item.changedFields.length === 0) {
+          unchanged++;
+          createdProfileIds.push(item.existingId!);
+          continue;
+        }
+
+        try {
+          const res = await this.updateProfileRosterIngestion(item.existingId!, item.normalized);
+          if (res.success) {
+            actuallyUpdated++;
+            createdProfileIds.push(item.existingId!);
+          } else {
+            databaseFailures++;
+            failedRows.push({
+              rowNumber: item.index + 1,
+              maskedRollNumber: maskRoll(item.normalized.rollNumber),
+              status: "DATABASE_ERROR",
+              reason: res.error || "Database update error.",
+            });
+          }
+        } catch (rowErr: any) {
+          databaseFailures++;
+          failedRows.push({
+            rowNumber: item.index + 1,
+            maskedRollNumber: maskRoll(item.normalized.rollNumber),
+            status: "DATABASE_ERROR",
+            reason: rowErr?.message || "Unexpected exception during row update.",
+          });
+        }
+        continue;
+      }
+
       // Execute isolated insertion per student profile (NO monolithic transaction)
       try {
         const res = await this.createProfile(item.normalized);
@@ -676,6 +806,8 @@ export class StudentProfileService {
       summary: {
         totalRows: rows.length,
         actuallyCreated,
+        actuallyUpdated,
+        unchanged,
         incompleteCreated,
         duplicateRollSkipped,
         duplicateEmailSkipped,
@@ -716,5 +848,311 @@ export class StudentProfileService {
       })),
       importedIds: res.createdProfileIds,
     };
+  }
+
+  /**
+   * Safe platform account synchronization. Ensures a student has at most one record
+   * per platform in StudentPlatformAccount table and normalizes handles/URLs.
+   */
+  static async syncPlatformAccounts(
+    studentId: string,
+    data: {
+      codechefUsername?: string | null;
+      leetcodeUsername?: string | null;
+      codeforcesUsername?: string | null;
+      githubUsername?: string | null;
+      linkedinUrl?: string | null;
+      hackerrankUsername?: string | null;
+      hackerearthUsername?: string | null;
+    },
+    tx: any = prisma
+  ): Promise<void> {
+    if (!tx || !tx.studentPlatformAccount) {
+      return;
+    }
+    const platforms: Array<{ type: "CODECHEF" | "LEETCODE" | "CODEFORCES" | "GITHUB" | "LINKEDIN" | "HACKERRANK" | "HACKEREARTH"; val: string | null | undefined }> = [
+      { type: "CODECHEF", val: data.codechefUsername },
+      { type: "LEETCODE", val: data.leetcodeUsername },
+      { type: "CODEFORCES", val: data.codeforcesUsername },
+      { type: "GITHUB", val: data.githubUsername },
+      { type: "LINKEDIN", val: data.linkedinUrl },
+      { type: "HACKERRANK", val: data.hackerrankUsername },
+      { type: "HACKEREARTH", val: data.hackerearthUsername },
+    ];
+
+    for (const p of platforms) {
+      const handle = p.val ? p.val.trim() : null;
+
+      if (!handle) {
+        // If handle is empty or cleared, delete the platform account record
+        await tx.studentPlatformAccount.deleteMany({
+          where: { studentProfileId: studentId, platform: p.type }
+        });
+        continue;
+      }
+
+      // Check if it already exists
+      const existing = await tx.studentPlatformAccount.findUnique({
+        where: {
+          studentProfileId_platform: {
+            studentProfileId: studentId,
+            platform: p.type
+          }
+        }
+      });
+
+      const urlType = p.type.toLowerCase() as any;
+      const canonicalUrl = formatToFullUrl(handle, urlType);
+
+      if (existing) {
+        if (existing.normalizedHandle.toLowerCase() === handle.toLowerCase()) {
+          // No handle change, preserve existing verificationStatus & verifiedAt
+          if (existing.profileUrl !== canonicalUrl) {
+            await tx.studentPlatformAccount.update({
+              where: { id: existing.id },
+              data: { profileUrl: canonicalUrl }
+            });
+          }
+          continue;
+        }
+        // Handle has changed, reset to PENDING and clear verifiedAt
+        await tx.studentPlatformAccount.update({
+          where: { id: existing.id },
+          data: {
+            normalizedHandle: handle,
+            profileUrl: canonicalUrl,
+            verificationStatus: "PENDING",
+            verifiedAt: null
+          }
+        });
+      } else {
+        // Create new platform account with PENDING status
+        await tx.studentPlatformAccount.create({
+          data: {
+            studentProfileId: studentId,
+            platform: p.type,
+            normalizedHandle: handle,
+            profileUrl: canonicalUrl,
+            verificationStatus: "PENDING"
+          }
+        });
+      }
+    }
+  }
+
+  /**
+   * Resolves derived leaderboard/dashboard eligibility based on CodeChef & LeetCode verification statuses
+   * and explicit Admin approval, keeping the legacy cached columns in sync to avoid data drift.
+   */
+  static async calculateAndUpdateEligibility(studentId: string, tx: any = prisma): Promise<boolean> {
+    if (!tx || !tx.studentProfile) {
+      return false;
+    }
+
+    const student = await tx.studentProfile.findUnique({
+      where: { id: studentId },
+      include: {
+        platformAccounts: {
+          where: { platform: { in: ["CODECHEF", "LEETCODE"] } }
+        }
+      }
+    });
+
+    if (!student || student.archivedAt) {
+      await tx.studentProfile.update({
+        where: { id: studentId },
+        data: { leaderboardEligible: false, dashboardEligible: false }
+      });
+      return false;
+    }
+
+    const accounts = student.platformAccounts || [];
+    const ccAccount = accounts.find((p: any) => p.platform === "CODECHEF");
+    const lcAccount = accounts.find((p: any) => p.platform === "LEETCODE");
+
+    const ccVerified = ccAccount?.verificationStatus === "VERIFIED";
+    const lcVerified = lcAccount?.verificationStatus === "VERIFIED";
+    const adminApproved = student.adminApprovalStatus === "APPROVED";
+
+    const isEligible = ccVerified && lcVerified && adminApproved;
+
+    const hasCc = Boolean(student.codechefUsername);
+    const hasLc = Boolean(student.leetcodeUsername);
+    let profileStatus = student.profileStatus;
+    if (ccVerified && lcVerified) {
+      profileStatus = "VERIFIED";
+    } else if (hasCc && hasLc) {
+      if (profileStatus !== "VERIFIED") {
+        profileStatus = "PENDING_VERIFICATION";
+      }
+    } else {
+      profileStatus = "INCOMPLETE";
+    }
+
+    await tx.studentProfile.update({
+      where: { id: studentId },
+      data: {
+        leaderboardEligible: isEligible,
+        dashboardEligible: isEligible,
+        profileStatus
+      }
+    });
+
+    return isEligible;
+  }
+
+  /**
+   * Idempotent updates on existing student profiles during roster ingestion.
+   * Runs inside a Prisma transaction, updates modified fields, and tracks enrollment history.
+   */
+  static async updateProfileRosterIngestion(
+    id: string,
+    data: NormalizedStudentData & { cohortId?: string | null; departmentId?: string | null; classSectionId?: string | null }
+  ): Promise<{ success: boolean; error?: string }> {
+    try {
+      await prisma.$transaction(async (tx) => {
+        const activeEnrollment = await tx.studentEnrollment.findFirst({
+          where: { studentId: id, isCurrent: true }
+        });
+
+        let targetCohortId = data.cohortId;
+        let targetDeptId = data.departmentId;
+        let targetSectionId = data.classSectionId;
+
+        if (!targetCohortId || !targetDeptId) {
+          const normRes = normalizeRoll(data.rollNumber);
+          if (normRes.normalized) {
+            const cohortInfo = getCohortYears(normRes.normalized);
+            if (cohortInfo) {
+              let cohort = await tx.cohort.findUnique({ where: { code: cohortInfo.code } });
+              if (!cohort) {
+                cohort = await tx.cohort.create({
+                  data: { code: cohortInfo.code, startYear: cohortInfo.startYear, endYear: cohortInfo.endYear, status: "ACTIVE" }
+                });
+              }
+              targetCohortId = cohort.id;
+            }
+            const deptCode = data.department ? data.department.trim().toUpperCase() : "CSE";
+            let dept = await tx.department.findUnique({ where: { code: deptCode } });
+            if (!dept) {
+              dept = await tx.department.create({
+                data: { code: deptCode, name: deptCode, isActive: true }
+              });
+            }
+            targetDeptId = dept.id;
+          }
+        }
+
+        if (!targetSectionId && data.section && targetCohortId && targetDeptId) {
+          const sectionName = data.section.trim().toUpperCase();
+          let section = await tx.classSection.findUnique({
+            where: {
+              cohortId_departmentId_name: {
+                cohortId: targetCohortId,
+                departmentId: targetDeptId,
+                name: sectionName
+              }
+            }
+          });
+          if (!section) {
+            section = await tx.classSection.create({
+              data: {
+                cohortId: targetCohortId,
+                departmentId: targetDeptId,
+                name: sectionName,
+                isActive: true
+              }
+            });
+          }
+          targetSectionId = section.id;
+        }
+
+        const placementChanged =
+          !activeEnrollment ||
+          activeEnrollment.cohortId !== targetCohortId ||
+          activeEnrollment.departmentId !== targetDeptId ||
+          activeEnrollment.classSectionId !== (targetSectionId || null);
+
+        if (placementChanged) {
+          if (activeEnrollment) {
+            await tx.studentEnrollment.update({
+              where: { id: activeEnrollment.id },
+              data: { isCurrent: false, endedAt: new Date() }
+            });
+          }
+
+          if (targetCohortId && targetDeptId) {
+            await tx.studentEnrollment.create({
+              data: {
+                studentId: id,
+                cohortId: targetCohortId,
+                departmentId: targetDeptId,
+                classSectionId: targetSectionId || null,
+                academicYear: data.year,
+                isCurrent: true,
+                enrollmentStatus: "ACTIVE",
+                startedAt: new Date()
+              }
+            });
+          }
+        }
+
+        let sectionName = data.section;
+        if (targetSectionId) {
+          const sect = await tx.classSection.findUnique({ where: { id: targetSectionId } });
+          if (sect) sectionName = sect.name;
+        } else if (data.classSectionId === null) {
+          sectionName = "";
+        }
+
+        await tx.studentProfile.update({
+          where: { id },
+          data: {
+            name: data.name,
+            email: data.email || null,
+            contactNumber: data.contactNumber,
+            department: data.department,
+            branch: data.branch,
+            section: sectionName || null,
+            year: data.year,
+            cgpa: data.cgpa,
+            codechefUsername: data.codechefUsername,
+            leetcodeUsername: data.leetcodeUsername,
+            codeforcesUsername: data.codeforcesUsername,
+            githubUsername: data.githubUsername,
+            linkedinUrl: data.linkedinUrl
+          }
+        });
+
+        await StudentProfileService.syncPlatformAccounts(
+          id,
+          {
+            codechefUsername: data.codechefUsername,
+            leetcodeUsername: data.leetcodeUsername,
+            codeforcesUsername: data.codeforcesUsername,
+            githubUsername: data.githubUsername,
+            linkedinUrl: data.linkedinUrl,
+            hackerrankUsername: data.hackerrankUsername,
+            hackerearthUsername: data.hackerearthUsername,
+          },
+          tx
+        );
+
+        await StudentProfileService.calculateAndUpdateEligibility(id, tx);
+
+        try {
+          await ActivityService.logEvent(
+            "STUDENT_UPDATE",
+            id,
+            `${data.name} (${data.department}) profile was updated during roster import.`,
+            tx
+          );
+        } catch (actErr) {}
+      });
+      return { success: true };
+    } catch (err: any) {
+      console.error(`Failed to update profile ${id}:`, err);
+      return { success: false, error: err.message || "Failed to update profile record." };
+    }
   }
 }

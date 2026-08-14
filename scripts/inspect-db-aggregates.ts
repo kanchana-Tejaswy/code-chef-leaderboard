@@ -1,3 +1,7 @@
+import * as dotenv from "dotenv";
+import { resolve } from "path";
+dotenv.config({ path: resolve(process.cwd(), ".env"), override: true });
+
 import { prisma } from "../src/lib/prisma";
 
 async function main() {
