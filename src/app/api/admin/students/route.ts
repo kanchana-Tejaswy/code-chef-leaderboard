@@ -75,15 +75,43 @@ export async function POST(request: NextRequest) {
     const admin = await requireAdmin();
     const body = await request.json().catch(() => ({}));
 
+    const rawRoll = body.rollNumber || body.roll_number;
+    if (rawRoll) {
+      const normalizedRoll = String(rawRoll).trim().toUpperCase();
+      const existing = await prisma.studentProfile.findUnique({
+        where: { rollNumber: normalizedRoll }
+      });
+      if (existing) {
+        return NextResponse.json(
+          { error: "A student with this roll number already exists.", existingId: existing.id },
+          { status: 409 }
+        );
+      }
+    }
+
     const evaluated = await StudentProfileService.evaluateRows([body]);
     const row = evaluated[0];
+
+    // For manual creation we bypass email validation constraint if email is empty
+    if (row.classification === "INVALID_EMAIL" && !body.email) {
+      // Allow creation without email
+      row.classification = (row.normalized.codechefUsername && row.normalized.leetcodeUsername) ? "READY" : "INCOMPLETE";
+      row.reasons = row.reasons.filter(r => !r.includes("Email ID is required"));
+    }
 
     if (row.classification !== "READY" && row.classification !== "INCOMPLETE") {
       const errorMsg = row.reasons.join(" ") || "Invalid student profile payload.";
       return NextResponse.json({ error: errorMsg }, { status: 400 });
     }
 
-    const res = await StudentProfileService.createProfile(row.normalized);
+    const creationData = {
+      ...row.normalized,
+      cohortId: body.cohortId || null,
+      departmentId: body.departmentId || null,
+      classSectionId: body.classSectionId || null,
+    };
+
+    const res = await StudentProfileService.createProfile(creationData);
     if (!res.success || !res.profile) {
       return NextResponse.json({ error: res.error || "Failed to create student profile." }, { status: 400 });
     }

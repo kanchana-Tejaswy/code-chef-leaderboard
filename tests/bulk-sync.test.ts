@@ -162,6 +162,7 @@ describe("Durable Bulk Synchronization Workflow - Permanent Architecture Tests",
     // Return profiles with verified handles to satisfy success check
     (prisma.studentProfile.findUnique as any).mockResolvedValue({
       id: "s2",
+      profileStatus: "VERIFIED",
       codechefProfile: { username: "cc_user" },
       leetcodeProfile: { username: "lc_user" }
     });

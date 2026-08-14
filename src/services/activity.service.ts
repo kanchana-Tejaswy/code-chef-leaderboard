@@ -5,9 +5,13 @@ export class ActivityService {
    * Logs a new event to the ActivityLog table.
    * Ensures failures are logged gracefully to the console without interrupting main workflows.
    */
-  static async logEvent(eventType: string, studentId: string | null, message: string) {
+  static async logEvent(eventType: string, studentId: string | null, message: string, dbClient = prisma) {
     try {
-      return await prisma.activityLog.create({
+      if (!dbClient || !(dbClient as any).activityLog) {
+        console.warn("dbClient does not support activityLog logging. Skipping.");
+        return;
+      }
+      return await dbClient.activityLog.create({
         data: {
           eventType,
           studentId,
