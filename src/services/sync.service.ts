@@ -70,14 +70,25 @@ export class SyncService {
   ): Promise<{ success: boolean; error?: string }> {
     const startTime = Date.now();
 
-    // 1. Fetch Student Profile to get usernames
+    // 1. Fetch Student Profile with platformAccounts
     const student = await prisma.studentProfile.findUnique({
       where: { id: studentId },
+      include: {
+        platformAccounts: {
+          where: { platform: { in: ["CODECHEF", "LEETCODE"] } }
+        }
+      }
     });
 
     if (!student) {
       return { success: false, error: "Student profile not found." };
     }
+
+    const ccAccount = student.platformAccounts?.find(p => p.platform === "CODECHEF");
+    const lcAccount = student.platformAccounts?.find(p => p.platform === "LEETCODE");
+
+    const ccHandle = ccAccount?.normalizedHandle || student.codechefUsername;
+    const lcHandle = lcAccount?.normalizedHandle || student.leetcodeUsername;
 
     const isCloudTest = student.rollNumber === "CLOUDTEST001";
     if (isCloudTest) {
@@ -112,7 +123,7 @@ export class SyncService {
       });
     }
 
-    if (!student.codechefUsername && !student.leetcodeUsername) {
+    if (!ccHandle && !lcHandle) {
       if (isCloudTest) {
         console.log(`[Sanitized Log] [CLOUDTEST001] No usernames configured. Creating unranked LeaderboardEntry.`);
       }
@@ -159,20 +170,22 @@ export class SyncService {
     try {
       // 2. Collector Phase: Scrape platforms in parallel
       let codechefError: string | null = null;
+      let leetcodeError: string | null = null;
 
       const scrapePromises = [
         // CodeChef Collector
-        student.codechefUsername
-          ? CodechefService.fetchData(student.codechefUsername).catch((err) => {
+        ccHandle
+          ? CodechefService.fetchData(ccHandle).catch((err) => {
               console.error(`[Collector] CodeChef scrape failed for student ${student.name}:`, err);
               codechefError = err.message || "Failed to fetch CodeChef profile";
               return null;
             })
           : Promise.resolve(null),
         // LeetCode Collector
-        student.leetcodeUsername
-          ? LeetcodeService.fetchData(student.leetcodeUsername).catch((err) => {
+        lcHandle
+          ? LeetcodeService.fetchData(lcHandle).catch((err) => {
               console.error(`[Collector] LeetCode scrape failed for student ${student.name}:`, err);
+              leetcodeError = err.message || "Failed to fetch LeetCode profile";
               return null;
             })
           : Promise.resolve(null),
@@ -185,33 +198,34 @@ export class SyncService {
       }
 
       // Validate all successfully scraped data prior to database writes
-      if (student.codechefUsername && codechefData) {
+      if (ccHandle && codechefData) {
         try {
-          validateProfileData("CODECHEF", student.codechefUsername, codechefData);
+          validateProfileData("CODECHEF", ccHandle, codechefData);
         } catch (e: any) {
           console.error(`[SyncService] CodeChef validation failed for ${student.name}: ${e.message}`);
           codechefError = e.message || "Validation failed";
           codechefData = null;
         }
       }
-      if (student.leetcodeUsername && leetcodeData) {
+      if (lcHandle && leetcodeData) {
         try {
-          validateProfileData("LEETCODE", student.leetcodeUsername, leetcodeData);
+          validateProfileData("LEETCODE", lcHandle, leetcodeData);
         } catch (e: any) {
           console.error(`[SyncService] LeetCode validation failed for ${student.name}: ${e.message}`);
+          leetcodeError = e.message || "Validation failed";
           leetcodeData = null;
         }
       }
 
       // Calculate verificationStatus
-      let codechefSuccess = student.codechefUsername ? (codechefData !== null) : null;
-      let leetcodeSuccess = student.leetcodeUsername ? (leetcodeData !== null) : null;
+      let codechefSuccess = ccHandle ? (codechefData !== null) : null;
+      let leetcodeSuccess = lcHandle ? (leetcodeData !== null) : null;
 
       const existingCc = await prisma.codechefProfile.findUnique({ where: { studentId } });
       const existingLc = await prisma.leetcodeProfile.findUnique({ where: { studentId } });
 
-      const isCcVerified = Boolean(codechefData || (existingCc && existingCc.username.toLowerCase() === student.codechefUsername?.toLowerCase()));
-      const isLcVerified = Boolean(leetcodeData || (existingLc && existingLc.username.toLowerCase() === student.leetcodeUsername?.toLowerCase()));
+      const isCcVerified = Boolean(codechefData || (existingCc && ccHandle && existingCc.username.toLowerCase() === ccHandle.toLowerCase()));
+      const isLcVerified = Boolean(leetcodeData || (existingLc && lcHandle && existingLc.username.toLowerCase() === lcHandle.toLowerCase()));
       const bothVerified = isCcVerified && isLcVerified;
 
       let profileStatus = "INCOMPLETE";
@@ -446,9 +460,91 @@ export class SyncService {
             },
           })
         );
+      } else if (existingLc) {
+        const existingMetadata = existingLc.verificationMetadata as any || {};
+        queries.push(
+          prisma.leetcodeProfile.update({
+            where: { studentId },
+            data: {
+              verificationMetadata: {
+                ...existingMetadata,
+                syncStatus: "FAILED",
+                error: leetcodeError || "Unknown error during sync",
+                lastAttemptedAt: new Date().toISOString()
+              } as any
+            }
+          })
+        );
       }
 
+      // Update StudentPlatformAccount verificationStatus dynamically based on scrape outcome
+      if (ccHandle) {
+        let ccStatus: "VERIFIED" | "INVALID" | "FAILED" = "VERIFIED";
+        if (codechefError || !codechefSuccess) {
+          const errMsg = codechefError || "";
+          const isPermanent = errMsg.toLowerCase().includes("404") || errMsg.toLowerCase().includes("not found") || errMsg.toLowerCase().includes("does not exist") || errMsg.toLowerCase().includes("invalid");
+          ccStatus = isPermanent ? "INVALID" : "FAILED";
+        }
 
+        if (ccAccount) {
+          queries.push(
+            prisma.studentPlatformAccount.update({
+              where: { id: ccAccount.id },
+              data: {
+                verificationStatus: ccStatus,
+                verifiedAt: ccStatus === "VERIFIED" ? new Date() : ccAccount.verifiedAt
+              }
+            })
+          );
+        } else {
+          queries.push(
+            prisma.studentPlatformAccount.create({
+              data: {
+                studentProfileId: studentId,
+                platform: "CODECHEF",
+                handle: ccHandle,
+                normalizedHandle: ccHandle.trim().toLowerCase(),
+                verificationStatus: ccStatus,
+                verifiedAt: ccStatus === "VERIFIED" ? new Date() : null
+              }
+            })
+          );
+        }
+      }
+
+      if (lcHandle) {
+        let lcStatus: "VERIFIED" | "INVALID" | "FAILED" = "VERIFIED";
+        if (leetcodeError || !leetcodeSuccess) {
+          const errMsg = leetcodeError || "";
+          const isPermanent = errMsg.toLowerCase().includes("404") || errMsg.toLowerCase().includes("not found") || errMsg.toLowerCase().includes("does not exist") || errMsg.toLowerCase().includes("invalid");
+          lcStatus = isPermanent ? "INVALID" : "FAILED";
+        }
+
+        if (lcAccount) {
+          queries.push(
+            prisma.studentPlatformAccount.update({
+              where: { id: lcAccount.id },
+              data: {
+                verificationStatus: lcStatus,
+                verifiedAt: lcStatus === "VERIFIED" ? new Date() : lcAccount.verifiedAt
+              }
+            })
+          );
+        } else {
+          queries.push(
+            prisma.studentPlatformAccount.create({
+              data: {
+                studentProfileId: studentId,
+                platform: "LEETCODE",
+                handle: lcHandle,
+                normalizedHandle: lcHandle.trim().toLowerCase(),
+                verificationStatus: lcStatus,
+                verifiedAt: lcStatus === "VERIFIED" ? new Date() : null
+              }
+            })
+          );
+        }
+      }
 
       // Pre-update LeaderboardEntry with raw scores to maintain transactional consistency
       queries.push(
@@ -474,6 +570,10 @@ export class SyncService {
 
       // Execute sequential transaction
       await prisma.$transaction(queries);
+
+      // Re-evaluate eligibility status
+      const { StudentProfileService } = await import("./student-profile.service");
+      await StudentProfileService.calculateAndUpdateEligibility(studentId);
 
       // 4. Normalization Phase: Unify and validate platform data
       const normalizedProfile = await NormalizationService.normalizeStudent(studentId);
@@ -696,7 +796,8 @@ export class SyncService {
           student: {
             leaderboardEligible: true,
             profileStatus: "VERIFIED",
-            adminApprovalStatus: "APPROVED"
+            adminApprovalStatus: "APPROVED",
+            archivedAt: null
           }
         },
         include: {

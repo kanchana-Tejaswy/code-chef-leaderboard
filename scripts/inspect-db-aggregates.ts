@@ -14,9 +14,11 @@ async function main() {
   const classSectionCount = await prisma.classSection.count();
   const userAccessCount = await prisma.userAccess.count();
   const auditLogCount = await prisma.auditLog.count();
+  const studentPlatformAccountCount = await prisma.studentPlatformAccount.count();
 
   console.log(`- StudentProfile: ${studentProfileCount}`);
   console.log(`- StudentEnrollment: ${studentEnrollmentCount}`);
+  console.log(`- StudentPlatformAccount: ${studentPlatformAccountCount}`);
   console.log(`- Cohort: ${cohortCount}`);
   console.log(`- Department: ${departmentCount}`);
   console.log(`- ClassSection: ${classSectionCount}`);
