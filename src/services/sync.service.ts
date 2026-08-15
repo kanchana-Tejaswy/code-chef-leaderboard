@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { CodechefService } from "./codechef.service";
 import { LeetcodeService } from "./leetcode.service";
+import { formatToFullUrl } from "@/utils/urlValidation";
 
 import { NormalizationService } from "./normalization.service";
 import { AiEngineService } from "./ai-engine.service";
@@ -502,8 +503,8 @@ export class SyncService {
               data: {
                 studentProfileId: studentId,
                 platform: "CODECHEF",
-                handle: ccHandle,
                 normalizedHandle: ccHandle.trim().toLowerCase(),
+                profileUrl: formatToFullUrl(ccHandle, "codechef"),
                 verificationStatus: ccStatus,
                 verifiedAt: ccStatus === "VERIFIED" ? new Date() : null
               }
@@ -536,8 +537,8 @@ export class SyncService {
               data: {
                 studentProfileId: studentId,
                 platform: "LEETCODE",
-                handle: lcHandle,
                 normalizedHandle: lcHandle.trim().toLowerCase(),
+                profileUrl: formatToFullUrl(lcHandle, "leetcode"),
                 verificationStatus: lcStatus,
                 verifiedAt: lcStatus === "VERIFIED" ? new Date() : null
               }
