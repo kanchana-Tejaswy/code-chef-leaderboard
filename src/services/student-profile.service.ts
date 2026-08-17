@@ -177,27 +177,31 @@ export class StudentProfileService {
     let allDbStudents = dbStudentsOverride;
     if (!allDbStudents) {
       try {
-        allDbStudents = await prisma.studentProfile.findMany({
-          select: {
-            id: true,
-            rollNumber: true,
-            email: true,
-            contactNumber: true,
-            name: true,
-            codechefUsername: true,
-            leetcodeUsername: true,
-            githubUsername: true,
-            codeforcesUsername: true,
-            linkedinUrl: true,
-            section: true,
-            department: true,
-            branch: true,
-            year: true,
-            cgpa: true,
-            adminApprovalStatus: true,
-            archivedAt: true,
-          },
-        });
+        if (prisma.studentProfile && typeof prisma.studentProfile.findMany === "function") {
+          allDbStudents = await prisma.studentProfile.findMany({
+            select: {
+              id: true,
+              rollNumber: true,
+              email: true,
+              contactNumber: true,
+              name: true,
+              codechefUsername: true,
+              leetcodeUsername: true,
+              githubUsername: true,
+              codeforcesUsername: true,
+              linkedinUrl: true,
+              section: true,
+              department: true,
+              branch: true,
+              year: true,
+              cgpa: true,
+              adminApprovalStatus: true,
+              archivedAt: true,
+            },
+          });
+        } else {
+          allDbStudents = [];
+        }
       } catch (err) {
         allDbStudents = [];
       }

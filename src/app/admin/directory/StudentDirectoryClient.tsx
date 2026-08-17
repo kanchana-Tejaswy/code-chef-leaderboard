@@ -1296,6 +1296,40 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
 
             <form onSubmit={handleSaveStudent} className="space-y-6">
               
+              {/* Context-Aware Placement Banner */}
+              {modalMode === "create" && (
+                <div className="bg-brand-card/60 border border-brand-border rounded-xl p-3 text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-brand-muted flex items-center gap-1.5">
+                      <Building2 className="h-3.5 w-3.5 text-brand-accent" /> Academic Placement Context
+                    </span>
+                    <span className="text-[9px] font-bold text-brand-accent uppercase tracking-wider">
+                      {selectedCohort ? "Directory Context Preselected" : "Root Level - Select Below"}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 text-center text-[11px] font-mono">
+                    <div className={`p-2 rounded-lg border ${selectedCohort ? "bg-green-950/20 border-green-500/30 text-green-300" : "bg-brand-background border-brand-border/60 text-brand-muted"}`}>
+                      <div className="text-[9px] uppercase font-bold tracking-wider text-brand-muted">Cohort</div>
+                      <div className="font-bold truncate">{selectedCohort ? `${selectedCohort.code} ✓` : "Select Below"}</div>
+                      <div className="text-[8px] text-brand-muted mt-0.5">{selectedCohort ? "Inherited from view" : "Required"}</div>
+                    </div>
+
+                    <div className={`p-2 rounded-lg border ${selectedDepartment ? "bg-green-950/20 border-green-500/30 text-green-300" : "bg-brand-background border-brand-border/60 text-brand-muted"}`}>
+                      <div className="text-[9px] uppercase font-bold tracking-wider text-brand-muted">Department</div>
+                      <div className="font-bold truncate">{selectedDepartment ? `${selectedDepartment.code} ✓` : "Select Below"}</div>
+                      <div className="text-[8px] text-brand-muted mt-0.5">{selectedDepartment ? "Inherited from view" : "Required"}</div>
+                    </div>
+
+                    <div className={`p-2 rounded-lg border ${selectedSection && selectedSection.id !== "unassigned" ? "bg-green-950/20 border-green-500/30 text-green-300" : "bg-brand-background border-brand-border/60 text-brand-muted"}`}>
+                      <div className="text-[9px] uppercase font-bold tracking-wider text-brand-muted">Section</div>
+                      <div className="font-bold truncate">{selectedSection && selectedSection.id !== "unassigned" ? `Sec ${selectedSection.name} ✓` : "Unassigned"}</div>
+                      <div className="text-[8px] text-brand-muted mt-0.5">{selectedSection && selectedSection.id !== "unassigned" ? "Inherited from view" : "Optional (Null)"}</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Profile Details Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-1">

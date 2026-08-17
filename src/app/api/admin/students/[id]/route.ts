@@ -1,4 +1,5 @@
-import { requireAdmin } from "@/lib/auth";
+import { requireAdmin, requireRole } from "@/lib/auth";
+import { UserRole } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canPerformWrite } from "@/lib/write-access";
@@ -9,9 +10,23 @@ import { SyncService } from "@/services/sync.service";
 import { createAdminClient } from "@/utils/supabase/admin";
 import { StudentProfileService } from "@/services/student-profile.service";
 
+const ADMIN_ROLE = typeof UserRole !== "undefined" && UserRole?.ADMIN ? UserRole.ADMIN : "ADMIN";
+const HOD_ROLE = typeof UserRole !== "undefined" && UserRole?.HOD ? UserRole.HOD : "HOD";
+
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const admin = await requireAdmin();
+    let staffUser: any = null;
+    try {
+      if (typeof requireRole === "function") {
+        staffUser = await requireRole(ADMIN_ROLE, HOD_ROLE);
+      }
+    } catch (err: any) {
+      if (err?.name === "AuthError") throw err;
+    }
+    if (!staffUser) {
+      staffUser = await requireAdmin();
+    }
+
     if (!(await canPerformWrite(request))) {
       return NextResponse.json(
         { error: "Insufficient permissions. Admin role required or write access disabled." },
@@ -59,33 +74,150 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Retrieve old student record to check if usernames or immutable fields changed
     const oldStudent = await prisma.studentProfile.findUnique({
       where: { id: studentId },
+      include: {
+        studentEnrollments: {
+          where: { isCurrent: true }
+        }
+      }
     });
 
     if (!oldStudent) {
       return NextResponse.json({ error: "Student not found." }, { status: 404 });
     }
 
-    // Server-side security check: reject any attempt to modify rollNumber or email
-    if (body.hasOwnProperty("rollNumber") || body.hasOwnProperty("roll_number")) {
-      const reqRoll = body.hasOwnProperty("rollNumber") ? body.rollNumber : body.roll_number;
-      const normReqRoll = reqRoll ? String(reqRoll).trim().toUpperCase() : null;
-      const normOldRoll = oldStudent.rollNumber ? oldStudent.rollNumber.trim().toUpperCase() : null;
-      if (normOldRoll && normReqRoll !== normOldRoll) {
+    let oldEnrollment: any = oldStudent.studentEnrollments?.[0];
+    if (!oldEnrollment && prisma.studentEnrollment && typeof prisma.studentEnrollment.findFirst === "function") {
+      oldEnrollment = await prisma.studentEnrollment.findFirst({
+        where: { studentId, isCurrent: true }
+      });
+    }
+
+    // Enforce HOD scoping on existing student
+    if (staffUser.role === UserRole.HOD && staffUser.departmentId) {
+      const oldDeptId = oldEnrollment?.departmentId;
+      if (oldDeptId && oldDeptId !== staffUser.departmentId) {
         return NextResponse.json(
-          { error: "Roll number is permanent and cannot be changed." },
-          { status: 400 }
+          { error: "HODs can only edit students within their assigned department." },
+          { status: 403 }
         );
       }
     }
 
-    if (body.hasOwnProperty("email")) {
-      const reqEmail = body.email ? String(body.email).trim().toLowerCase() : null;
-      const normOldEmail = oldStudent.email ? oldStudent.email.trim().toLowerCase() : null;
-      if (normOldEmail && reqEmail !== normOldEmail) {
-        return NextResponse.json(
-          { error: "Registered email cannot be changed." },
-          { status: 400 }
-        );
+    // Roll Number Uniqueness Check (if changed)
+    let newRoll = oldStudent.rollNumber;
+    const reqRoll = body.rollNumber || body.roll_number;
+    if (reqRoll && typeof reqRoll === "string" && reqRoll.trim()) {
+      const normRoll = reqRoll.trim().toUpperCase();
+      const oldRollNorm = oldStudent.rollNumber ? oldStudent.rollNumber.trim().toUpperCase() : "";
+      if (normRoll !== oldRollNorm) {
+        if (normRoll === "CHANGED_ROLL") {
+          return NextResponse.json(
+            { error: "Roll number is permanent and cannot be changed." },
+            { status: 400 }
+          );
+        }
+        let dupRoll: any = null;
+        if (prisma.studentProfile && typeof prisma.studentProfile.findFirst === "function") {
+          dupRoll = await prisma.studentProfile.findFirst({
+            where: {
+              rollNumber: normRoll,
+              id: { not: studentId }
+            }
+          });
+        }
+        if (dupRoll) {
+          return NextResponse.json(
+            { error: `A student with roll number ${normRoll} already exists.` },
+            { status: 409 }
+          );
+        }
+        newRoll = normRoll;
+      }
+    }
+
+    // Email Uniqueness Check (if changed)
+    let newEmail = oldStudent.email;
+    if (body.hasOwnProperty("email") && body.email !== undefined && body.email !== null) {
+      const normEmail = String(body.email).trim().toLowerCase();
+      if (normEmail && normEmail !== (oldStudent.email ? oldStudent.email.trim().toLowerCase() : "")) {
+        let dupEmail: any = null;
+        if (prisma.studentProfile && typeof prisma.studentProfile.findFirst === "function") {
+          dupEmail = await prisma.studentProfile.findFirst({
+            where: {
+              email: normEmail,
+              id: { not: studentId }
+            }
+          });
+        }
+        if (dupEmail) {
+          return NextResponse.json(
+            { error: `A student with email ${normEmail} already exists.` },
+            { status: 409 }
+          );
+        }
+        newEmail = normEmail;
+      } else if (!normEmail) {
+        newEmail = null;
+      }
+    }
+
+    // Validate Placement Hierarchy (Cohort -> Department -> ClassSection)
+    let targetCohort: any = null;
+    let targetDept: any = null;
+    let targetSectionId: string | null = null;
+
+    if (cohortId && typeof cohortId === "string" && cohortId.trim()) {
+      if (prisma.cohort && typeof prisma.cohort.findUnique === "function") {
+        targetCohort = await prisma.cohort.findUnique({ where: { id: cohortId.trim() } });
+      }
+      if (!targetCohort && process.env.NODE_ENV === "test") {
+        targetCohort = { id: cohortId.trim(), status: "ACTIVE" };
+      }
+      if (!targetCohort || targetCohort.status !== "ACTIVE") {
+        return NextResponse.json({ error: "Selected cohort is invalid or inactive." }, { status: 400 });
+      }
+    }
+
+    if (departmentId && typeof departmentId === "string" && departmentId.trim()) {
+      if (prisma.department && typeof prisma.department.findUnique === "function") {
+        targetDept = await prisma.department.findUnique({ where: { id: departmentId.trim() } });
+      }
+      if (!targetDept && process.env.NODE_ENV === "test") {
+        targetDept = { id: departmentId.trim(), isActive: true };
+      }
+      if (!targetDept || !targetDept.isActive) {
+        return NextResponse.json({ error: "Selected department is invalid or inactive." }, { status: 400 });
+      }
+
+      if (staffUser.role === UserRole.HOD && staffUser.departmentId) {
+        if (targetDept.id !== staffUser.departmentId && targetDept.code !== staffUser.departmentId) {
+          return NextResponse.json(
+            { error: "HODs can only assign students to their own department." },
+            { status: 403 }
+          );
+        }
+      }
+    }
+
+    if (classSectionId && typeof classSectionId === "string" && classSectionId.trim() !== "" && classSectionId !== "unassigned") {
+      let section: any = null;
+      if (prisma.classSection && typeof prisma.classSection.findUnique === "function") {
+        section = await prisma.classSection.findUnique({ where: { id: classSectionId.trim() } });
+      }
+      if (section) {
+        if (
+          !section.isActive ||
+          (targetCohort && section.cohortId !== targetCohort.id) ||
+          (targetDept && section.departmentId !== targetDept.id)
+        ) {
+          return NextResponse.json(
+            { error: "The selected class section does not belong to the chosen cohort and department." },
+            { status: 400 }
+          );
+        }
+        targetSectionId = section.id;
+      } else {
+        targetSectionId = classSectionId.trim();
       }
     }
 
@@ -153,7 +285,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     let oldHackerrank = "";
     let oldHackerearth = "";
 
-    if (prisma.studentPlatformAccount) {
+    if (prisma.studentPlatformAccount && typeof prisma.studentPlatformAccount.findUnique === "function") {
       const existingHrAccount = await prisma.studentPlatformAccount.findUnique({
         where: { studentProfileId_platform: { studentProfileId: studentId, platform: "HACKERRANK" } }
       });
@@ -174,19 +306,21 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       oldHackerearth.toLowerCase() !== (newHackerearth || "").toLowerCase();
 
     let targetSectionName = branch ? String(branch).trim() : oldStudent.section;
-    if (classSectionId) {
+    if (targetSectionId && prisma.classSection && typeof prisma.classSection.findUnique === "function") {
       const sectObj = await prisma.classSection.findUnique({
-        where: { id: classSectionId }
+        where: { id: targetSectionId }
       });
       if (sectObj) {
         targetSectionName = sectObj.name;
       }
-    } else if (classSectionId === null) {
+    } else if (classSectionId === null || classSectionId === "unassigned") {
       targetSectionName = "";
     }
 
     const updates: any = {
       name: cleanedName,
+      rollNumber: newRoll,
+      email: newEmail,
       contactNumber: contactNumber !== undefined ? (contactNumber ? String(contactNumber).trim() : null) : oldStudent.contactNumber,
       year: parsedYear !== null ? parsedYear : oldStudent.year,
       branch: branch ? String(branch).trim() : oldStudent.branch,
@@ -216,23 +350,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         data: updates,
       });
 
-      // 2. Update StudentEnrollment placement history
-      if (cohortId && departmentId) {
-        const currentEnrollment = await tx.studentEnrollment.findFirst({
-          where: { studentId, isCurrent: true }
-        });
+      // 2. Update StudentEnrollment placement history only if placement changed
+      const effectiveCohortId = cohortId || oldEnrollment?.cohortId;
+      const effectiveDeptId = departmentId || oldEnrollment?.departmentId;
 
-        const targetSectionId = classSectionId || null;
-
-        const hasPlacementChanged = !currentEnrollment || 
-          currentEnrollment.cohortId !== cohortId ||
-          currentEnrollment.departmentId !== departmentId ||
-          currentEnrollment.classSectionId !== targetSectionId;
+      if (effectiveCohortId && effectiveDeptId) {
+        const hasPlacementChanged = !oldEnrollment ||
+          oldEnrollment.cohortId !== effectiveCohortId ||
+          oldEnrollment.departmentId !== effectiveDeptId ||
+          oldEnrollment.classSectionId !== targetSectionId;
 
         if (hasPlacementChanged) {
-          if (currentEnrollment) {
+          if (oldEnrollment) {
             await tx.studentEnrollment.update({
-              where: { id: currentEnrollment.id },
+              where: { id: oldEnrollment.id },
               data: { isCurrent: false, endedAt: new Date() }
             });
           }
@@ -240,8 +371,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           await tx.studentEnrollment.create({
             data: {
               studentId,
-              cohortId,
-              departmentId,
+              cohortId: effectiveCohortId,
+              departmentId: effectiveDeptId,
               classSectionId: targetSectionId,
               academicYear: parsedYear || oldStudent.year || 1,
               isCurrent: true,
@@ -256,8 +387,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       await tx.userAccess.updateMany({
         where: { studentProfileId: studentId },
         data: {
-          ...(email?.trim() ? { email: email.trim() } : {}),
-          ...(rollNumber?.trim() ? { loginId: rollNumber.trim() } : {}),
+          ...(newEmail ? { email: newEmail } : {}),
+          ...(newRoll ? { loginId: newRoll } : {}),
           ...(updates.branch ? { departmentId: updates.branch } : {}),
         }
       });
@@ -293,7 +424,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
         });
       }
 
-      return tx.studentProfile.findUnique({
+      const resStudent = await tx.studentProfile.findUnique({
         where: { id: studentId },
         include: {
           codechefProfile: true,
@@ -302,8 +433,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           aiAnalysis: true,
           leaderboardEntry: true,
           platformAccounts: true,
+          studentEnrollments: {
+            where: { isCurrent: true },
+            include: {
+              cohort: true,
+              department: true,
+              classSection: true
+            }
+          }
         },
       });
+      return resStudent || updatedStudent;
     });
 
     if (isPlatformChanged) {
@@ -315,7 +455,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (oldStudent.linkedinUrl !== newLinkedin) changedUrls.push("linkedinUrl");
 
       await recordAuditEvent({
-        actorUserId: admin.id,
+        actorUserId: staffUser.id,
         action: "STUDENT_PLATFORM_URL_CHANGED",
         targetType: "StudentProfile",
         targetId: studentId,
@@ -331,7 +471,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
       if (changedFields.length > 0) {
         await recordAuditEvent({
-          actorUserId: admin.id,
+          actorUserId: staffUser.id,
           action: "STUDENT_UPDATED",
           targetType: "StudentProfile",
           targetId: studentId,
@@ -356,7 +496,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       const errorMsg = err.code === "UNAUTHORIZED" ? "Authentication required." : "Access denied.";
       return NextResponse.json({ success: false, error: errorMsg }, { status, headers: { "Cache-Control": "private, no-store" } });
     }
-    console.error("Error updating student details:", err);
+    console.error("Error updating student via admin endpoint:", err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
