@@ -63,9 +63,8 @@ function getClient(): PrismaClient {
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
   
-  if (process.env.NODE_ENV !== "production") {
-    globalForPrisma.prisma = client;
-  }
+  // Cache singleton instance across process lifetime in both development and production
+  globalForPrisma.prisma = client;
   
   return client;
 }

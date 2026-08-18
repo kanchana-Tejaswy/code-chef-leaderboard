@@ -42,8 +42,8 @@ async function runEndToEndVerification() {
   console.log(`Using Placement Context -> Cohort: ${cohort.code} (${cohort.id}), Dept: ${department.code} (${department.id}), Section: ${section.name} (${section.id})`);
 
   // 3. Perform Add Student Creation
-  const rollNumber = "TEST-TRANSACTION-001";
-  const studentName = "ACE Transaction Test Student";
+  const rollNumber = "TEST-FINAL-TRANSACTION-001";
+  const studentName = "ACE Final Transaction Test";
 
   // Clean up any stale dummy student if leftover from past runs
   const existingStale = await prisma.studentProfile.findUnique({ where: { rollNumber } });
@@ -52,7 +52,7 @@ async function runEndToEndVerification() {
     await prisma.studentProfile.delete({ where: { id: existingStale.id } });
   }
 
-  console.log("Executing StudentProfileService.createProfile...");
+  console.log("Executing StudentProfileService.createProfile with valid Section...");
   const createRes = await StudentProfileService.createProfile({
     name: studentName,
     rollNumber,

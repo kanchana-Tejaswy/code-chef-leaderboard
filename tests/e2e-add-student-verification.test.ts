@@ -173,10 +173,10 @@ describe("End-to-End Add/Edit/Delete Student UI & API Verification Flow", () => 
     expect(activeDept?.id).toBe("dept-cse");
     expect(activeSection?.id).toBe("sec-a");
 
-    // 2. Submit Add Student form via POST /api/admin/students
+    // 2. Submit Add Student form via POST /api/admin/students (with valid section)
     const addStudentPayload = {
-      name: "ACE Transaction Test Student",
-      rollNumber: "TEST-TRANSACTION-001",
+      name: "ACE Final Transaction Test",
+      rollNumber: "TEST-FINAL-TRANSACTION-001",
       cohortId: activeCohort.id,
       departmentId: activeDept.id,
       classSectionId: activeSection.id,
@@ -202,14 +202,37 @@ describe("End-to-End Add/Edit/Delete Student UI & API Verification Flow", () => 
     const body = await res.json();
     expect(body.success).toBe(true);
     expect(body.student).toBeDefined();
-    expect(body.student.rollNumber).toBe("TEST-TRANSACTION-001");
+    expect(body.student.rollNumber).toBe("TEST-FINAL-TRANSACTION-001");
 
     const createdStudentId = body.student.id;
+
+    // 2b. Test Add Student with null/unassigned section
+    const nullSectionPayload = {
+      name: "ACE Final Unassigned Test",
+      rollNumber: "TEST-FINAL-UNASSIGNED-001",
+      cohortId: activeCohort.id,
+      departmentId: activeDept.id,
+      classSectionId: null, // unassigned
+      year: 1,
+      branch: "CSE",
+      department: "CSE",
+    };
+
+    const reqUnassigned = new NextRequest("http://localhost/api/admin/students", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(nullSectionPayload),
+    });
+
+    const resUnassigned = await createStudentPost(reqUnassigned);
+    expect(resUnassigned.status).toBe(200);
+    const unassignedBody = await resUnassigned.json();
+    expect(unassignedBody.success).toBe(true);
 
     // 3. Verify Database Placement
     const profile = await prisma.studentProfile.findUnique({ where: { id: createdStudentId } });
     expect(profile).not.toBeNull();
-    expect(profile?.rollNumber).toBe("TEST-TRANSACTION-001");
+    expect(profile?.rollNumber).toBe("TEST-FINAL-TRANSACTION-001");
 
     const currentEnrollment = await prisma.studentEnrollment.findFirst({
       where: { studentId: createdStudentId, isCurrent: true }
@@ -230,14 +253,14 @@ describe("End-to-End Add/Edit/Delete Student UI & API Verification Flow", () => 
     expect(dupRes.status).toBe(409);
 
     const dupBody = await dupRes.json();
-    expect(dupBody.error).toContain("TEST-TRANSACTION-001");
+    expect(dupBody.error).toContain("TEST-FINAL-TRANSACTION-001");
 
     // 5. Test Edit Student Flow (PATCH /api/admin/students/[id])
     const editReq = new NextRequest(`http://localhost/api/admin/students/${createdStudentId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        name: "ACE Transaction Test Student (Updated)",
+        name: "ACE Final Transaction Test (Updated)",
         cohortId: "cohort-2024",
         departmentId: "dept-cse",
         classSectionId: null, // Move to Unassigned
@@ -255,6 +278,10 @@ describe("End-to-End Add/Edit/Delete Student UI & API Verification Flow", () => 
     // 6. Test Delete Student Cleanup (DELETE /api/admin/students/[id])
     await prisma.studentEnrollment.deleteMany({ where: { studentId: createdStudentId } });
     await prisma.studentProfile.delete({ where: { id: createdStudentId } });
+    if (unassignedBody.student?.id) {
+      await prisma.studentEnrollment.deleteMany({ where: { studentId: unassignedBody.student.id } });
+      await prisma.studentProfile.delete({ where: { id: unassignedBody.student.id } });
+    }
 
     const finalProfiles = await prisma.studentProfile.count();
     const finalEnrollments = await prisma.studentEnrollment.count();
