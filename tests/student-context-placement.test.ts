@@ -265,4 +265,52 @@ describe("Context-Aware Add Student Placement & Hierarchy Tests", () => {
     const isAuthorized = hodUser.role === "ADMIN" || hodUser.departmentId === targetDepartmentId;
     expect(isAuthorized).toBe(false);
   });
+
+  it("13. Does not invoke nested $transaction when passed a transaction client and runs without transaction errors", async () => {
+    const mockTx = {
+      _isTransaction: true,
+      studentProfile: {
+        create: vi.fn().mockResolvedValue({ id: "student-tx-1", name: "Tx Student", rollNumber: "24ACE013" }),
+        findUnique: vi.fn().mockResolvedValue({ id: "student-tx-1", name: "Tx Student", rollNumber: "24ACE013", platformAccounts: [] }),
+        update: vi.fn().mockResolvedValue({ id: "student-tx-1" }),
+      },
+      studentEnrollment: {
+        create: vi.fn().mockResolvedValue({ id: "enrollment-tx-1" }),
+      },
+      classSection: {
+        findUnique: vi.fn().mockResolvedValue({ id: "sec-a", name: "A" }),
+      },
+      $transaction: vi.fn(),
+    };
+
+    const res = await StudentProfileService.createProfile(
+      {
+        name: "Tx Student",
+        rollNumber: "24ACE013",
+        cohortId: "cohort-2024",
+        departmentId: "dept-cse",
+        classSectionId: "sec-a",
+        codechefUsername: null,
+        leetcodeUsername: null,
+        codeforcesUsername: null,
+        githubUsername: null,
+        linkedinUrl: null,
+        profilePictureUrl: null,
+        year: 1,
+        cgpa: null,
+        contactNumber: null,
+        branch: "CSE",
+        department: "CSE",
+        email: "tx@ace.ac.in",
+        section: "A",
+      },
+      mockTx as any
+    );
+
+    expect(res.success).toBe(true);
+    expect(mockTx.studentProfile.create).toHaveBeenCalled();
+    expect(mockTx.studentEnrollment.create).toHaveBeenCalled();
+    // Verify that nested $transaction was NOT called on the tx client
+    expect(mockTx.$transaction).not.toHaveBeenCalled();
+  });
 });

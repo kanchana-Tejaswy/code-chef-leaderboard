@@ -562,39 +562,51 @@ export class StudentProfileService {
       // Evaluate eligibility status
       await StudentProfileService.calculateAndUpdateEligibility(profile.id, tx);
 
-      try {
-        await ActivityService.logEvent(
-          "STUDENT_ADD",
-          profile.id,
-          `${data.name} (${data.department}) profile was created.`,
-          tx
-        );
-      } catch (actErr) {
-        // Activity log failure should never block profile creation
-      }
-
       return profile;
     };
 
     try {
-      if (dbClient && typeof (dbClient as any).$transaction === "function") {
+      let profile: any = null;
+
+      // Only initiate a new $transaction if dbClient is the root prisma client
+      const isRootClient = dbClient === prisma || !(dbClient as any)?._isTransaction;
+
+      if (isRootClient && dbClient && typeof (dbClient as any).$transaction === "function") {
         try {
-          const profile = await (dbClient as any).$transaction(async (tx: any) => {
+          profile = await (dbClient as any).$transaction(async (tx: any) => {
+            (tx as any)._isTransaction = true;
             return execute(tx);
+          }, {
+            maxWait: 10000,
+            timeout: 15000,
           });
-          return { success: true, profile };
         } catch (txErr: any) {
           if (txErr instanceof TypeError && (txErr.message.includes("is not iterable") || txErr.message.includes("cannot read property Symbol"))) {
             console.warn("dbClient.$transaction mock does not support interactive transactions. Falling back to direct execution.");
-            const profile = await execute(dbClient);
-            return { success: true, profile };
+            profile = await execute(dbClient);
+          } else {
+            throw txErr;
           }
-          throw txErr;
         }
       } else {
-        const profile = await execute(dbClient);
-        return { success: true, profile };
+        profile = await execute(dbClient);
       }
+
+      // Log activity event AFTER transaction commits so activity logging cannot abort the transaction
+      if (profile && profile.id) {
+        try {
+          await ActivityService.logEvent(
+            "STUDENT_ADD",
+            profile.id,
+            `${data.name} (${data.department || "CSE"}) profile was created.`,
+            prisma
+          );
+        } catch (actErr) {
+          // Ignored
+        }
+      }
+
+      return { success: true, profile };
     } catch (err: any) {
       console.error(`Error in createProfile for roll ${data.rollNumber}:`, err);
       return { success: false, error: err.message || "Failed to create student profile record." };
