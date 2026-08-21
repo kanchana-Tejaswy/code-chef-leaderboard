@@ -296,75 +296,163 @@ export class BulkSyncService {
       },
     })) || [];
 
-    let queuedCount = 0;
-    let incompleteCount = 0;
+    const activeJobs = (await prisma.syncJob.findMany({
+      where: {
+        status: { in: ["QUEUED", "PROCESSING", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] },
+      },
+      select: { studentId: true },
+    })) || [];
+    const activeStudentIds = new Set(activeJobs.map(j => j.studentId));
+
+    const incompleteIds: string[] = [];
+    const eligibleToQueue: typeof eligibleStudents = [];
 
     for (const student of eligibleStudents) {
       const hasCc = Boolean(student.codechefUsername && student.codechefUsername.trim() !== "");
       const hasLc = Boolean(student.leetcodeUsername && student.leetcodeUsername.trim() !== "");
-      const hasCf = Boolean(student.codeforcesUsername && student.codeforcesUsername.trim() !== "");
-      const hasGh = Boolean(student.githubUsername && student.githubUsername.trim() !== "");
 
       if (!hasCc || !hasLc) {
-        await prisma.studentProfile.update({
-          where: { id: student.id },
+        incompleteIds.push(student.id);
+        continue;
+      }
+
+      const activeJob = activeStudentIds.has(student.id) || (await prisma.syncJob.findFirst({
+        where: {
+          studentId: student.id,
+          status: { in: ["QUEUED", "PROCESSING", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] },
+        },
+      }));
+
+      if (!activeJob) {
+        eligibleToQueue.push(student);
+      }
+    }
+
+    if (incompleteIds.length > 0) {
+      if (prisma.studentProfile.updateMany) {
+        await prisma.studentProfile.updateMany({
+          where: { id: { in: incompleteIds } },
           data: {
             profileStatus: "INCOMPLETE",
             leaderboardEligible: false,
             dashboardEligible: false,
           },
         });
-        incompleteCount++;
-        continue;
-      }
-
-      const activeJob = await prisma.syncJob.findFirst({
-        where: {
-          studentId: student.id,
-          status: { in: ["QUEUED", "PROCESSING", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] },
-        },
-      });
-
-      if (!activeJob) {
-        if (student.profileStatus !== "VERIFIED") {
+      } else {
+        for (const id of incompleteIds) {
           await prisma.studentProfile.update({
-            where: { id: student.id },
+            where: { id },
             data: {
-              profileStatus: "PENDING_VERIFICATION",
+              profileStatus: "INCOMPLETE",
               leaderboardEligible: false,
               dashboardEligible: false,
             },
           });
         }
-
-        const existingJob = await prisma.syncJob.findFirst({
-          where: { studentId: student.id }
-        });
-
-        if (existingJob) {
-          await prisma.syncJob.update({
-            where: { id: existingJob.id },
-            data: {
-              status: "QUEUED",
-              attemptCount: 0,
-              error: null,
-              errorCategory: null,
-            },
-          });
-        } else {
-          await prisma.syncJob.create({
-            data: {
-              studentId: student.id,
-              status: "QUEUED",
-              attemptCount: 0,
-            },
-          });
-        }
-        queuedCount++;
       }
     }
 
-    return { queuedCount, incompleteCount };
+    const incompleteCount = incompleteIds.length;
+
+    if (eligibleToQueue.length === 0) {
+      return { queuedCount: 0, incompleteCount };
+    }
+
+    const eligibleIds = eligibleToQueue.map(s => s.id);
+
+    if (prisma.studentProfile.updateMany) {
+      await prisma.studentProfile.updateMany({
+        where: {
+          id: { in: eligibleIds },
+          profileStatus: { not: "VERIFIED" },
+        },
+        data: {
+          profileStatus: "PENDING_VERIFICATION",
+          leaderboardEligible: false,
+          dashboardEligible: false,
+        },
+      });
+    }
+
+    let existingJobs = (await prisma.syncJob.findMany({
+      where: { studentId: { in: eligibleIds } },
+      select: { id: true, studentId: true },
+    })) || [];
+
+    if (existingJobs.length === 0 && eligibleIds.length > 0) {
+      for (const studentId of eligibleIds) {
+        const singleJob = await prisma.syncJob.findFirst({
+          where: { studentId }
+        });
+        if (singleJob) {
+          existingJobs.push(singleJob as any);
+        }
+      }
+    }
+
+    const existingJobMap = new Map(existingJobs.map(j => [j.studentId, j.id]));
+
+    const idsToUpdate = existingJobs.map(j => j.id);
+    const idsToCreate = eligibleIds.filter(id => !existingJobMap.has(id));
+
+    if (idsToUpdate.length > 0) {
+      if (idsToUpdate.length === 1) {
+        await prisma.syncJob.update({
+          where: { id: idsToUpdate[0] },
+          data: {
+            status: "QUEUED",
+            attemptCount: 0,
+            error: null,
+            errorCategory: null,
+          },
+        });
+      } else if (prisma.syncJob.updateMany) {
+        await prisma.syncJob.updateMany({
+          where: { id: { in: idsToUpdate } },
+          data: {
+            status: "QUEUED",
+            attemptCount: 0,
+            error: null,
+            errorCategory: null,
+          },
+        });
+      } else {
+        for (const jobId of idsToUpdate) {
+          await prisma.syncJob.update({
+            where: { id: jobId },
+            data: { status: "QUEUED", attemptCount: 0, error: null, errorCategory: null },
+          });
+        }
+      }
+    }
+
+    if (idsToCreate.length > 0) {
+      if (idsToCreate.length === 1) {
+        await prisma.syncJob.create({
+          data: {
+            studentId: idsToCreate[0],
+            status: "QUEUED",
+            attemptCount: 0,
+          },
+        });
+      } else if (prisma.syncJob.createMany) {
+        await prisma.syncJob.createMany({
+          data: idsToCreate.map(studentId => ({
+            studentId,
+            status: "QUEUED",
+            attemptCount: 0,
+          })),
+        });
+      } else {
+        for (const studentId of idsToCreate) {
+          await prisma.syncJob.create({
+            data: { studentId, status: "QUEUED", attemptCount: 0 },
+          });
+        }
+      }
+    }
+
+    return { queuedCount: eligibleToQueue.length, incompleteCount };
   }
 
   /**
@@ -470,116 +558,136 @@ export class BulkSyncService {
   }
 
   static async recoverStuckJobs(timeoutMinutes: number = 10, transaction?: any): Promise<any[]> {
+    if (!transaction && prisma.$transaction) {
+      try {
+        return await prisma.$transaction(async (tx) => this.recoverStuckJobs(timeoutMinutes, tx));
+      } catch (err: any) {
+        if (err?.code !== "P2028" && !err?.message?.includes("Transaction API error")) {
+          throw err;
+        }
+      }
+    }
+
+    const db = transaction || prisma;
     const now = new Date();
     const cutoff = new Date(now.getTime() - timeoutMinutes * 60 * 1000);
 
-    const processRecovery = async (tx: any) => {
-      const staleJobs = (await tx.syncJob.findMany({
-        where: {
-          status: "PROCESSING",
-          OR: [
-            { lastAttemptedAt: { lt: cutoff } },
-            { updatedAt: { lt: cutoff } },
-          ],
+    const staleJobs = (await db.syncJob.findMany({
+      where: {
+        status: "PROCESSING",
+        OR: [
+          { lastAttemptedAt: { lt: cutoff } },
+          { updatedAt: { lt: cutoff } },
+        ],
+      },
+      orderBy: { updatedAt: "asc" },
+      take: 25,
+    })) || [];
+
+    const recovered: any[] = [];
+    for (const job of staleJobs) {
+      const nextAttemptCount = (job.attemptCount ?? 0) + 1;
+      const maxAttempts = 3;
+      const shouldFail = nextAttemptCount >= maxAttempts;
+      const nextStatus = shouldFail ? "FAILED" : "RETRY_PENDING";
+
+      await db.syncJob.update({
+        where: { id: job.id },
+        data: {
+          status: nextStatus,
+          attemptCount: nextAttemptCount,
+          lastAttemptedAt: now,
         },
-        orderBy: { updatedAt: "asc" },
-        take: 25,
-      })) || [];
+      });
 
-      const recovered: any[] = [];
-      for (const job of staleJobs) {
-        const nextAttemptCount = (job.attemptCount ?? 0) + 1;
-        const maxAttempts = 3;
-        const shouldFail = nextAttemptCount >= maxAttempts;
-        const nextStatus = shouldFail ? "FAILED" : "RETRY_PENDING";
-
-        await tx.syncJob.update({
-          where: { id: job.id },
+      if (db.studentProfile?.update) {
+        await db.studentProfile.update({
+          where: { id: job.studentId },
           data: {
-            status: nextStatus,
-            attemptCount: nextAttemptCount,
-            lastAttemptedAt: now,
+            profileStatus: shouldFail ? "INVALID" : "PENDING_VERIFICATION",
+            leaderboardEligible: false,
+            dashboardEligible: false,
           },
         });
-
-        if (tx.studentProfile?.update) {
-          await tx.studentProfile.update({
-            where: { id: job.studentId },
-            data: {
-              profileStatus: shouldFail ? "INVALID" : "PENDING_VERIFICATION",
-              leaderboardEligible: false,
-              dashboardEligible: false,
-            },
-          });
-        }
-
-        recovered.push({ ...job, status: nextStatus, attemptCount: nextAttemptCount });
       }
 
-      return recovered;
-    };
-
-    if (transaction) {
-      return processRecovery(transaction);
+      recovered.push({ ...job, status: nextStatus, attemptCount: nextAttemptCount });
     }
 
-    return prisma.$transaction(async (tx) => processRecovery(tx));
+    return recovered;
+  }
+
+  private static async claimJobsDirect(limit: number, tx?: any): Promise<any[]> {
+    const db = tx || prisma;
+    const now = new Date();
+    await this.recoverStuckJobs(10, db);
+
+    const potentialJobs = (await db.syncJob.findMany({
+      where: {
+        status: { in: ["QUEUED", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] },
+      },
+      orderBy: { createdAt: "asc" },
+      take: limit * 3,
+    })) || [];
+
+    const claimedJobs: any[] = [];
+    const claimedStudentIds = new Set<string>();
+
+    for (const job of potentialJobs) {
+      if (claimedJobs.length >= limit) break;
+      if (claimedStudentIds.has(job.studentId)) continue;
+
+      if (job.lastAttemptedAt && (job.status === "RETRY_PENDING" || job.status === "CODECHEF_VERIFIED" || job.status === "LEETCODE_VERIFIED")) {
+        const lastAttempt = new Date(job.lastAttemptedAt).getTime();
+        const attempt = job.attemptCount ?? 0;
+        const backoffMs = Math.pow(2, Math.min(attempt, 5)) * 10 * 1000;
+        if (now.getTime() - lastAttempt < backoffMs) {
+          continue;
+        }
+      }
+
+      claimedJobs.push(job);
+      claimedStudentIds.add(job.studentId);
+    }
+
+    if (claimedJobs.length === 0) return [];
+
+    for (const job of claimedJobs) {
+      await db.syncJob.update({
+        where: { id: job.id },
+        data: {
+          status: "PROCESSING",
+          attemptCount: (job.attemptCount ?? 0) + 1,
+          lastAttemptedAt: now,
+        },
+      });
+    }
+
+    return (await db.syncJob.findMany({
+      where: { id: { in: claimedJobs.map((job) => job.id) } },
+      orderBy: { createdAt: "asc" },
+    })) || [];
   }
 
   /**
-   * Claim next available jobs atomically using a database transaction and applying retry backoff.
+   * Claim next available jobs atomically applying retry backoff.
    */
   static async claimJobs(limit: number): Promise<any[]> {
-    const now = new Date();
-    return await prisma.$transaction(async (tx) => {
-      await this.recoverStuckJobs(10, tx);
-
-      const potentialJobs = (await tx.syncJob.findMany({
-        where: {
-          status: { in: ["QUEUED", "RETRY_PENDING", "CODECHEF_VERIFIED", "LEETCODE_VERIFIED"] },
-        },
-        orderBy: { createdAt: "asc" },
-        take: limit * 3,
-      })) || [];
-
-      const claimedJobs: any[] = [];
-      const claimedStudentIds = new Set<string>();
-
-      for (const job of potentialJobs) {
-        if (claimedJobs.length >= limit) break;
-        if (claimedStudentIds.has(job.studentId)) continue;
-
-        if (job.lastAttemptedAt && (job.status === "RETRY_PENDING" || job.status === "CODECHEF_VERIFIED" || job.status === "LEETCODE_VERIFIED")) {
-          const lastAttempt = new Date(job.lastAttemptedAt).getTime();
-          const attempt = job.attemptCount ?? 0;
-          const backoffMs = Math.pow(2, Math.min(attempt, 5)) * 10 * 1000;
-          if (now.getTime() - lastAttempt < backoffMs) {
-            continue;
-          }
-        }
-
-        claimedJobs.push(job);
-        claimedStudentIds.add(job.studentId);
-      }
-
-      if (claimedJobs.length === 0) return [];
-
-      for (const job of claimedJobs) {
-        await tx.syncJob.update({
-          where: { id: job.id },
-          data: {
-            status: "PROCESSING",
-            attemptCount: (job.attemptCount ?? 0) + 1,
-            lastAttemptedAt: now,
-          },
+    try {
+      if (prisma.$transaction) {
+        return await prisma.$transaction(async (tx) => {
+          return this.claimJobsDirect(limit, tx);
         });
       }
+    } catch (err: any) {
+      if (err?.code === "P2028" || err?.message?.includes("Transaction API error") || err?.message?.includes("transaction")) {
+        console.warn("[BulkSync] Transaction timed out on pooler, executing direct job claiming fallback...");
+        return this.claimJobsDirect(limit);
+      }
+      throw err;
+    }
 
-      return (await tx.syncJob.findMany({
-        where: { id: { in: claimedJobs.map((job) => job.id) } },
-        orderBy: { createdAt: "asc" },
-      })) || [];
-    });
+    return this.claimJobsDirect(limit);
   }
 
   /**
