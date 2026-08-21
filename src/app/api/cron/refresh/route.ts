@@ -19,25 +19,15 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    const jobId = crypto.randomUUID();
-    const mode = "STALE_ONLY";
-    const adminId = "SYSTEM_CRON";
-    
-    // We pass 1 for totalStudents initially, and bulkSyncStudents will update it correctly.
-    createJob(jobId, adminId, mode, 1);
-
-    // Run the sync completely (for cron jobs, we await it so Vercel doesn't kill it prematurely, 
-    // though for very long jobs it might still timeout depending on the Vercel function timeout config).
-    // Note: If timeouts happen on Vercel, this should be converted to an async queue.
-    await SyncService.bulkSyncStudents(mode, jobId, adminId);
-
-    const job = getJob(jobId);
+    // Process a single bounded batch of 10 jobs safely within 15s serverless execution window
+    const { BulkSyncService } = await import("@/services/bulkSync.service");
+    const result = await BulkSyncService.processBatch(10, 2);
 
     return NextResponse.json({
       success: true,
-      jobId,
-      status: job?.status,
-      message: `Cron bulk sync completed.`
+      jobId: `cron_${Date.now()}`,
+      result,
+      message: `Cron worker batch completed: ${result.processedCount} processed (${result.successCount} verified, ${result.remainingCount} remaining).`
     });
   } catch (err: any) {
     console.error("Error in cron refresh API:", err);
