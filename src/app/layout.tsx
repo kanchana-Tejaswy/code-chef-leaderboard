@@ -19,12 +19,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ACE CodeChef Talent Leaderboard",
+  title: "CODE AROHA",
   description:
-    "Student competitive programming analytics, verified skill rankings, and AI-powered talent insights for ACE Engineering College.",
+    "Student competitive programming analytics, verified skill rankings, and AI-powered talent insights on CODE AROHA.",
   keywords: [
-    "ACE Engineering College",
+    "CODE AROHA",
     "CodeChef",
+    "LeetCode",
     "Competitive Programming",
     "Talent Leaderboard",
     "Student Placement Intelligence",

@@ -77,7 +77,7 @@ export default function LoginForm() {
 
           <div className="flex flex-col items-center">
             <span className="text-sm font-extrabold tracking-wider uppercase text-[#0F172A] dark:text-[#FAFAFA]">
-              ACE Talent Intelligence
+              CODE AROHA
             </span>
             <div className="mt-1.5 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-[#EAB308]/30 bg-[#EAB308]/10 text-[#EAB308] text-[10px] font-black uppercase tracking-widest">
               <ShieldCheck className="w-3 h-3 text-[#EAB308]" />

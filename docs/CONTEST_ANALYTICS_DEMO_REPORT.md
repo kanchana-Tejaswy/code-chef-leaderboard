@@ -1,4 +1,4 @@
-# ACE Talent Intelligence — Contest Analytics Demo Report
+# CODE AROHA — Contest Analytics Demo Report
 
 ## 1. Problem Statement
 Previously, it was challenging to monitor, trace, and analyze the performance of ACE Engineering College students participating in competitive programming contests (such as CodeChef). There was no centralized, automated method to aggregate contest schedules, match them with verified student handles, or break down performance metrics by Academic Cohort (Batch), Department, and Class Section.

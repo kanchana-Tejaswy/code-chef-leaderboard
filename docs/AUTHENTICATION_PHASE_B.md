@@ -2,7 +2,7 @@
 
 ## 1. Project & Git Information
 
-- **Project Name:** ACE Talent Intelligence Platform / CodeChef Leaderboard
+- **Project Name:** CODE AROHA Platform
 - **Phase Name:** Phase B — Safe Non-Database Authentication & Authorization Security Enhancements
 - **Parent Branch:** `main`
 - **Parent Commit Hash:** `e87cd53ab43c427e392cfcd5e5b21796f6545c2a`

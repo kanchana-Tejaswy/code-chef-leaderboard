@@ -1,7 +1,7 @@
-# Project Handover Document: CodeChef Leaderboard / ACE Talent Intelligence Platform
+# Project Handover Document: CODE AROHA Platform
 
 > **Metadata**  
-> - **Project Name:** ACE Talent Intelligence Platform / CodeChef Leaderboard  
+> - **Project Name:** CODE AROHA Platform  
 > - **Document Purpose:** Master Project Handover & Architecture Specification  
 > - **Last Verified Date:** 2026-07-22  
 > - **Verified Source Commit Hash:** `e87cd53ab43c427e392cfcd5e5b21796f6545c2a`  
@@ -9,7 +9,7 @@
 ---
 
 ## 1. Project Overview
-- **Application Purpose**: ACE Talent Intelligence Platform & CodeChef/LeetCode Leaderboard. It tracks, aggregates, analyzes, ranks, and reports student competitive programming performance (CodeChef, LeetCode, GitHub) for institutional placement readiness and talent analytics.
+- **Application Purpose**: CODE AROHA Platform. It tracks, aggregates, analyzes, ranks, and reports student competitive programming performance (CodeChef, LeetCode, GitHub) for institutional placement readiness and talent analytics.
 - **Primary Users**:
   - **STUDENT**: View own profile, ranks, platform stats, and global leaderboard.
   - **HOD (Head of Department)**: View department-wide leaderboard, student analytics, and department performance metrics.
@@ -406,7 +406,7 @@ Inspected from [`.env.example`](file:///d:/code%20chef%20leader%20board%20ace/co
 ## 21. Prompt for the Next AI
 
 ```text
-You are continuing development on the ACE Talent Intelligence Platform & CodeChef/LeetCode Leaderboard.
+You are continuing development on the CODE AROHA Platform.
 
 Project Location: D:\code chef leader board ace\code-chef-leaderboard
 Current Branch: main

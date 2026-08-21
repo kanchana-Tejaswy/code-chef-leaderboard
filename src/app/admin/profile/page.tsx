@@ -3,7 +3,7 @@ import AdminControlCenterClient from "../control-center/AdminControlCenterClient
 import { UserRole } from "@prisma/client";
 
 export const metadata = {
-  title: "Profile & Control Center - ACE Talent Intelligence",
+  title: "Profile & Control Center - CODE AROHA",
   description: "Account management and profile details.",
 };
 

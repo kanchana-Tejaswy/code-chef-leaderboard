@@ -91,11 +91,11 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
             
             {/* Title Text */}
             <div className="flex flex-col">
-              <span className="text-sm font-extrabold tracking-wider uppercase text-brand-text group-hover:text-[#EAB308] transition-colors">
-                ACE Talent
+              <span className="text-sm font-black tracking-wider uppercase text-brand-text group-hover:text-[#EAB308] transition-colors">
+                CODE AROHA
               </span>
-              <span className="text-[9px] font-black tracking-widest text-brand-muted leading-none">
-                INTELLIGENCE
+              <span className="text-[9px] font-bold tracking-widest text-brand-muted leading-none">
+                TALENT PLATFORM
               </span>
             </div>
           </Link>

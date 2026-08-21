@@ -1,8 +1,8 @@
-# ACE CODECHEF TALENT LEADERBOARD
+# CODE AROHA
 
 ## Project Overview
 
-ACE CodeChef Talent Leaderboard is the first phase of a much larger vision called the Student Talent Intelligence Platform.
+CODE AROHA is a Student Talent Intelligence & Competitive Programming Leaderboard Platform.
 
 The long-term vision is to build a comprehensive student talent discovery ecosystem that evaluates students based on real skills, achievements, coding performance, projects, leadership abilities, extracurricular activities, certifications, and career readiness rather than relying solely on CGPA and academic scores.
 

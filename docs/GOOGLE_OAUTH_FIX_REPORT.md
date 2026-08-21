@@ -1,4 +1,4 @@
-# Google OAuth Fix Report: CodeChef Leaderboard & ACE Talent Intelligence Platform
+# Google OAuth Fix Report: CODE AROHA Platform
 
 ## 1. Symptom
 After clicking the "Continue with Google" button and selecting a Google account, the application remains in an infinite buffering state for over 10 minutes, failing to reach the Dashboard, Onboarding, or Student Profile page.

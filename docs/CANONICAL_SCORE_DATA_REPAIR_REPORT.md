@@ -1,6 +1,6 @@
 # Canonical Score Data Repair Report
 
-This report documents the verification, calculation logic, and restoration execution to repair incorrect data-cleaning recalculations on the ACE Talent Intelligence Platform leaderboard cache.
+This report documents the verification, calculation logic, and restoration execution to repair incorrect data-cleaning recalculations on the CODE AROHA Platform leaderboard cache.
 
 ---
 

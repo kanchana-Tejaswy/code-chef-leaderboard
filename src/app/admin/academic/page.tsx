@@ -2,7 +2,7 @@ import { requireStaffReadPageAccess } from "@/lib/auth";
 import AcademicRegistryClient from "./AcademicRegistryClient";
 
 export const metadata = {
-  title: "Academic Registry Management - ACE Talent Intelligence",
+  title: "Academic Registry Management - CODE AROHA",
   description: "Configure and manage cohorts, departments, and class sections.",
 };
 

@@ -31,9 +31,8 @@ export default async function LandingPage() {
             </div>
 
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-none text-brand-text">
-              ACE Talent <br />
               <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#EAB308] via-amber-500 to-amber-600">
-                Intelligence Platform
+                CODE AROHA
               </span>
             </h1>
 

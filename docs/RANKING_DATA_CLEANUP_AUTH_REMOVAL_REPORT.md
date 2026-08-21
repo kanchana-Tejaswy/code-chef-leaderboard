@@ -1,7 +1,7 @@
 # Ranking Data Cleanup and Authentication Removal Report
 
 ## 1. Executive Summary
-This report summarizes the modifications completed on the Next.js CodeChef Leaderboard / ACE Talent Intelligence Platform to establish a single canonical ranking system, clean and format database records, remove all authentication features, and configure the application for public access.
+This report summarizes the modifications completed on the CODE AROHA Platform to establish a single canonical ranking system, clean and format database records, remove all authentication features, and configure the application for public access.
 
 All goals have been achieved:
 - Established a central tie-breaking rank logic in the `/api/dashboard/leaderboard-cache` API.

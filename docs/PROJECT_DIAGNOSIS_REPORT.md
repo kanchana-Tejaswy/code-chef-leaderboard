@@ -1,7 +1,7 @@
-# Project Diagnosis Report: CodeChef Leaderboard & ACE Talent Intelligence Platform
+# Project Diagnosis Report: CODE AROHA Platform
 
 ## 1. Executive Summary
-This report presents a verified, complete diagnosis of the Next.js CodeChef Leaderboard and ACE Talent Intelligence Platform. The platform provides code profile aggregation, AI-driven placement readiness assessments, and a dynamic leaderboard ranking system.
+This report presents a verified, complete diagnosis of the CODE AROHA Platform. The platform provides code profile aggregation, AI-driven placement readiness assessments, and a dynamic leaderboard ranking system.
 
 During this session, we traced all runtime flows (Authentication, Database Persistence, Web/API Scrapers, Dashboard Analytics, and Leaderboard Ranks) and verified the following:
 1. **Authentication Entrypoint**: Replaced the missing Next.js middleware entrypoint, routing guest paths and enforcing role-based redirect boundaries.

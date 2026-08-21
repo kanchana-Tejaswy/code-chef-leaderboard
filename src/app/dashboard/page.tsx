@@ -1416,7 +1416,7 @@ export default function LandingPage() {
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-9 w-9 animate-spin text-[#EAB308]" />
           <span className="text-xs text-brand-muted font-bold tracking-wider uppercase">
-            Loading Institutional Talent Intelligence Console...
+            Loading CODE AROHA Console...
           </span>
         </div>
       </div>
@@ -1450,7 +1450,7 @@ export default function LandingPage() {
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-brand-text">
-              ACE Talent Intelligence Platform
+              CODE AROHA
             </h1>
             <p className="text-xs sm:text-sm text-brand-muted mt-1 max-w-2xl leading-relaxed font-medium">
               Identifying, Verifying, and Nurturing Future Engineering Talent Through Real-Time Competitive Programming Analytics.
@@ -2190,7 +2190,7 @@ export default function LandingPage() {
                 <Trophy className="h-5 w-5 text-[#EAB308]" />
                 <div>
                   <h2 className="text-sm font-bold text-brand-text uppercase tracking-wider">
-                    CodeChef Talent Standings Directory
+                    CODE AROHA Talent Standings Directory
                   </h2>
                   <p className="text-[10px] text-brand-muted font-semibold tracking-wide">
                     Live dynamic search and institutional filtering bounds

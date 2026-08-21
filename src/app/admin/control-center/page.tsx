@@ -2,8 +2,8 @@ import { requireAdminPageAccess } from "@/lib/auth";
 import AdminControlCenterClient from "./AdminControlCenterClient";
 
 export const metadata = {
-  title: "Admin Profile & Control Center - ACE Talent Intelligence",
-  description: "Secure account management and system controls for ACE Talent Intelligence Platform.",
+  title: "Admin Profile & Control Center - CODE AROHA",
+  description: "Secure account management and system controls for CODE AROHA Platform.",
 };
 
 export default async function AdminControlCenterPage() {

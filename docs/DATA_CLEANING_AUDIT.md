@@ -1,6 +1,6 @@
 # Data Cleaning and Ranking Audit Report
 
-This report presents a formal audit of the data cleaning operations applied to the ACE Talent Intelligence Platform database.
+This report presents a formal audit of the data cleaning operations applied to the CODE AROHA Platform database.
 
 ---
 

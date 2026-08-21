@@ -597,7 +597,7 @@ function LeaderboardContent() {
               <Trophy className="h-6 w-6" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">ACE Leaderboard</h1>
+              <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white sm:text-3xl">CODE AROHA Leaderboard</h1>
               <p className="mt-1 text-sm text-slate-600 dark:text-brand-muted">Real-time student placement readiness rankings across CodeChef and LeetCode</p>
             </div>
           </div>
