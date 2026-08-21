@@ -562,7 +562,7 @@ export class BulkSyncService {
       try {
         return await prisma.$transaction(async (tx) => this.recoverStuckJobs(timeoutMinutes, tx));
       } catch (err: any) {
-        if (err?.code !== "P2028" && !err?.message?.includes("Transaction API error")) {
+        if (err?.code !== "P2028" && !err?.message?.includes("Transaction API error") && !err?.message?.includes("transaction")) {
           throw err;
         }
       }
@@ -652,16 +652,18 @@ export class BulkSyncService {
 
     if (claimedJobs.length === 0) return [];
 
-    for (const job of claimedJobs) {
-      await db.syncJob.update({
-        where: { id: job.id },
-        data: {
-          status: "PROCESSING",
-          attemptCount: (job.attemptCount ?? 0) + 1,
-          lastAttemptedAt: now,
-        },
-      });
-    }
+    await Promise.all(
+      claimedJobs.map((job) =>
+        db.syncJob.update({
+          where: { id: job.id },
+          data: {
+            status: "PROCESSING",
+            attemptCount: (job.attemptCount ?? 0) + 1,
+            lastAttemptedAt: now,
+          },
+        })
+      )
+    );
 
     return (await db.syncJob.findMany({
       where: { id: { in: claimedJobs.map((job) => job.id) } },

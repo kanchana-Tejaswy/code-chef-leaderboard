@@ -1,4 +1,3 @@
-import "server-only";
 import { prisma } from "@/lib/prisma";
 import { UserRole, AccountStatus } from "@prisma/client";
 import { createAdminClient } from "@/utils/supabase/admin";

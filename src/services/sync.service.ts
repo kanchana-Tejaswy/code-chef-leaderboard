@@ -815,9 +815,6 @@ export class SyncService {
 
       console.log(`[SyncService] Recalculating contiguous competition rank for ${rankedEntries.length} students...`);
 
-      // First reset all ranks to 0
-      await prisma.$executeRawUnsafe(`UPDATE leaderboard_entries SET rank = 0`);
-
       // We process updates in batches to avoid overwhelming the database transaction pool
       const batchSize = 100;
       for (let i = 0; i < rankedEntries.length; i += batchSize) {
@@ -832,18 +829,12 @@ export class SyncService {
             )
           );
         } catch (txErr: any) {
-          if (txErr?.code === "P2028" || txErr?.message?.includes("Transaction API error")) {
-            console.warn("[SyncService] Transaction timed out on pooler during rank update, executing direct batch fallback...");
-            await Promise.all(
-              batch.map((entry) =>
-                prisma.leaderboardEntry.update({
-                  where: { id: entry.id },
-                  data: { rank: entry.rank }
-                })
-              )
-            );
-          } else {
-            throw txErr;
+          console.warn("[SyncService] Transaction timed out on pooler during rank update, executing sequential batch fallback...");
+          for (const entry of batch) {
+            await prisma.leaderboardEntry.update({
+              where: { id: entry.id },
+              data: { rank: entry.rank }
+            });
           }
         }
       }
