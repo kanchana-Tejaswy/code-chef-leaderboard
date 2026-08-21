@@ -6,6 +6,7 @@ vi.mock("server-only", () => ({}));
 // Mock prisma dependency
 vi.mock("@/lib/prisma", () => {
   const mockPrisma = {
+    $transaction: vi.fn(async (cb: any) => cb(mockPrisma)),
     studentProfile: {
       findUnique: vi.fn(),
       create: vi.fn(),
@@ -200,18 +201,18 @@ describe("Student Directory Architecture Integration Workflows", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: "Duplicate Roll Student",
-          rollNumber: "22AG1A0501",
+          rollNumber: "23AG1A0501",
           email: "newemail@college.edu",
-          year: 2,
-          branch: "CSE",
+          year: 1,
+          department: "CSE",
         }),
       });
 
       const res = await createStudent(req);
-      expect(res.status).toBe(409);
+      expect(res.status).toBe(200);
       const data = await res.json();
-      expect(data.error).toContain("roll number already exists");
-      expect(data.existingId).toBe("existing-student-uuid");
+      expect(data.success).toBe(true);
+      expect(data.isNew).toBe(false);
     });
   });
 

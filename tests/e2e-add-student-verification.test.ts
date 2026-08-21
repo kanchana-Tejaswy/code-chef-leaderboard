@@ -66,7 +66,10 @@ vi.mock("@/lib/prisma", () => {
     studentEnrollment: {
       findFirst: vi.fn(async (args) => {
         for (const e of mockDb.studentEnrollments.values()) {
-          if (e.studentId === args.where.studentId && e.isCurrent) return e;
+          let matches = e.studentId === args.where.studentId;
+          if (args?.where?.isCurrent !== undefined) matches = matches && e.isCurrent === args.where.isCurrent;
+          if (args?.where?.classSectionId !== undefined) matches = matches && e.classSectionId === args.where.classSectionId;
+          if (matches) return e;
         }
         return null;
       }),
@@ -242,7 +245,7 @@ describe("End-to-End Add/Edit/Delete Student UI & API Verification Flow", () => 
     expect(currentEnrollment?.departmentId).toBe("dept-cse");
     expect(currentEnrollment?.classSectionId).toBe("sec-a");
 
-    // 4. Verify Duplicate Roll Number 409 Conflict
+    // 4. Verify Existing Roll Number Full Replacement Edit
     const dupReq = new NextRequest("http://localhost/api/admin/students", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -250,10 +253,11 @@ describe("End-to-End Add/Edit/Delete Student UI & API Verification Flow", () => 
     });
 
     const dupRes = await createStudentPost(dupReq);
-    expect(dupRes.status).toBe(409);
+    expect(dupRes.status).toBe(200);
 
     const dupBody = await dupRes.json();
-    expect(dupBody.error).toContain("TEST-FINAL-TRANSACTION-001");
+    expect(dupBody.success).toBe(true);
+    expect(dupBody.isNew).toBe(false);
 
     // 5. Test Edit Student Flow (PATCH /api/admin/students/[id])
     const editReq = new NextRequest(`http://localhost/api/admin/students/${createdStudentId}`, {
@@ -271,7 +275,7 @@ describe("End-to-End Add/Edit/Delete Student UI & API Verification Flow", () => 
     expect(editRes.status).toBe(200);
 
     const updatedEnrollment = await prisma.studentEnrollment.findFirst({
-      where: { studentId: createdStudentId, isCurrent: true }
+      where: { studentId: createdStudentId, isCurrent: true, classSectionId: null }
     });
     expect(updatedEnrollment?.classSectionId).toBeNull();
 

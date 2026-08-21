@@ -20,7 +20,7 @@ export default async function AdminControlCenterPage() {
             Manage application accounts, system credentials, security settings, and audit logs.
           </p>
         </div>
-        <AdminControlCenterClient currentAdminId={adminAccess.id} currentAdminEmail={adminAccess.email} />
+        <AdminControlCenterClient currentAdminId={adminAccess.id} currentAdminEmail={adminAccess.email || ""} />
       </div>
     </div>
   );

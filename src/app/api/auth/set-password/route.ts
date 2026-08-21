@@ -35,8 +35,8 @@ export async function POST(req: Request) {
       where: { authUserId: user.id },
     });
 
-    // If not GK_SIR/HOD/ADMIN or not in pending/mustSetPassword state, return 410 Gone
-    if (!targetUserAccess || !targetUserAccess.mustSetPassword || (targetUserAccess.role !== UserRole.GK_SIR && targetUserAccess.role !== UserRole.HOD && targetUserAccess.role !== UserRole.ADMIN)) {
+    // If userAccess not found or not in mustSetPassword state, return 410 Gone
+    if (!targetUserAccess || !targetUserAccess.mustSetPassword) {
       return NextResponse.json(
         { success: false, message: "Set password wizard is disabled." },
         { status: 410, headers: { "Cache-Control": "no-store" } }
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
     }
 
     const validationResult = validatePassword(password, confirmPassword, {
-      email: targetUserAccess.email,
+      email: targetUserAccess.email || undefined,
     });
 
     if (!validationResult.isValid) {

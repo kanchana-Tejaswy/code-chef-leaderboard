@@ -57,9 +57,9 @@ async function provisionAuthUser(email: string): Promise<{ authUserId: string; i
   return null;
 }
 
-export async function provisionStudentAccount(studentProfileId: string): Promise<ProvisionResult> {
+export async function provisionStudentAccount(studentProfileId: string, dbClient: any = prisma): Promise<ProvisionResult> {
   try {
-    const student = await prisma.studentProfile.findUnique({
+    const student = await dbClient.studentProfile.findUnique({
       where: { id: studentProfileId }
     });
 
@@ -67,32 +67,20 @@ export async function provisionStudentAccount(studentProfileId: string): Promise
       return { status: "FAILED", message: "Student profile not found" };
     }
 
-    const email = normalizeEmail(student.email || "");
+    const email = student.email ? normalizeEmail(student.email) : null;
     const rollNumber = normalizeRollNumber(student.rollNumber || "");
     const loginId = rollNumber ? normalizeStudentLoginId(rollNumber) : null;
 
-    if (!email || !rollNumber || !loginId || !student.department) {
-      return { status: "SKIPPED_INVALID", message: "Student has invalid email, roll number, or department" };
+    if (!rollNumber || !loginId) {
+      return { status: "SKIPPED_INVALID", message: "Student has invalid roll number" };
     }
 
     // Check for existing UserAccess conflicts
-    const existingByProfile = await prisma.userAccess.findUnique({ where: { studentProfileId } });
-    const existingByEmail = await prisma.userAccess.findUnique({ where: { email } });
-    const existingByLogin = await prisma.userAccess.findUnique({ where: { loginId } });
+    const existingByProfile = await dbClient.userAccess.findUnique({ where: { studentProfileId } });
+    const existingByLogin = await dbClient.userAccess.findUnique({ where: { loginId } });
 
     if (existingByProfile && existingByProfile.authUserId) {
       return { status: "ALREADY_PROVISIONED", message: "Student already provisioned" };
-    }
-
-    // If there's an existing access with same email but different profile, that's a conflict
-    if (existingByEmail && existingByEmail.studentProfileId !== studentProfileId) {
-      await recordAuditEvent({
-        action: AuditAction.ACCOUNT_CONFLICT,
-        targetType: "StudentProfile",
-        targetId: studentProfileId,
-        metadata: { reason: "Email conflict with another profile" }
-      });
-      return { status: "CONFLICT", message: "Email is already used by another account" };
     }
 
     if (existingByLogin && existingByLogin.studentProfileId !== studentProfileId) {
@@ -105,39 +93,68 @@ export async function provisionStudentAccount(studentProfileId: string): Promise
       return { status: "CONFLICT", message: "Login ID is already in use" };
     }
 
-    const authRes = await provisionAuthUser(email);
-    if (!authRes) {
-      return { status: "FAILED", message: "Failed to create or locate Supabase user" };
+    const authEmail = email || `${loginId.toLowerCase()}@student.aceec.ac.in`;
+    const adminClient = createAdminClient();
+
+    // Provision or locate Supabase Auth user with initial password = loginId (normalized roll number)
+    let authUserId: string | null = null;
+    let isNewAuthUser = false;
+
+    const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
+      email: authEmail,
+      password: loginId, // Initial password = normalized roll number
+      email_confirm: true,
+      user_metadata: { role: UserRole.STUDENT, rollNumber: loginId }
+    });
+
+    if (createData?.user && !createError) {
+      authUserId = createData.user.id;
+      isNewAuthUser = true;
+    } else {
+      // Find existing auth user by email
+      const { data: listData } = await adminClient.auth.admin.listUsers({ page: 1, perPage: 1000 });
+      const match = listData?.users?.find(u => u.email === authEmail);
+      if (match) {
+        authUserId = match.id;
+      }
     }
 
-    // Create or update UserAccess record within a short transaction
+    if (!authUserId) {
+      return { status: "FAILED", message: "Failed to create or locate Supabase auth user" };
+    }
+
+    // Create or update UserAccess record using dbClient
     try {
-      await prisma.$transaction(async (tx) => {
+      const executeUserAccessUpsert = async (tx: any) => {
         await tx.userAccess.upsert({
-          where: { email },
+          where: { loginId },
           update: {
-            authUserId: authRes.authUserId,
-            loginId,
+            authUserId,
+            email: email || undefined,
             role: UserRole.STUDENT,
-            status: AccountStatus.PENDING,
+            status: AccountStatus.ACTIVE,
             studentProfileId,
-            departmentId: student.department,
-            mustSetPassword: true,
-            firstLoginCompleted: false,
+            departmentId: student.department || null,
           },
           create: {
-            authUserId: authRes.authUserId,
-            email,
+            authUserId,
+            email: email || null,
             loginId,
             role: UserRole.STUDENT,
-            status: AccountStatus.PENDING,
+            status: AccountStatus.ACTIVE,
             studentProfileId,
-            departmentId: student.department,
+            departmentId: student.department || null,
             mustSetPassword: true,
             firstLoginCompleted: false,
           }
         });
-      });
+      };
+
+      if ((dbClient as any)?._isTransaction) {
+        await executeUserAccessUpsert(dbClient);
+      } else {
+        await prisma.$transaction(async (tx) => executeUserAccessUpsert(tx));
+      }
     } catch (txError) {
       await recordAuditEvent({
         action: AuditAction.ACCOUNT_CONFLICT,
@@ -149,7 +166,7 @@ export async function provisionStudentAccount(studentProfileId: string): Promise
     }
 
     await recordAuditEvent({
-      action: authRes.isNew ? AuditAction.AUTH_USER_CREATED : AuditAction.AUTH_USER_LINKED,
+      action: isNewAuthUser ? AuditAction.AUTH_USER_CREATED : AuditAction.AUTH_USER_LINKED,
       targetType: "StudentProfile",
       targetId: studentProfileId,
     });
@@ -160,7 +177,7 @@ export async function provisionStudentAccount(studentProfileId: string): Promise
       targetId: studentProfileId,
     });
 
-    return { status: authRes.isNew ? "CREATED" : "LINKED", message: "Successfully provisioned student account" };
+    return { status: isNewAuthUser ? "CREATED" : "LINKED", message: "Successfully provisioned student account" };
 
   } catch (err) {
     console.error("Failed to provision student:", err);

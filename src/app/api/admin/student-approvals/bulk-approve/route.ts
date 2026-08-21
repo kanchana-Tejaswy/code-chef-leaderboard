@@ -13,14 +13,24 @@ export async function POST(request: NextRequest) {
     const admin = await requireAdmin();
     const adminId = admin.id;
 
-    // Find all verified students who are not yet approved
+    const body = await request.json().catch(() => ({}));
+    const requestedStudentIds: string[] = Array.isArray(body.studentIds) ? body.studentIds : [];
+
+    let whereClause: any = {
+      adminApprovalStatus: { not: "APPROVED" },
+      archivedAt: null,
+    };
+
+    if (requestedStudentIds.length > 0) {
+      whereClause = {
+        id: { in: requestedStudentIds },
+        archivedAt: null,
+      };
+    }
+
+    // Find all target students for bulk approval
     const eligibleStudents = await prisma.studentProfile.findMany({
-      where: {
-        profileStatus: "VERIFIED",
-        adminApprovalStatus: { not: "APPROVED" },
-        codechefProfile: { isNot: null },
-        leetcodeProfile: { isNot: null }
-      },
+      where: whereClause,
       include: {
         codechefProfile: true,
         leetcodeProfile: true
@@ -57,18 +67,18 @@ export async function POST(request: NextRequest) {
             }
           });
 
-          // Calculate score metrics and upsert entry
-          const ccScore = OverallScoreService.calculateCodechefScore(student.codechefProfile!);
-          const lcScore = OverallScoreService.calculateLeetcodeScore(student.leetcodeProfile!);
-          const active = { codechef: true, leetcode: true };
+          // Calculate score metrics if profiles exist or set baseline 0
+          const ccScore = student.codechefProfile ? OverallScoreService.calculateCodechefScore(student.codechefProfile) : 0;
+          const lcScore = student.leetcodeProfile ? OverallScoreService.calculateLeetcodeScore(student.leetcodeProfile) : 0;
+          const active = { codechef: !!student.codechefProfile, leetcode: !!student.leetcodeProfile };
           const overallScore = OverallScoreService.calculate({ codechef: ccScore, leetcode: lcScore }, active);
 
           await tx.leaderboardEntry.upsert({
             where: { studentId: student.id },
             create: {
               studentId: student.id,
-              rating: student.codechefProfile!.currentRating || 0,
-              stars: student.codechefProfile!.stars ?? 0,
+              rating: student.codechefProfile?.currentRating || 0,
+              stars: student.codechefProfile?.stars ?? 0,
               overallScore,
               codechefScore: ccScore,
               leetcodeScore: lcScore,
@@ -76,8 +86,8 @@ export async function POST(request: NextRequest) {
               rank: 0
             },
             update: {
-              rating: student.codechefProfile!.currentRating || 0,
-              stars: student.codechefProfile!.stars ?? 0,
+              rating: student.codechefProfile?.currentRating || 0,
+              stars: student.codechefProfile?.stars ?? 0,
               overallScore,
               codechefScore: ccScore,
               leetcodeScore: lcScore
@@ -132,3 +142,4 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
+

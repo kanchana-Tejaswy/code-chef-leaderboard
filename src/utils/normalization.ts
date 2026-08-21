@@ -13,18 +13,18 @@ export function normalizeEmail(email: string): string | null {
 
 export function normalizeRollNumber(rollNumber: string): string | null {
   if (!rollNumber) return null;
-  
+
   // trim whitespace, uppercase, remove accidental internal spacing
   const cleaned = rollNumber.trim().toUpperCase().replace(/\s+/g, "");
-  
+
   if (cleaned.length === 0) return null;
-  
+
   // validate against standard 10 to 12-character alphanumeric college roll number format
   const rollRegex = /^[A-Z0-9]{10,12}$/;
   if (!rollRegex.test(cleaned)) {
     return null;
   }
-  
+
   return cleaned;
 }
 

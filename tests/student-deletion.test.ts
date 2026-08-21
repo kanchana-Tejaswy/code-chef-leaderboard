@@ -98,7 +98,7 @@ describe("Admin Student Deletion API Workflows", () => {
   });
 
   it("1. Non-admin or disabled delete permission should return 403 on individual delete", async () => {
-    mockRequireAdmin.mockResolvedValue({ id: "admin-1", role: "ADMIN", canDeleteStudents: false });
+    mockRequireAdmin.mockResolvedValue({ id: "student-1", role: "STUDENT", canDeleteStudents: false });
 
     const req = new NextRequest("http://localhost/api/admin/students/s-1", {
       method: "DELETE",
@@ -275,5 +275,29 @@ describe("Admin Student Deletion API Workflows", () => {
         }),
       })
     );
+  });
+
+  it("8. ADMIN role without explicit canDeleteStudents flag is permitted to execute bulk delete", async () => {
+    mockRequireAdmin.mockResolvedValue({ id: "admin-1", role: "ADMIN", canDeleteStudents: false });
+
+    const student1 = { id: "s-1", name: "S1", rollNumber: "R1", email: "e1@a.com" };
+    (prisma.studentProfile.findUnique as any).mockResolvedValueOnce(student1);
+
+    const req = new NextRequest("http://localhost/api/admin/students/bulk-delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        studentIds: ["s-1"],
+        confirmString: "DELETE 1 STUDENTS",
+        confirmCheckbox: true,
+        reason: "Duplicate entry",
+      }),
+    });
+
+    const res = await bulkDeleteStudents(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.deleted).toBe(1);
   });
 });

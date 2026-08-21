@@ -3,6 +3,7 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 // Mock prisma dependency
 vi.mock("@/lib/prisma", () => {
   const mockPrisma = {
+    $transaction: vi.fn(async (cb: any) => cb(mockPrisma)),
     studentProfile: {
       count: vi.fn(),
       findMany: vi.fn(),
@@ -233,7 +234,7 @@ describe("Admin Student Management Workflow Scenario Coverage", () => {
 
   // Scenario 7: Manual student addition (POST /api/admin/students) normalizes and creates a student profile
   it("7. Manual student addition normalizes and creates student profile", async () => {
-    const newStudentInput = { name: "Alice Smith", rollNumber: "20CSE99", email: "alice@example.com" };
+    const newStudentInput = { name: "Alice Smith", rollNumber: "23AG1A0501", email: "alice@example.com", year: 1, department: "CSE" };
 
     const req = new NextRequest("http://localhost/api/admin/students", {
       method: "POST",
@@ -248,8 +249,10 @@ describe("Admin Student Management Workflow Scenario Coverage", () => {
   it("8. Manual student addition queues a verification SyncJob if handles are provided", async () => {
     const studentInput = {
       name: "Alice Smith",
-      rollNumber: "20CSE99",
+      rollNumber: "23AG1A0501",
       email: "alice@example.com",
+      year: 1,
+      department: "CSE",
       codechefUsername: "https://www.codechef.com/users/alice_cc",
       leetcodeUsername: "https://leetcode.com/alice_lc",
     };
@@ -269,7 +272,7 @@ describe("Admin Student Management Workflow Scenario Coverage", () => {
 
   // Scenario 9: Manual student addition logs STUDENT_CREATED audit event
   it("9. Manual student addition logs STUDENT_CREATED audit event", async () => {
-    const studentInput = { name: "Alice Smith", rollNumber: "20CSE99", email: "alice@example.com" };
+    const studentInput = { name: "Alice Smith", rollNumber: "23AG1A0501", email: "alice@example.com", year: 1, department: "CSE" };
 
     const req = new NextRequest("http://localhost/api/admin/students", {
       method: "POST",

@@ -12,8 +12,8 @@ export async function POST(request: NextRequest) {
   try {
     const admin = await requireAdmin();
 
-    // Check delete permission in DB UserAccess record
-    if (!admin.canDeleteStudents) {
+    // Check delete permission in DB UserAccess record (ADMIN and GK_SIR have access by default)
+    if (!admin.canDeleteStudents && admin.role !== "ADMIN" && admin.role !== "GK_SIR") {
       return NextResponse.json(
         { error: "Insufficient permissions. Student deletion access is disabled." },
         { status: 403 }
@@ -108,18 +108,29 @@ export async function POST(request: NextRequest) {
             }
           }
 
-          // Run database deletion sequentially for this student
-          await prisma.syncJob.deleteMany({ where: { studentId: id } });
-          await prisma.leaderboardEntry.deleteMany({ where: { studentId: id } });
-          await prisma.codechefProfile.deleteMany({ where: { studentId: id } });
-          await prisma.leetcodeProfile.deleteMany({ where: { studentId: id } });
-          await prisma.githubProfile.deleteMany({ where: { studentId: id } });
-          await prisma.aiAnalysis.deleteMany({ where: { studentId: id } });
-          await prisma.syncLog.deleteMany({ where: { studentId: id } });
-          await prisma.activityLog.deleteMany({ where: { studentId: id } });
-          await prisma.normalizedProfile.deleteMany({ where: { studentId: id } });
-          await prisma.userAccess.deleteMany({ where: { studentProfileId: id } });
-          await prisma.studentProfile.delete({ where: { id } });
+          // Run database deletion inside transaction for this student
+          await prisma.$transaction(async (tx) => {
+            await tx.syncJob.deleteMany({ where: { studentId: id } });
+            await tx.leaderboardEntry.deleteMany({ where: { studentId: id } });
+            await tx.codechefProfile.deleteMany({ where: { studentId: id } });
+            await tx.leetcodeProfile.deleteMany({ where: { studentId: id } });
+            await tx.githubProfile.deleteMany({ where: { studentId: id } });
+            await tx.aiAnalysis.deleteMany({ where: { studentId: id } });
+            await tx.syncLog.deleteMany({ where: { studentId: id } });
+            await tx.activityLog.deleteMany({ where: { studentId: id } });
+            await tx.normalizedProfile.deleteMany({ where: { studentId: id } });
+            if (tx.studentPlatformAccount && typeof tx.studentPlatformAccount.deleteMany === "function") {
+              await tx.studentPlatformAccount.deleteMany({ where: { studentProfileId: id } });
+            }
+            if (tx.contestParticipation && typeof tx.contestParticipation.deleteMany === "function") {
+              await tx.contestParticipation.deleteMany({ where: { studentId: id } });
+            }
+            if (tx.studentEnrollment && typeof tx.studentEnrollment.deleteMany === "function") {
+              await tx.studentEnrollment.deleteMany({ where: { studentId: id } });
+            }
+            await tx.userAccess.deleteMany({ where: { studentProfileId: id } });
+            await tx.studentProfile.delete({ where: { id } });
+          });
 
           // Record audit event
           const rollSnapshot = student.rollNumber ? student.rollNumber.trim() : "N/A";

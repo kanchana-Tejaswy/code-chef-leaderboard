@@ -49,7 +49,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     // 3. Map queue statistics to JobStatus format
     const totalStudents = stats.eligibleProfiles || 1;
     const remaining = stats.remaining;
-    const processedStudents = stats.eligibleProfiles - remaining;
+    const processedStudents = Math.max(0, stats.eligibleProfiles - remaining);
     const successfulStudents = stats.verified;
     const failedStudents = stats.failed;
     const skippedStudents = stats.incomplete;

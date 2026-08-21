@@ -53,12 +53,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Student profile not found." }, { status: 404 });
     }
 
-    const ccVerified = student.platformAccounts?.find(p => p.platform === "CODECHEF")?.verificationStatus === "VERIFIED";
-    const lcVerified = student.platformAccounts?.find(p => p.platform === "LEETCODE")?.verificationStatus === "VERIFIED";
+    const hasCc = Boolean(student.codechefUsername && student.codechefUsername.trim() !== "");
+    const hasLc = Boolean(student.leetcodeUsername && student.leetcodeUsername.trim() !== "");
+    const hasCf = Boolean(student.codeforcesUsername && student.codeforcesUsername.trim() !== "");
+    const hasGh = Boolean(student.githubUsername && student.githubUsername.trim() !== "");
+    const hasPlatformAccount = student.platformAccounts && student.platformAccounts.length > 0;
+    const hasAnyHandle = hasCc || hasLc || hasCf || hasGh || hasPlatformAccount;
     const adminApproved = student.adminApprovalStatus === "APPROVED";
     const isActive = student.archivedAt === null;
 
-    if (!ccVerified || !lcVerified || !adminApproved || !isActive) {
+    if (!hasAnyHandle || !adminApproved || !isActive) {
       return NextResponse.json({ error: "Student is not eligible for leaderboard refresh." }, { status: 400 });
     }
 

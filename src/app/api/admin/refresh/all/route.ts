@@ -46,9 +46,16 @@ export async function POST(request: NextRequest) {
     const { createJob } = await import("@/lib/jobTracker");
     createJob(jobId, "ADMIN_UI", "ALL", stats.eligibleProfiles);
 
-    // 4. Start processing first batch asynchronously (does not block HTTP response)
-    BulkSyncService.processBatch(5, 2).catch((err) => {
-      console.error("Background batch processing error:", err);
+    // 4. Start processing batches continuously in background
+    (async () => {
+      let remaining = 1;
+      while (remaining > 0 && !BulkSyncService.isPaused()) {
+        const batchRes = await BulkSyncService.processBatch(10, 2);
+        remaining = batchRes.remainingCount;
+        if (batchRes.processedCount === 0) break;
+      }
+    })().catch((err) => {
+      console.error("Background processing loop error:", err);
     });
 
     return NextResponse.json(

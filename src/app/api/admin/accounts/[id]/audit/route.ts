@@ -29,7 +29,7 @@ export async function GET(
           { targetId: id },
           { actorUserId: id },
           { actorUserId: account.authUserId },
-          { metadata: { path: ["email"], equals: account.email } }
+          ...(account.email ? [{ metadata: { path: ["email"], equals: account.email } }] : [])
         ]
       },
       orderBy: { createdAt: "desc" },

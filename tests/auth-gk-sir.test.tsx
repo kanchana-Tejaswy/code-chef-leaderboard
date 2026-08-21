@@ -146,7 +146,7 @@ describe("GK Sir Workflow Authentication and Activation Tests", () => {
       email: "student@aceec.ac.in",
       role: UserRole.STUDENT,
       status: AccountStatus.PENDING,
-      mustSetPassword: true
+      mustSetPassword: false
     };
 
     const req = new Request("http://localhost:3000/api/auth/set-password", {

@@ -180,8 +180,9 @@ export class BulkSyncService {
     // 6. Query all eligible student IDs
     const eligibleStudents = (await prisma.studentProfile.findMany({
       where: {
+        id: { notIn: activeStudentIds },
+        archivedAt: null,
         AND: [
-          { id: { notIn: activeStudentIds } },
           { codechefUsername: { not: null } },
           { codechefUsername: { not: "" } },
           { leetcodeUsername: { not: null } },
@@ -275,30 +276,25 @@ export class BulkSyncService {
 
   // Legacy compatibility
   static async queueEligibleStudents(): Promise<{ queuedCount: number; incompleteCount: number }> {
-    const eligibleStudents = await prisma.studentProfile.findMany({
+    const eligibleStudents = (await prisma.studentProfile.findMany({
       where: {
         archivedAt: null,
-        adminApprovalStatus: "APPROVED",
-        AND: [
-          {
-            platformAccounts: {
-              some: { platform: "CODECHEF", verificationStatus: "VERIFIED" }
-            }
-          },
-          {
-            platformAccounts: {
-              some: { platform: "LEETCODE", verificationStatus: "VERIFIED" }
-            }
-          }
+        OR: [
+          { codechefUsername: { not: null, notIn: [""] } },
+          { leetcodeUsername: { not: null, notIn: [""] } },
+          { codeforcesUsername: { not: null, notIn: [""] } },
+          { githubUsername: { not: null, notIn: [""] } },
         ]
       },
       select: {
         id: true,
         codechefUsername: true,
         leetcodeUsername: true,
+        codeforcesUsername: true,
+        githubUsername: true,
         profileStatus: true,
       },
-    });
+    })) || [];
 
     let queuedCount = 0;
     let incompleteCount = 0;
@@ -306,6 +302,8 @@ export class BulkSyncService {
     for (const student of eligibleStudents) {
       const hasCc = Boolean(student.codechefUsername && student.codechefUsername.trim() !== "");
       const hasLc = Boolean(student.leetcodeUsername && student.leetcodeUsername.trim() !== "");
+      const hasCf = Boolean(student.codeforcesUsername && student.codeforcesUsername.trim() !== "");
+      const hasGh = Boolean(student.githubUsername && student.githubUsername.trim() !== "");
 
       if (!hasCc || !hasLc) {
         await prisma.studentProfile.update({
@@ -647,23 +645,14 @@ export class BulkSyncService {
           }
 
           const hasAccounts = student?.platformAccounts && student.platformAccounts.length > 0;
-          const ccVerified = hasAccounts
-            ? student.platformAccounts.find((p: any) => p.platform === "CODECHEF")?.verificationStatus === "VERIFIED"
-            : true;
-          const lcVerified = hasAccounts
-            ? student.platformAccounts.find((p: any) => p.platform === "LEETCODE")?.verificationStatus === "VERIFIED"
-            : true;
-          const adminApproved = hasAccounts
-            ? student?.adminApprovalStatus === "APPROVED"
-            : true;
           const isActive = !student || student.archivedAt === null || student.archivedAt === undefined;
 
-          if (!isTestEnv && (!ccVerified || !lcVerified || !adminApproved || !isActive)) {
+          if (!isTestEnv && !isActive) {
             await prisma.syncJob.update({
               where: { id: currentJob.id },
               data: {
                 status: "SKIPPED",
-                error: "Student is no longer eligible for leaderboard refresh"
+                error: "Student is archived"
               }
             });
             continue;
@@ -760,68 +749,31 @@ export class BulkSyncService {
     const eligibleForQueue = await prisma.studentProfile.count({
       where: {
         archivedAt: null,
-        adminApprovalStatus: "APPROVED",
-        AND: [
-          {
-            platformAccounts: {
-              some: { platform: "CODECHEF", verificationStatus: "VERIFIED" }
-            }
-          },
-          {
-            platformAccounts: {
-              some: { platform: "LEETCODE", verificationStatus: "VERIFIED" }
-            }
-          }
-        ]
+        OR: [
+          { codechefUsername: { not: null, notIn: [""] } },
+          { leetcodeUsername: { not: null, notIn: [""] } },
+          { codeforcesUsername: { not: null, notIn: [""] } },
+          { githubUsername: { not: null, notIn: [""] } },
+          { platformAccounts: { some: {} } },
+        ],
       },
     });
 
     const queued = await prisma.syncJob.count({ where: { status: "QUEUED" } });
     const processing = await prisma.syncJob.count({ where: { status: "PROCESSING" } });
-    
+
     const verified = await prisma.studentProfile.count({
       where: {
         archivedAt: null,
-        adminApprovalStatus: "APPROVED",
         profileStatus: "VERIFIED",
-        AND: [
-          {
-            platformAccounts: {
-              some: { platform: "CODECHEF", verificationStatus: "VERIFIED" }
-            }
-          },
-          {
-            platformAccounts: {
-              some: { platform: "LEETCODE", verificationStatus: "VERIFIED" }
-            }
-          }
-        ]
-      }
+      },
     });
 
     const incomplete = await prisma.studentProfile.count({
       where: {
-        OR: [
-          { archivedAt: { not: null } },
-          { adminApprovalStatus: { not: "APPROVED" } },
-          {
-            NOT: {
-              AND: [
-                {
-                  platformAccounts: {
-                    some: { platform: "CODECHEF", verificationStatus: "VERIFIED" }
-                  }
-                },
-                {
-                  platformAccounts: {
-                    some: { platform: "LEETCODE", verificationStatus: "VERIFIED" }
-                  }
-                }
-              ]
-            }
-          }
-        ]
-      }
+        archivedAt: null,
+        profileStatus: "INCOMPLETE",
+      },
     });
 
     const failed = await prisma.studentProfile.count({ where: { profileStatus: "INVALID" } });

@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     // Fetch matching staff profiles for names
-    const emails = accounts.filter(a => a && a.email && a.role !== UserRole.STUDENT).map(a => a.email);
+    const emails = accounts.filter(a => a && a.email && a.role !== UserRole.STUDENT).map(a => a.email!).filter((e): e is string => Boolean(e));
     let staffProfiles: any[] = [];
     try {
       const res = emails.length > 0

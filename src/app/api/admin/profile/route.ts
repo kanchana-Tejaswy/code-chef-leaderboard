@@ -70,7 +70,7 @@ export async function PATCH(request: NextRequest) {
 
     const trimmedName = fullName.trim();
 
-    if (adminAccess.authUserId) {
+    if (adminAccess.authUserId && adminAccess.email) {
       await prisma.profile.upsert({
         where: { email: adminAccess.email },
         update: {

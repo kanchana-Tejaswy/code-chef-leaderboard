@@ -26,7 +26,7 @@ export default async function AdminProfilePage() {
         </div>
         <AdminControlCenterClient 
           currentAdminId={access.id} 
-          currentAdminEmail={access.email} 
+          currentAdminEmail={access.email || ""} 
           role={access.role}
         />
       </div>

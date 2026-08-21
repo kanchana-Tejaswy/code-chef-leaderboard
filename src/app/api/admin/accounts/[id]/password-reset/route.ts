@@ -33,7 +33,7 @@ export async function POST(
       );
     }
 
-    const email = targetAccount.email;
+    const email = targetAccount.email || `${targetAccount.loginId.toLowerCase()}@student.aceec.ac.in`;
     const supabaseAdmin = createAdminClient();
 
     // Generate password recovery link / reset email via Supabase Auth

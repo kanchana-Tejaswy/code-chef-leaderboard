@@ -23,7 +23,9 @@ import {
   ExternalLink,
   ChevronLeft,
   Loader2,
-  ShieldCheck
+  ShieldCheck,
+  Info,
+  CheckCircle2
 } from "lucide-react";
 import { useToast } from "@/components/shared/toast";
 import { UserRole } from "@prisma/client";
@@ -78,6 +80,80 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
   const [showSectionModal, setShowSectionModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [studentToDelete, setStudentToDelete] = useState<any>(null);
+
+  // Bulk Selection & Delete State
+  const [selectedStudentIds, setSelectedStudentIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
+  const [bulkConfirmCheckbox, setBulkConfirmCheckbox] = useState(false);
+  const [bulkConfirmString, setBulkConfirmString] = useState("");
+  const [bulkReason, setBulkReason] = useState("Imported by mistake");
+  const [bulkNotes, setBulkNotes] = useState("");
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
+
+  const toggleSelectStudent = (id: string) => {
+    setSelectedStudentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAllStudents = () => {
+    if (selectedStudentIds.size === students.length && students.length > 0) {
+      setSelectedStudentIds(new Set());
+    } else {
+      setSelectedStudentIds(new Set(students.map((s) => s.id)));
+    }
+  };
+
+  const handleExecuteBulkDelete = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedStudentIds.size === 0) return;
+    const expectedConfirm = `DELETE ${selectedStudentIds.size} STUDENTS`;
+    if (bulkConfirmString.trim() !== expectedConfirm) {
+      showToast(`Typed confirmation does not match. Expected "${expectedConfirm}"`, "error");
+      return;
+    }
+    if (!bulkConfirmCheckbox) {
+      showToast("Please check the confirmation checkbox.", "error");
+      return;
+    }
+
+    setIsBulkDeleting(true);
+    try {
+      const res = await fetch("/api/admin/students/bulk-delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          studentIds: Array.from(selectedStudentIds),
+          confirmString: bulkConfirmString.trim(),
+          confirmCheckbox: bulkConfirmCheckbox,
+          reason: bulkReason,
+          notes: bulkReason === "Other" ? bulkNotes : undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        showToast(data.error || "Failed to execute bulk deletion.", "error");
+        return;
+      }
+
+      showToast(`Successfully deleted ${data.deleted} student profile(s).`, "success");
+
+      setSelectedStudentIds(new Set());
+      setShowBulkDeleteModal(false);
+      setBulkConfirmCheckbox(false);
+      setBulkConfirmString("");
+      setBulkNotes("");
+      fetchDirectoryData();
+    } catch (err: any) {
+      showToast(err.message || "An unexpected error occurred during deletion.", "error");
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  };
 
   // Roster Import State
   const [showImportModal, setShowImportModal] = useState(false);
@@ -390,21 +466,15 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
       });
       const data = await res.json();
 
-      if (res.status === 409) {
-        showToast("Conflict: A student with this roll number already exists.", "error");
-        // Open option to edit or view
-        if (data.existingId) {
-          showToast(`Click View profile to check details of ${payload.rollNumber}`, "info");
-        }
-        setActionLoading(false);
-        return;
-      }
-
       if (!res.ok || !data.success) {
         throw new Error(data.error || "Failed to save student profile.");
       }
 
-      showToast(`Student ${studentForm.name} saved successfully.`, "success");
+      const successMsg = data.message || (data.isNew === false
+        ? "Student profile updated successfully. Existing data has been replaced with the new information."
+        : "Student profile created successfully.");
+
+      showToast(successMsg, "success");
       setShowStudentModal(false);
       fetchDirectoryData();
     } catch (err: any) {
@@ -989,6 +1059,15 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
                   >
                     <ArrowLeft className="h-3 w-3" /> Back to sections
                   </button>
+
+                  {selectedStudentIds.size > 0 && (
+                    <button
+                      onClick={() => setShowBulkDeleteModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30 transition-all font-black uppercase tracking-wider cursor-pointer text-xs shadow-lg shadow-red-950/20"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete Selected ({selectedStudentIds.size})
+                    </button>
+                  )}
                 </div>
 
                 {/* Filter and search bar */}
@@ -1046,6 +1125,14 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="border-b border-brand-border/75 bg-brand-card/45 text-brand-muted font-black uppercase tracking-wider select-none text-[10px]">
+                      <th className="p-4 w-10 text-center">
+                        <input
+                          type="checkbox"
+                          checked={students.length > 0 && selectedStudentIds.size === students.length}
+                          onChange={toggleSelectAllStudents}
+                          className="rounded border-brand-border/60 text-brand-accent focus:ring-brand-accent/40 bg-brand-background cursor-pointer"
+                        />
+                      </th>
                       <th className="p-4">Student & Identity</th>
                       <th className="p-4">Contact Info</th>
                       <th className="p-4">Academic Details</th>
@@ -1060,8 +1147,17 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
                         key={student.id}
                         className={`border-b border-brand-border/40 hover:bg-brand-card/20 transition-all ${
                           student.archivedAt ? "opacity-65 bg-brand-card/5" : ""
-                        }`}
+                        } ${selectedStudentIds.has(student.id) ? "bg-brand-accent/10" : ""}`}
                       >
+                        {/* Checkbox */}
+                        <td className="p-4 text-center">
+                          <input
+                            type="checkbox"
+                            checked={selectedStudentIds.has(student.id)}
+                            onChange={() => toggleSelectStudent(student.id)}
+                            className="rounded border-brand-border/60 text-brand-accent focus:ring-brand-accent/40 bg-brand-background cursor-pointer"
+                          />
+                        </td>
                         {/* Name & Roll */}
                         <td className="p-4">
                           <div className="font-bold text-brand-text text-sm leading-tight">
@@ -1353,6 +1449,19 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
                     onChange={(e) => setStudentForm((f) => ({ ...f, rollNumber: e.target.value.toUpperCase() }))}
                     className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2 text-xs text-brand-text disabled:opacity-50 focus:outline-none focus:border-brand-accent/60"
                   />
+                  {modalMode === "create" && studentForm.rollNumber.trim().length > 3 && (
+                    <div className="mt-1">
+                      {students.some((s) => s.rollNumber?.toUpperCase() === studentForm.rollNumber.trim().toUpperCase().replace(/\s+/g, "")) ? (
+                        <p className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                          <Info className="h-3 w-3 inline" /> Student already exists — saving will rewrite/update the existing student&apos;s current information.
+                        </p>
+                      ) : (
+                        <p className="text-[10px] font-bold text-green-400 flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3 inline" /> New student — profile will be created.
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-1">
@@ -1686,42 +1795,40 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
                 <select
                   value={deleteReason}
                   onChange={(e) => setDeleteReason(e.target.value)}
-                  className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2 text-xs text-brand-text focus:outline-none"
+                  className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2.5 text-xs text-brand-text focus:outline-none focus:border-brand-accent/60"
                 >
-                  <option value="Incorrect Roll Number">Incorrect Roll Number</option>
-                  <option value="Duplicate Entry">Duplicate Entry</option>
-                  <option value="Graduated">Graduated / Alumni Cleanup</option>
-                  <option value="Other">Other (Require Notes)</option>
+                  <option value="Imported by mistake">Imported by mistake</option>
+                  <option value="Duplicate entry">Duplicate entry</option>
+                  <option value="Graduated / Left">Graduated / Left</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
 
-              {/* Notes for other */}
               {deleteReason === "Other" && (
                 <div className="space-y-1.5">
-                  <label className="text-[10px] uppercase font-black tracking-wider text-brand-muted">Notes / Explanation</label>
+                  <label className="text-[10px] uppercase font-black tracking-wider text-brand-muted">Explanation Notes (Required for 'Other')</label>
                   <textarea
-                    rows={3}
-                    placeholder="Enter details here..."
-                    required
+                    rows={2}
+                    placeholder="Provide details..."
                     value={deleteNotes}
                     onChange={(e) => setDeleteNotes(e.target.value)}
-                    className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2 text-xs text-brand-text focus:outline-none"
+                    required
+                    className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2 text-xs text-brand-text placeholder-brand-muted focus:outline-none focus:border-brand-accent/60"
                   />
                 </div>
               )}
 
-              {/* Typing confirmation */}
+              {/* Confirm Text */}
               <div className="space-y-1.5">
-                <label className="text-[10px] uppercase font-black tracking-wider text-brand-muted flex flex-wrap gap-1">
-                  Type <span className="text-red-500 font-bold select-none">DELETE</span> to confirm:
+                <label className="text-[10px] uppercase font-black tracking-wider text-brand-muted">
+                  Type <span className="text-red-400 font-mono font-bold select-all">DELETE</span> to confirm
                 </label>
                 <input
                   type="text"
-                  placeholder="Type DELETE"
+                  placeholder="DELETE"
                   value={deleteConfirmText}
                   onChange={(e) => setDeleteConfirmText(e.target.value)}
-                  required
-                  className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2 text-xs text-brand-text placeholder-brand-muted focus:outline-none focus:border-red-500/60"
+                  className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2.5 text-xs font-mono text-brand-text placeholder-brand-muted focus:outline-none focus:border-red-500/60"
                 />
               </div>
 
@@ -1739,6 +1846,131 @@ export function StudentDirectoryClient({ userRole, userDepartmentId, canDelete }
                   className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl bg-red-600 hover:bg-red-500 text-white font-black disabled:opacity-40 cursor-pointer transition-all"
                 >
                   {actionLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Permanently Delete
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* BULK DELETE MODAL */}
+      {showBulkDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+          <div className="relative w-full max-w-lg rounded-2xl border border-red-500/40 bg-brand-card/95 p-6 shadow-2xl space-y-6">
+            <button
+              onClick={() => {
+                setShowBulkDeleteModal(false);
+                setBulkConfirmCheckbox(false);
+                setBulkConfirmString("");
+                setBulkNotes("");
+              }}
+              className="absolute right-4 top-4 text-brand-muted hover:text-brand-text cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            <div className="space-y-1">
+              <h2 className="text-base font-black text-red-500 uppercase tracking-widest flex items-center gap-2">
+                <Trash2 className="h-5 w-5" /> Bulk Delete {selectedStudentIds.size} Students
+              </h2>
+              <p className="text-[10px] text-brand-muted uppercase font-bold tracking-wider">
+                Permanent destructive operation. All selected student profiles and linked records will be deleted.
+              </p>
+            </div>
+
+            <form onSubmit={handleExecuteBulkDelete} className="space-y-4">
+              <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl space-y-2 text-xs text-red-400">
+                <p className="font-bold flex items-center gap-1.5">
+                  <AlertTriangle className="h-4 w-4 shrink-0" /> Target Students ({selectedStudentIds.size} selected)
+                </p>
+                <div className="max-h-24 overflow-y-auto space-y-1 pr-1 font-mono text-[10px] text-brand-muted">
+                  {students
+                    .filter((s) => selectedStudentIds.has(s.id))
+                    .map((s) => (
+                      <div key={s.id} className="flex justify-between border-b border-brand-border/20 py-0.5">
+                        <span className="text-brand-text font-bold">{s.name}</span>
+                        <span className="text-brand-accent">{s.rollNumber}</span>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Checkbox confirmation */}
+              <div className="flex items-start gap-2.5 p-3 rounded-xl bg-brand-background/40 border border-brand-border/60">
+                <input
+                  type="checkbox"
+                  id="bulkConfirmCheckbox"
+                  checked={bulkConfirmCheckbox}
+                  onChange={(e) => setBulkConfirmCheckbox(e.target.checked)}
+                  className="mt-0.5 rounded border-brand-border/60 text-brand-accent focus:ring-brand-accent/40 bg-brand-background cursor-pointer"
+                />
+                <label htmlFor="bulkConfirmCheckbox" className="text-xs text-brand-text cursor-pointer leading-tight select-none">
+                  I understand this operation permanently deletes the selected {selectedStudentIds.size} student profiles, platform accounts, enrollment records, and user logins.
+                </label>
+              </div>
+
+              {/* Deletion reason */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-black tracking-wider text-brand-muted">Deletion Reason (Required)</label>
+                <select
+                  value={bulkReason}
+                  onChange={(e) => setBulkReason(e.target.value)}
+                  className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2.5 text-xs text-brand-text focus:outline-none focus:border-brand-accent/60"
+                >
+                  <option value="Imported by mistake">Imported by mistake</option>
+                  <option value="Duplicate entry">Duplicate entry</option>
+                  <option value="Graduated / Left">Graduated / Left</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              {bulkReason === "Other" && (
+                <div className="space-y-1.5">
+                  <label className="text-[10px] uppercase font-black tracking-wider text-brand-muted">Explanation Notes (Required for 'Other')</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Provide details..."
+                    value={bulkNotes}
+                    onChange={(e) => setBulkNotes(e.target.value)}
+                    required
+                    className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2 text-xs text-brand-text placeholder-brand-muted focus:outline-none focus:border-brand-accent/60"
+                  />
+                </div>
+              )}
+
+              {/* Typed confirmation */}
+              <div className="space-y-1.5">
+                <label className="text-[10px] uppercase font-black tracking-wider text-brand-muted">
+                  Type <span className="text-red-400 font-mono font-bold select-all">DELETE {selectedStudentIds.size} STUDENTS</span> to confirm
+                </label>
+                <input
+                  type="text"
+                  placeholder={`DELETE ${selectedStudentIds.size} STUDENTS`}
+                  value={bulkConfirmString}
+                  onChange={(e) => setBulkConfirmString(e.target.value)}
+                  className="w-full bg-brand-background border border-brand-border rounded-xl px-4 py-2.5 text-xs font-mono text-brand-text placeholder-brand-muted focus:outline-none focus:border-red-500/60"
+                />
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-brand-border/40">
+                <button
+                  type="button"
+                  onClick={() => setShowBulkDeleteModal(false)}
+                  className="px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl bg-brand-background border border-brand-border text-brand-muted hover:text-brand-text cursor-pointer transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={
+                    isBulkDeleting ||
+                    !bulkConfirmCheckbox ||
+                    bulkConfirmString.trim() !== `DELETE ${selectedStudentIds.size} STUDENTS`
+                  }
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs font-black uppercase tracking-wider rounded-xl bg-red-600 hover:bg-red-500 text-white font-black disabled:opacity-40 cursor-pointer transition-all"
+                >
+                  {isBulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Permanently Delete ({selectedStudentIds.size})
                 </button>
               </div>
             </form>

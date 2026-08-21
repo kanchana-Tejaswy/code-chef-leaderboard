@@ -210,13 +210,10 @@ export async function GET(request: NextRequest) {
         take: limit,
       }),
       prisma.studentProfile.count({ where }),
-      // eligibleForApproval: verified profiles that are not yet approved
+      // eligibleForApproval: non-approved profiles that can be approved by admin
       prisma.studentProfile.count({
         where: {
-          profileStatus: "VERIFIED",
           adminApprovalStatus: { not: "APPROVED" },
-          codechefProfile: { isNot: null },
-          leetcodeProfile: { isNot: null },
           archivedAt: null,
         }
       }),

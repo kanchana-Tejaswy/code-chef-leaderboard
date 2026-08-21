@@ -5,7 +5,8 @@ import Image from "next/image";
 import { Eye, EyeOff, Loader2, ShieldCheck, Lock } from "lucide-react";
 
 export default function LoginForm() {
-  const [email, setEmail] = useState("");
+  const [loginType, setLoginType] = useState<"STUDENT" | "STAFF">("STUDENT");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -15,11 +16,11 @@ export default function LoginForm() {
     e.preventDefault();
     setError("");
 
-    const trimmedEmail = email.trim();
+    const trimmedIdentifier = identifier.trim();
     const trimmedPassword = password.trim();
 
-    if (!trimmedEmail) {
-      setError("Please enter your email address.");
+    if (!trimmedIdentifier) {
+      setError(loginType === "STUDENT" ? "Please enter your Student Roll Number." : "Please enter your email address.");
       return;
     }
 
@@ -34,19 +35,24 @@ export default function LoginForm() {
       const response = await fetch("/api/auth/login/password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, password: trimmedPassword }),
+        body: JSON.stringify({
+          loginType,
+          studentId: loginType === "STUDENT" ? trimmedIdentifier : undefined,
+          email: loginType === "STAFF" ? trimmedIdentifier : undefined,
+          password: trimmedPassword,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Invalid email or password.");
+        throw new Error(data.message || (loginType === "STUDENT" ? "Invalid Student ID or password." : "Invalid email or password."));
       }
 
-      // Success! Redirect to dashboard
-      window.location.href = data.redirectTo || "/dashboard";
+      // Success! Redirect to target
+      window.location.href = data.redirectTo || (loginType === "STUDENT" ? "/dashboard" : "/admin/control-center");
     } catch (err: any) {
-      setError(err.message || "Invalid email or password.");
+      setError(err.message || "Invalid credentials.");
     } finally {
       setLoading(false);
     }
@@ -54,7 +60,7 @@ export default function LoginForm() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA] dark:bg-[#0A0A0A] py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
-      <div className="w-full max-w-md space-y-8 bg-[#FFFFFF] dark:bg-[#111111] p-8 sm:p-10 rounded-2xl shadow-xl border border-[rgba(15,23,42,0.10)] dark:border-[#262626]">
+      <div className="w-full max-w-md space-y-6 bg-[#FFFFFF] dark:bg-[#111111] p-8 sm:p-10 rounded-2xl shadow-xl border border-[rgba(15,23,42,0.10)] dark:border-[#262626]">
         
         {/* Header Section */}
         <div className="flex flex-col items-center text-center space-y-3">
@@ -75,21 +81,38 @@ export default function LoginForm() {
             </span>
             <div className="mt-1.5 inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full border border-[#EAB308]/30 bg-[#EAB308]/10 text-[#EAB308] text-[10px] font-black uppercase tracking-widest">
               <ShieldCheck className="w-3 h-3 text-[#EAB308]" />
-              <span>Staff Portal</span>
+              <span>{loginType === "STUDENT" ? "Student Portal" : "Staff Portal"}</span>
             </div>
-          </div>
-
-          <div className="pt-2 space-y-1">
-            <h1 className="text-2xl font-black tracking-tight text-[#0F172A] dark:text-[#FAFAFA]">
-              Welcome back
-            </h1>
-            <p className="text-xs text-[#64748B] dark:text-[#A3A3A3] max-w-xs leading-relaxed">
-              Sign in to manage student talent intelligence and platform analytics.
-            </p>
           </div>
         </div>
 
-        {/* Error Alert (Strictly Amber/Red, NO BLUE) */}
+        {/* Tab Selector */}
+        <div className="flex rounded-xl bg-gray-100 dark:bg-[#1A1A1A] p-1 border border-gray-200 dark:border-[#262626]">
+          <button
+            type="button"
+            onClick={() => { setLoginType("STUDENT"); setError(""); }}
+            className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+              loginType === "STUDENT"
+                ? "bg-white dark:bg-[#262626] text-[#0F172A] dark:text-[#FAFAFA] shadow-sm"
+                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+            }`}
+          >
+            Student Login
+          </button>
+          <button
+            type="button"
+            onClick={() => { setLoginType("STAFF"); setError(""); }}
+            className={`flex-1 py-2.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
+              loginType === "STAFF"
+                ? "bg-white dark:bg-[#262626] text-[#0F172A] dark:text-[#FAFAFA] shadow-sm"
+                : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+            }`}
+          >
+            Staff / Admin
+          </button>
+        </div>
+
+        {/* Error Alert */}
         {error && (
           <div
             role="alert"
@@ -103,24 +126,24 @@ export default function LoginForm() {
         {/* Login Form */}
         <form className="space-y-5" onSubmit={handleSubmit} noValidate>
           <div className="space-y-4">
-            {/* Email Field */}
+            {/* Identifier Field */}
             <div>
               <label
-                htmlFor="email"
+                htmlFor="identifier"
                 className="block text-xs font-bold uppercase tracking-wider text-[#0F172A] dark:text-[#FAFAFA] mb-1.5"
               >
-                Email Address
+                {loginType === "STUDENT" ? "Student ID / Roll Number" : "Email Address"}
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
+                id="identifier"
+                name="identifier"
+                type={loginType === "STUDENT" ? "text" : "email"}
+                autoComplete={loginType === "STUDENT" ? "username" : "email"}
                 required
                 disabled={loading}
-                placeholder="staff@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                placeholder={loginType === "STUDENT" ? "e.g. 23AG1A0502" : "staff@example.com"}
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl border border-[rgba(15,23,42,0.10)] dark:border-[#262626] bg-[#FFFFFF] dark:bg-[#1A1A1A]/50 text-[#0F172A] dark:text-[#FAFAFA] placeholder-[#64748B] dark:placeholder-[#A3A3A3] text-sm focus:outline-none focus:ring-2 focus:ring-[#EAB308]/40 focus:border-[#EAB308] transition-all disabled:opacity-60"
               />
             </div>
@@ -166,7 +189,7 @@ export default function LoginForm() {
           {/* Submit Button */}
           <button
             type="submit"
-            disabled={loading || !email.trim() || !password.trim()}
+            disabled={loading || !identifier.trim() || !password.trim()}
             className="w-full py-3.5 px-4 rounded-xl text-xs font-black uppercase tracking-wider text-[#0A0A0A] bg-[#EAB308] hover:bg-[#FACC15] focus:outline-none focus:ring-2 focus:ring-[#EAB308]/50 shadow-[0_4px_20px_rgba(234,179,8,0.25)] hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer"
           >
             {loading ? (
@@ -175,7 +198,7 @@ export default function LoginForm() {
                 <span>Signing in...</span>
               </>
             ) : (
-              <span>Sign In to Staff Portal</span>
+              <span>{loginType === "STUDENT" ? "Sign In to Student Portal" : "Sign In to Staff Portal"}</span>
             )}
           </button>
         </form>

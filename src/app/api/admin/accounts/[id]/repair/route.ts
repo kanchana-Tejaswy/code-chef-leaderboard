@@ -25,7 +25,7 @@ export async function POST(
       );
     }
 
-    const email = targetAccount.email;
+    const email = targetAccount.email || `${targetAccount.loginId.toLowerCase()}@student.aceec.ac.in`;
     const supabaseAdmin = createAdminClient();
 
     // 1. Check if Supabase Auth user exists

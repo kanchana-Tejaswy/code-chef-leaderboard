@@ -329,7 +329,7 @@ model Profile {
 model UserAccess {
   id                  String        @id @default(cuid())
   authUserId          String?       @unique @map("auth_user_id")
-  email               String        @unique
+  email               String?       @unique
   loginId             String        @unique @map("login_id")
   role                UserRole
   status              AccountStatus @default(PENDING)

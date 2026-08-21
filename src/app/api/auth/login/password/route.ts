@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { UserRole, AccountStatus } from "@prisma/client";
-import { normalizeEmail } from "@/utils/normalization";
+import { normalizeEmail, normalizeRollNumber } from "@/utils/normalization";
 import { getRoleHomePath } from "@/lib/auth";
 import { recordAuditEvent, AuditAction } from "@/services/audit.service";
 import { checkPasswordLoginRateLimit, hashIdentifier } from "@/services/auth-rate-limit.service";
@@ -57,17 +57,56 @@ export async function POST(req: Request) {
       );
     }
 
-    const { email, password } = body;
+    const { email, password, studentId, loginType } = body;
 
-    // Validate email & password presence
-    if (!email || typeof email !== "string" || !email.trim()) {
+    const identifier = studentId || email;
+    if (!identifier || typeof identifier !== "string" || !identifier.trim()) {
       return NextResponse.json(GENERIC_FAILURE_RESPONSE, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
     if (!password || typeof password !== "string" || !password.trim()) {
       return NextResponse.json(GENERIC_FAILURE_RESPONSE, { status: 400, headers: { "Cache-Control": "no-store" } });
     }
 
-    const normEmail = normalizeEmail(email);
+    const normRoll = normalizeRollNumber(identifier);
+    const normEmail = normalizeEmail(identifier);
+
+    // Handle Student Login Path
+    if (loginType === "STUDENT" || (normRoll && !normEmail)) {
+      const targetRoll = normRoll || identifier.trim().toUpperCase().replace(/\s+/g, "");
+      const studentAccess = await prisma.userAccess.findFirst({
+        where: {
+          loginId: targetRoll,
+          role: UserRole.STUDENT
+        }
+      });
+
+      if (!studentAccess) {
+        return NextResponse.json({ success: false, message: "Invalid Student ID or password." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+      }
+
+      const authEmail = studentAccess.email || `${targetRoll.toLowerCase()}@student.aceec.ac.in`;
+      const supabase = await createClient();
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: authEmail,
+        password
+      });
+
+      if (authError || !authData.user) {
+        return NextResponse.json({ success: false, message: "Invalid Student ID or password." }, { status: 400, headers: { "Cache-Control": "no-store" } });
+      }
+
+      if (studentAccess.mustSetPassword) {
+        return NextResponse.json({
+          success: true,
+          mustSetPassword: true,
+          redirectTo: "/auth/set-password"
+        }, { headers: { "Cache-Control": "no-store" } });
+      }
+
+      const redirectTo = getRoleHomePath(studentAccess);
+      return NextResponse.json({ success: true, redirectTo }, { headers: { "Cache-Control": "no-store" } });
+    }
+
     if (!normEmail) {
       return NextResponse.json(GENERIC_FAILURE_RESPONSE, { status: 400, headers: { "Cache-Control": "no-store" } });
     }

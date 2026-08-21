@@ -164,7 +164,6 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // Validate Placement Hierarchy (Cohort -> Department -> ClassSection)
     let targetCohort: any = null;
     let targetDept: any = null;
-    let targetSectionId: string | null = null;
 
     if (cohortId && typeof cohortId === "string" && cohortId.trim()) {
       if (prisma.cohort && typeof prisma.cohort.findUnique === "function") {
@@ -199,25 +198,32 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       }
     }
 
-    if (classSectionId && typeof classSectionId === "string" && classSectionId.trim() !== "" && classSectionId !== "unassigned") {
-      let section: any = null;
-      if (prisma.classSection && typeof prisma.classSection.findUnique === "function") {
-        section = await prisma.classSection.findUnique({ where: { id: classSectionId.trim() } });
-      }
-      if (section) {
-        if (
-          !section.isActive ||
-          (targetCohort && section.cohortId !== targetCohort.id) ||
-          (targetDept && section.departmentId !== targetDept.id)
-        ) {
-          return NextResponse.json(
-            { error: "The selected class section does not belong to the chosen cohort and department." },
-            { status: 400 }
-          );
+    let targetSectionId: string | null = oldEnrollment?.classSectionId || null;
+
+    if (body.hasOwnProperty("classSectionId") || body.hasOwnProperty("sectionId")) {
+      const rawSectId = body.classSectionId !== undefined ? body.classSectionId : body.sectionId;
+      if (!rawSectId || rawSectId === "unassigned") {
+        targetSectionId = null;
+      } else if (typeof rawSectId === "string" && rawSectId.trim() !== "") {
+        let section: any = null;
+        if (prisma.classSection && typeof prisma.classSection.findUnique === "function") {
+          section = await prisma.classSection.findUnique({ where: { id: rawSectId.trim() } });
         }
-        targetSectionId = section.id;
-      } else {
-        targetSectionId = classSectionId.trim();
+        if (section) {
+          if (
+            !section.isActive ||
+            (targetCohort && section.cohortId !== targetCohort.id) ||
+            (targetDept && section.departmentId !== targetDept.id)
+          ) {
+            return NextResponse.json(
+              { error: "The selected class section does not belong to the chosen cohort and department." },
+              { status: 400 }
+            );
+          }
+          targetSectionId = section.id;
+        } else {
+          targetSectionId = rawSectId.trim();
+        }
       }
     }
 
@@ -505,8 +511,8 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   try {
     const admin = await requireAdmin();
     
-    // Check delete permission in DB UserAccess record
-    if (!admin.canDeleteStudents) {
+    // Check delete permission in DB UserAccess record (ADMIN and GK_SIR have access by default)
+    if (!admin.canDeleteStudents && admin.role !== "ADMIN" && admin.role !== "GK_SIR") {
       return NextResponse.json(
         { error: "Insufficient permissions. Student deletion access is disabled." },
         { status: 403 }
@@ -590,6 +596,15 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
       await tx.syncLog.deleteMany({ where: { studentId } });
       await tx.activityLog.deleteMany({ where: { studentId } });
       await tx.normalizedProfile.deleteMany({ where: { studentId } });
+      if (tx.studentPlatformAccount && typeof tx.studentPlatformAccount.deleteMany === "function") {
+        await tx.studentPlatformAccount.deleteMany({ where: { studentProfileId: studentId } });
+      }
+      if (tx.contestParticipation && typeof tx.contestParticipation.deleteMany === "function") {
+        await tx.contestParticipation.deleteMany({ where: { studentId } });
+      }
+      if (tx.studentEnrollment && typeof tx.studentEnrollment.deleteMany === "function") {
+        await tx.studentEnrollment.deleteMany({ where: { studentId } });
+      }
       await tx.userAccess.deleteMany({ where: { studentProfileId: studentId } });
       await tx.studentProfile.delete({ where: { id: studentId } });
     });

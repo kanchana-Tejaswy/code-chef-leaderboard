@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { isMissingOrNA, extractPlatformHandle, formatToFullUrl } from "@/utils/urlValidation";
-import { normalizeRoll, getCohortYears } from "@/utils/normalization";
+import { normalizeRoll, normalizeRollNumber, getCohortYears } from "@/utils/normalization";
 import { ActivityService } from "./activity.service";
+import { provisionStudentAccount } from "./auth-provisioning.service";
 import crypto from "crypto";
 
 export type RowClassification =
@@ -610,6 +611,234 @@ export class StudentProfileService {
     } catch (err: any) {
       console.error(`Error in createProfile for roll ${data.rollNumber}:`, err);
       return { success: false, error: err.message || "Failed to create student profile record." };
+    }
+  }
+
+  /**
+   * Handles single-student Add / Full Replacement Edit workflow atomically.
+   * If Roll Number is new: creates StudentProfile + StudentEnrollment + provisions UserAccess account.
+   * If Roll Number exists: updates StudentProfile (full replacement), transitions StudentEnrollment, and reuses UserAccess account.
+   */
+  static async upsertSingleStudent(
+    data: NormalizedStudentData & {
+      cohortId?: string | null;
+      departmentId?: string | null;
+      classSectionId?: string | null;
+    },
+    dbClient = prisma
+  ): Promise<{ success: boolean; isNew?: boolean; profile?: any; message?: string; error?: string }> {
+    const rawRoll = data.rollNumber;
+    if (!rawRoll) {
+      return { success: false, error: "Roll number is required." };
+    }
+
+    const normRoll = normalizeRollNumber(rawRoll) || String(rawRoll).trim().toUpperCase();
+
+    const execute = async (tx: any) => {
+      // 1. Find existing student profile by normalized roll number
+      const existing = await tx.studentProfile.findUnique({
+        where: { rollNumber: normRoll },
+        include: {
+          studentEnrollments: {
+            where: { isCurrent: true }
+          }
+        }
+      });
+
+      let targetCohortId = data.cohortId || null;
+      let targetDepartmentId = data.departmentId || null;
+      let targetClassSectionId = data.classSectionId !== undefined ? data.classSectionId : null;
+
+      // Resolve Cohort if not provided
+      if (!targetCohortId) {
+        const cohortInfo = getCohortYears(normRoll);
+        if (cohortInfo) {
+          let cohort: any = null;
+          if (tx.cohort && typeof tx.cohort.findUnique === "function") {
+            cohort = await tx.cohort.findUnique({ where: { code: cohortInfo.code } });
+            if (!cohort && typeof tx.cohort.create === "function") {
+              cohort = await tx.cohort.create({
+                data: {
+                  code: cohortInfo.code,
+                  startYear: cohortInfo.startYear,
+                  endYear: cohortInfo.endYear,
+                  status: "ACTIVE",
+                }
+              });
+            }
+          }
+          targetCohortId = cohort?.id || "cohort-2023";
+        }
+      }
+
+      // Resolve Department if not provided
+      if (!targetDepartmentId && data.department) {
+        const deptCode = data.department.trim().toUpperCase();
+        let dept: any = null;
+        if (tx.department && typeof tx.department.findUnique === "function") {
+          dept = await tx.department.findUnique({ where: { code: deptCode } });
+          if (!dept && typeof tx.department.create === "function") {
+            dept = await tx.department.create({
+              data: { code: deptCode, name: deptCode, isActive: true }
+            });
+          }
+        }
+        targetDepartmentId = dept?.id || "dept-cse";
+      }
+
+      const parsedCgpa = data.cgpa !== undefined && data.cgpa !== null && String(data.cgpa).trim() !== "" && !isNaN(Number(data.cgpa)) ? Number(data.cgpa) : null;
+      const parsedYear = data.year && !isNaN(Number(data.year)) ? Math.min(Math.max(Number(data.year), 1), 4) : 1;
+      const contactStr = data.contactNumber ? String(data.contactNumber).trim() : null;
+
+      let sectionName = data.section ? data.section.trim().toUpperCase() : null;
+
+      if (!existing) {
+        // === NEW STUDENT CREATION ===
+        const profile = await tx.studentProfile.create({
+          data: {
+            name: data.name.trim(),
+            rollNumber: normRoll,
+            department: data.department || "CSE",
+            branch: data.branch || data.department || "CSE",
+            section: sectionName,
+            year: parsedYear,
+            cgpa: parsedCgpa,
+            email: data.email ? data.email.trim().toLowerCase() : null,
+            contactNumber: contactStr,
+            codechefUsername: data.codechefUsername ? data.codechefUsername.trim() : null,
+            leetcodeUsername: data.leetcodeUsername ? data.leetcodeUsername.trim() : null,
+            codeforcesUsername: data.codeforcesUsername ? data.codeforcesUsername.trim() : null,
+            githubUsername: data.githubUsername ? data.githubUsername.trim() : null,
+            linkedinUrl: data.linkedinUrl ? data.linkedinUrl.trim() : null,
+            profileStatus: (data.codechefUsername && data.leetcodeUsername) ? "PENDING_VERIFICATION" : "INCOMPLETE",
+            leaderboardEligible: false,
+            dashboardEligible: false,
+            verificationStatus: "UNABLE_TO_VERIFY",
+          }
+        });
+
+        if (targetCohortId && targetDepartmentId && tx.studentEnrollment && typeof tx.studentEnrollment.create === "function") {
+          await tx.studentEnrollment.create({
+            data: {
+              studentId: profile.id,
+              cohortId: targetCohortId,
+              departmentId: targetDepartmentId,
+              classSectionId: targetClassSectionId,
+              academicYear: parsedYear,
+              isCurrent: true,
+              enrollmentStatus: "ACTIVE",
+            }
+          });
+        }
+
+        await StudentProfileService.syncPlatformAccounts(
+          profile.id,
+          {
+            codechefUsername: data.codechefUsername,
+            leetcodeUsername: data.leetcodeUsername,
+            codeforcesUsername: data.codeforcesUsername,
+            githubUsername: data.githubUsername,
+            linkedinUrl: data.linkedinUrl,
+          },
+          tx
+        );
+
+        await StudentProfileService.calculateAndUpdateEligibility(profile.id, tx);
+
+        try {
+          await provisionStudentAccount(profile.id, tx);
+        } catch (authErr) {
+          console.error("Failed to provision student UserAccess:", authErr);
+        }
+
+        return { isNew: true, profile, message: "Student profile created successfully." };
+      } else {
+        // === EXISTING STUDENT FULL REPLACEMENT ===
+        // Replace mutable profile fields completely.
+        // If an optional field is submitted as blank/null, set to null (clear old value).
+        const updatedProfile = await tx.studentProfile.update({
+          where: { id: existing.id },
+          data: {
+            name: data.name.trim(),
+            // rollNumber is IMMUTABLE — never modified!
+            department: data.department || null,
+            branch: data.branch || data.department || null,
+            section: sectionName,
+            year: parsedYear,
+            cgpa: parsedCgpa,
+            email: data.email ? data.email.trim().toLowerCase() : null,
+            contactNumber: contactStr,
+            codechefUsername: data.codechefUsername ? data.codechefUsername.trim() : null,
+            leetcodeUsername: data.leetcodeUsername ? data.leetcodeUsername.trim() : null,
+            codeforcesUsername: data.codeforcesUsername ? data.codeforcesUsername.trim() : null,
+            githubUsername: data.githubUsername ? data.githubUsername.trim() : null,
+            linkedinUrl: data.linkedinUrl ? data.linkedinUrl.trim() : null,
+            profileStatus: (data.codechefUsername && data.leetcodeUsername) ? "PENDING_VERIFICATION" : "INCOMPLETE",
+          }
+        });
+
+        const profile = updatedProfile || existing;
+        const currentE = existing.studentEnrollments?.[0];
+        const placementChanged = !currentE ||
+          currentE.cohortId !== targetCohortId ||
+          currentE.departmentId !== targetDepartmentId ||
+          currentE.classSectionId !== targetClassSectionId;
+
+        if (placementChanged && targetCohortId && targetDepartmentId) {
+          if (currentE) {
+            await tx.studentEnrollment.update({
+              where: { id: currentE.id },
+              data: { isCurrent: false, enrollmentStatus: "COMPLETED" }
+            });
+          }
+          await tx.studentEnrollment.create({
+            data: {
+              studentId: profile.id,
+              cohortId: targetCohortId,
+              departmentId: targetDepartmentId,
+              classSectionId: targetClassSectionId,
+              academicYear: parsedYear,
+              isCurrent: true,
+              enrollmentStatus: "ACTIVE",
+            }
+          });
+        }
+
+        await StudentProfileService.syncPlatformAccounts(
+          profile.id,
+          {
+            codechefUsername: data.codechefUsername,
+            leetcodeUsername: data.leetcodeUsername,
+            codeforcesUsername: data.codeforcesUsername,
+            githubUsername: data.githubUsername,
+            linkedinUrl: data.linkedinUrl,
+          },
+          tx
+        );
+
+        await StudentProfileService.calculateAndUpdateEligibility(profile.id, tx);
+
+        // Note: UserAccess account is REUSED. Existing password and mustSetPassword are NOT reset.
+
+        return { isNew: false, profile, message: "Student already exists. Profile updated successfully." };
+      }
+    };
+
+    try {
+      const isRootClient = dbClient === prisma || !(dbClient as any)?._isTransaction;
+      let res: any;
+      if (isRootClient && dbClient && typeof (dbClient as any).$transaction === "function") {
+        res = await (dbClient as any).$transaction(async (tx: any) => {
+          (tx as any)._isTransaction = true;
+          return execute(tx);
+        }, { maxWait: 10000, timeout: 15000 });
+      } else {
+        res = await execute(dbClient);
+      }
+      return { success: true, isNew: res.isNew, profile: res.profile, message: res.message };
+    } catch (err: any) {
+      console.error(`Error in upsertSingleStudent for roll ${data.rollNumber}:`, err);
+      return { success: false, error: err.message || "Failed to save student profile." };
     }
   }
 
