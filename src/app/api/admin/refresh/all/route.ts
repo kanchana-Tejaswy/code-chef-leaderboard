@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { BulkSyncService } from "@/services/bulkSync.service";
-import crypto from "crypto";
+import { prisma } from "@/lib/prisma";
 
 function isAdmin(request: NextRequest): boolean {
   const authHeader = request.headers.get("authorization");
@@ -32,41 +32,48 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 1. Queue eligible profiles
-    const queueResult = await BulkSyncService.queueEligibleStudents();
+    // 1. Check if an active bulk refresh is already in progress
+    const currentStats = await BulkSyncService.getQueueProgressStats();
+    
+    if (currentStats.remaining > 0 && currentStats.queued > 0) {
+      const activeJob = await prisma.syncJob.findFirst({
+        where: { status: { in: ["QUEUED", "PROCESSING", "RETRY_PENDING"] } },
+        orderBy: { updatedAt: "desc" }
+      });
+      return NextResponse.json({
+        success: true,
+        alreadyRunning: true,
+        message: "Refresh already in progress.",
+        jobId: activeJob?.id || `bulk_${Date.now()}`,
+        stats: currentStats
+      });
+    }
 
     // 2. Unpause queue if paused
     BulkSyncService.setPaused(false);
 
-    // 3. Register virtual job in jobTracker
-    const jobId = crypto.randomUUID();
-    const stats = await BulkSyncService.getQueueProgressStats();
-    
-    const { createJob } = await import("@/lib/jobTracker");
-    createJob(jobId, "ADMIN_UI", "ALL", stats.eligibleProfiles);
+    // 3. Queue eligible student profiles safely
+    const queueResult = await BulkSyncService.queueEligibleStudents();
+    const jobId = `bulk_${Date.now()}`;
 
-    // 4. Start processing batches continuously in background
-    (async () => {
-      let remaining = 1;
-      while (remaining > 0 && !BulkSyncService.isPaused()) {
-        const batchRes = await BulkSyncService.processBatch(10, 2);
-        remaining = batchRes.remainingCount;
-        if (batchRes.processedCount === 0) break;
-      }
-    })().catch((err) => {
-      console.error("Background processing loop error:", err);
+    // 4. Register in jobTracker memory store
+    const { createJob } = await import("@/lib/jobTracker");
+    const totalCount = queueResult.queuedCount || currentStats.eligibleProfiles;
+    createJob(jobId, "ADMIN_UI", "ALL", totalCount);
+
+    // 5. Trigger initial small bounded batch (5 items max) asynchronously
+    BulkSyncService.processBatch(5, 2).catch((err) => {
+      console.error("Initial batch execution error in /api/admin/refresh/all:", err);
     });
 
-    return NextResponse.json(
-      {
-        success: true,
-        message: `Queued ${queueResult.queuedCount} eligible profiles. Verification processing started.`,
-        jobId,
-        queueResult,
-        stats,
-      },
-      { headers: { "Cache-Control": "private, no-store" } }
-    );
+    return NextResponse.json({
+      success: true,
+      jobId,
+      alreadyRunning: false,
+      message: `Queued ${queueResult.queuedCount} eligible profiles for live data synchronization.`,
+      queueResult
+    }, { headers: { "Cache-Control": "private, no-store" } });
+
   } catch (err: any) {
     if (err.name === "AuthError") {
       const status = err.code === "UNAUTHORIZED" ? 401 : 403;

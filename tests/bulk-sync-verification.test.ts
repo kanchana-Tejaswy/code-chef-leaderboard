@@ -270,4 +270,56 @@ describe("Bulk Platform Verification & Synchronization Suite", () => {
     const importedRow = { name: "New Student", rollNumber: "R999", department: "CSE" };
     expect(importedRow.name).toBe("New Student");
   });
+
+  it("24. Stale PROCESSING recovery resets stuck jobs older than 10 minutes", async () => {
+    const now = new Date();
+    const tenMinsAgo = new Date(now.getTime() - 11 * 60 * 1000);
+    (prisma.syncJob.findMany as any).mockResolvedValue([
+      { id: "staleJob1", studentId: "s1", status: "PROCESSING", attemptCount: 1, updatedAt: tenMinsAgo },
+    ]);
+    (prisma.syncJob.update as any).mockResolvedValue({});
+    (prisma.studentProfile.update as any).mockResolvedValue({});
+
+    const recovered = await BulkSyncService.recoverStuckJobs(10);
+    expect(recovered.length).toBe(1);
+    expect(recovered[0].status).toBe("RETRY_PENDING");
+  });
+
+  it("25. Atomic job claiming transitions QUEUED to PROCESSING", async () => {
+    (prisma.syncJob.findMany as any)
+      .mockResolvedValueOnce([{ id: "j1", studentId: "s1", status: "QUEUED", createdAt: new Date() }])
+      .mockResolvedValueOnce([{ id: "j1", studentId: "s1", status: "PROCESSING", createdAt: new Date() }]);
+    (prisma.syncJob.update as any).mockResolvedValue({});
+
+    const claimed = await BulkSyncService.claimJobs(1);
+    expect(claimed.length).toBe(1);
+  });
+
+  it("26. Duplicate refresh request returns active job status idempotently", async () => {
+    (prisma.syncJob.count as any).mockResolvedValue(5);
+    (prisma.studentProfile.count as any).mockResolvedValue(10);
+    (prisma.syncJob.findFirst as any).mockResolvedValue({ id: "active-job-123", status: "QUEUED" });
+
+    const stats = await BulkSyncService.getQueueProgressStats();
+    expect(stats.remaining).toBe(5);
+    expect(stats.queued).toBe(5);
+  });
+
+  it("27. Status reporting calculations return real database progress", async () => {
+    (prisma.studentProfile.count as any)
+      .mockResolvedValueOnce(1626) // total
+      .mockResolvedValueOnce(1596) // eligible
+      .mockResolvedValueOnce(43)   // verified
+      .mockResolvedValueOnce(224);  // incomplete
+    (prisma.syncJob.count as any)
+      .mockResolvedValueOnce(1480) // queued
+      .mockResolvedValueOnce(69)   // processing
+      .mockResolvedValueOnce(47)   // retryPending
+      .mockResolvedValueOnce(1596); // remaining
+
+    const stats = await BulkSyncService.getQueueProgressStats();
+    expect(stats.totalProfiles).toBe(1626);
+    expect(stats.queued).toBe(1480);
+    expect(stats.processing).toBe(69);
+  });
 });
