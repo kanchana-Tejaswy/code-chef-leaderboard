@@ -2,7 +2,7 @@ import { requireAdminPageAccess } from "@/lib/auth";
 import AdminAccessClient from "./AdminAccessClient";
 
 export const metadata = {
-  title: "Admin Access Management",
+  title: "Admin Access Management - CODE AROHA",
 };
 
 export default async function AdminAccessPage() {

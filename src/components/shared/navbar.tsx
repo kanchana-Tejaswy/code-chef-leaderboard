@@ -82,8 +82,8 @@ export function Navbar({ userRole, studentProfileId }: NavbarProps) {
           <Link href="/" className="flex items-center gap-3 group">
             {/* Hexagon Brain SVG Icon */}
               <Image
-                src="/ace-logo-ldb.jpg"
-                alt="ACE Logo"
+                src="/code-aroha-logo.jpg"
+                alt="CODE AROHA Logo"
                 width={40}
                 height={40}
                 className="rounded-md"

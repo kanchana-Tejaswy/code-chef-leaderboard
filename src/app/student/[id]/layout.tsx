@@ -1,4 +1,10 @@
 import { requireStudentProfileReadPageAccess } from "@/lib/auth";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "CODE AROHA | Student Profile",
+  description: "Detailed programming accomplishments and student portfolio.",
+};
 
 export default async function StudentProfileLayout({
   children,

@@ -202,7 +202,7 @@ export default function AnalyticsPage() {
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white font-sans font-black">Institutional Analytics</h1>
             <p className="text-sm text-brand-muted mt-1">
-              Deeper algorithmic performance trends and skill distribution datasets across ACE College
+              Deeper algorithmic performance trends and skill distribution datasets across CODE AROHA
             </p>
           </div>
         </div>

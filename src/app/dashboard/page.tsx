@@ -1441,8 +1441,8 @@ export default function LandingPage() {
         <div className="flex items-center gap-5 relative z-10">
           <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[#EAB308]/10 border border-[#EAB308]/30 text-[#EAB308] shadow-inner">
             <Image
-              src="/ace-logo-ldb.jpg"
-              alt="ACE Logo"
+              src="/code-aroha-logo.jpg"
+              alt="CODE AROHA Logo"
               width={40}
               height={40}
               className="rounded-md"
@@ -2429,7 +2429,7 @@ export default function LandingPage() {
                       <td colSpan={9} className="py-24 text-center">
                         <div className="flex flex-col items-center gap-3">
                           <Loader2 className="h-7 w-7 animate-spin text-[#EAB308]" />
-                          <span className="text-xs text-brand-muted font-bold">Querying ACE Student archives...</span>
+                          <span className="text-xs text-brand-muted font-bold">Querying CODE AROHA Student archives...</span>
                         </div>
                       </td>
                     </tr>

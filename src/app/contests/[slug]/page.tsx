@@ -2,6 +2,22 @@ import { getAuthenticatedUserAccess } from "@/lib/auth";
 import { redirect, notFound } from "next/navigation";
 import { ContestDetailClient } from "@/components/contests/ContestDetailClient";
 import { prisma } from "@/lib/prisma";
+import type { Metadata } from "next";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const contest = await prisma.contest.findUnique({
+    where: { slug },
+  });
+  return {
+    title: contest ? `${contest.name} - CODE AROHA` : "Contest Details - CODE AROHA",
+    description: contest ? `Participant performance standings for ${contest.name}.` : "Contest standings details.",
+  };
+}
 
 export default async function ContestDetailPage({
   params,

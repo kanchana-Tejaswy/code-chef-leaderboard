@@ -4,8 +4,14 @@ import { prisma } from "@/lib/prisma";
 import { UserRole, AccountStatus } from "@prisma/client";
 import { getRoleHomePath } from "@/lib/auth";
 import LoginForm from "./LoginForm";
+import type { Metadata } from "next";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Login - CODE AROHA",
+  description: "Sign in to CODE AROHA competitive programming platform.",
+};
 
 export default async function LoginPage() {
   const supabase = await createClient();

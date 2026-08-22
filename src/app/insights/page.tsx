@@ -195,7 +195,7 @@ export default function InsightsPage() {
             <div>
               <h1 className="text-3xl font-extrabold tracking-tight text-white">AI Insights</h1>
               <p className="text-sm text-brand-muted mt-1">
-                Neural intelligence scoring, career mapping, and placement projections for ACE
+                Neural intelligence scoring, career mapping, and placement projections for CODE AROHA
               </p>
             </div>
           </div>
@@ -244,7 +244,7 @@ export default function InsightsPage() {
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white font-black">AI Insights</h1>
             <p className="text-sm text-brand-muted mt-1">
-              Neural intelligence scoring, career mapping, and placement projections for ACE
+              Neural intelligence scoring, career mapping, and placement projections for CODE AROHA
             </p>
           </div>
         </div>

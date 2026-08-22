@@ -412,7 +412,7 @@ export function ContestDetailClient({
       ) : stats && (
         <div className="mb-8 grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-6">
           {[
-            { label: "ACE Students", value: stats.totalEligible },
+            { label: "CODE AROHA Students", value: stats.totalEligible },
             { label: "Participants", value: stats.participantCount },
             { label: "Participation %", value: `${stats.participationPercentage}%` },
             { label: "Highest Rank", value: stats.highestRank !== null ? stats.highestRank : "N/A" },

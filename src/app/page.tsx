@@ -123,7 +123,7 @@ export default async function LandingPage() {
       <div className="border-t border-brand-border py-6 relative z-10 bg-brand-card/20">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-xs text-brand-muted">
-            &copy; 2026 ACE Engineering College. All rights reserved. Powered by Supabase & Next.js.
+            &copy; 2026 CODE AROHA. All rights reserved. Powered by Supabase & Next.js.
           </p>
         </div>
       </div>

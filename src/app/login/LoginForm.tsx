@@ -67,8 +67,8 @@ export default function LoginForm() {
           {/* Logo & Branding */}
           <div className="relative p-1 rounded-2xl bg-gradient-to-b from-[#EAB308]/20 to-transparent border border-[#EAB308]/30">
             <Image
-              src="/ace-logo-ldb.jpg"
-              alt="ACE Logo"
+              src="/code-aroha-logo.jpg"
+              alt="CODE AROHA Logo"
               width={52}
               height={52}
               className="rounded-xl shadow-md"

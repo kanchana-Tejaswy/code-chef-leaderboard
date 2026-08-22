@@ -304,7 +304,7 @@ export function ContestListingClient({ userRole }: ContestListingClientProps) {
                       {contest.status === "COMPLETED" && (
                         <div className="flex items-center gap-2">
                           <Users className="h-4 w-4 text-brand-muted" />
-                          <span>{contest.participantCount} ACE Participants</span>
+                          <span>{contest.participantCount} CODE AROHA Participants</span>
                         </div>
                       )}
                     </div>

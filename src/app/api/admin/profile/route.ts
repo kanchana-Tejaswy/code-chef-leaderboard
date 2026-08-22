@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         departmentId: adminAccess.departmentId,
         lastLoginAt: adminAccess.lastLoginAt,
         createdAt: adminAccess.createdAt,
-        fullName: profile?.name || (adminAccess.role === UserRole.GK_SIR ? "GK Sir" : "ACE System Admin"),
+        fullName: profile?.name || (adminAccess.role === UserRole.GK_SIR ? "GK Sir" : "CODE AROHA System Admin"),
         avatarUrl: profile?.avatarUrl || null,
         contactNumber: null,
         canDeleteStudents: adminAccess.canDeleteStudents,

@@ -139,7 +139,7 @@ export default function DepartmentsPage() {
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-white font-black">Department Standings</h1>
             <p className="text-sm text-brand-muted mt-1">
-              Comparative analysis and standings across ACE engineering departments
+              Comparative analysis and standings across CODE AROHA engineering departments
             </p>
           </div>
         </div>
